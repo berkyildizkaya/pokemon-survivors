@@ -6,16 +6,18 @@ import { logger } from 'hono/logger'
 import { isDifficulty } from '../../src/game/difficulty'
 import { parseSaveData } from '../../src/game/meta'
 import { isRecord } from '../../src/game/parse'
-import { isBoardPeriod, isPlayable, parseDisplayName, parseHandle, parseRunResult } from '../../src/game/ranking'
+import { isBoardPeriod, isPlayable, parseDisplayName, parseHandle, parseHandlePrefix, parseRunResult } from '../../src/game/ranking'
 import { parseReplay } from '../../src/game/replay'
 import type { Verify } from './auth'
 import type { Checks } from './checks'
 import type { SaveStore } from './db'
+import type { FriendStore } from './friends'
 import type { RankingStore } from './ranking'
 
 export type AppDeps = {
   store: SaveStore
   ranking: RankingStore
+  friends: FriendStore
   /** Re-simulates finished runs after the answer went out. */
   checks: Pick<Checks, 'schedule'>
   verify: Verify
@@ -54,8 +56,13 @@ const FINISH_ERRORS = { unknown: 404, mismatch: 409, clock: 422 } as const
  *   `friends` needs a token.
  * - `GET /profiles/:handle`: `PublicProfile`, 404 if nobody has that handle.
  * - `PUT|DELETE /follows/:handle` (auth): follows or unfollows. `{ followed, followers }`.
+ *   Following is a friend request; following back accepts it.
+ * - `GET /friends` (auth): `FriendList`, friends and pending requests both ways.
+ * - `DELETE /followers/:handle` (auth): declines their request (drops their follow). `{ ok }`.
+ * - `DELETE /friends/:handle` (auth): unfriends (drops both follows). `{ ok }`.
+ * - `GET /players?q=`: `{ players }`, up to 8 `PlayerMatch` whose handle starts with `q` (2+ characters), without the asker.
  */
-export const createApp = ({ store, ranking, checks, verify, allowedOrigin, ping }: AppDeps) => {
+export const createApp = ({ store, ranking, friends, checks, verify, allowedOrigin, ping }: AppDeps) => {
   const app = new Hono()
 
   app.use(logger())
@@ -151,6 +158,20 @@ export const createApp = ({ store, ranking, checks, verify, allowedOrigin, ping 
       return followed ? c.json(followed) : c.json({ error: 'no such player' }, 404)
     })
   }
+
+  app.get('/friends', auth, async (c) => c.json(await friends.list(c.var.userId)))
+
+  for (const [path, drop] of [['/followers/:handle', friends.decline], ['/friends/:handle', friends.unfriend]] as const) {
+    app.delete(path, auth, async (c) => {
+      const handle = parseHandle(c.req.param('handle'))
+      return handle && (await drop(c.var.userId, handle)) ? c.json({ ok: true }) : c.json({ error: 'no such player' }, 404)
+    })
+  }
+
+  app.get('/players', maybeAuth, async (c) => {
+    const prefix = parseHandlePrefix(c.req.query('q'))
+    return c.json({ players: prefix ? await friends.search(prefix, c.var.userId) : [] })
+  })
 
   app.onError((err, c) => {
     console.error(err)

@@ -199,11 +199,12 @@ export const rankingStore = (sql: Sql) => {
           select starter, stage, difficulty, survived, outcome, started_at, verified
           from runs where user_id = ${user.id} and finished_at is not null and verified is not false
           order by started_at desc limit 10`,
-        sql<{ followers: number; following: number; followed: boolean }[]>`
+        sql<{ followers: number; following: number; followed: boolean; follows_you: boolean }[]>`
           select
             (select count(*)::int from follows where followee_id = ${user.id}) as followers,
             (select count(*)::int from follows where follower_id = ${user.id}) as following,
-            exists (select 1 from follows where follower_id = ${viewer ?? ''} and followee_id = ${user.id}) as followed`,
+            exists (select 1 from follows where follower_id = ${viewer ?? ''} and followee_id = ${user.id}) as followed,
+            exists (select 1 from follows where follower_id = ${user.id} and followee_id = ${viewer ?? ''}) as follows_you`,
         sql<{ data: unknown }[]>`select data from saves where user_id = ${user.id}`,
       ])
       const data = parseSaveData(save?.data)
@@ -218,6 +219,7 @@ export const rankingStore = (sql: Sql) => {
         followers: counts?.followers ?? 0,
         following: counts?.following ?? 0,
         followed: counts?.followed ?? false,
+        followsYou: counts?.follows_you ?? false,
         self: viewer === user.id,
       }
     },
