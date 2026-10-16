@@ -3,6 +3,7 @@ import { createApp } from './app'
 import { clerkVerifier } from './auth'
 import { connect, migrate, saveStore } from './db'
 import { createChecks } from './checks'
+import { friendStore } from './friends'
 import { rankingStore } from './ranking'
 import { loadEnv } from './env'
 
@@ -18,6 +19,7 @@ void checks.resume()
 const app = createApp({
   store: saveStore(sql),
   ranking,
+  friends: friendStore(sql),
   checks,
   verify: clerkVerifier(env),
   allowedOrigin: env.allowedOrigin,
