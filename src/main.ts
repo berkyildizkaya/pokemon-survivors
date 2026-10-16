@@ -688,9 +688,13 @@ const handleTeamEvent = (r: Run, e: RunEvent, slot: number): void => {
       return toast(ui, rich(c.revived(name)), 2400, `fainted-${slot}`)
     case 'left':
       return toast(ui, c.left(name), 3000)
+    case 'evolve':
+      // The world holds still for everyone while it plays: say why.
+      if (p) toast(ui, rich(c.evolving(name, PLAYABLE[p.starter].line[p.stage]!.name)), 4400, `evolve-${slot}`)
+      return
     case 'evolved':
       playSfx('evolve')
-      if (p) toast(ui, rich(c.evolved(name, PLAYABLE[p.starter].line[p.stage]!.name)), 3200)
+      if (p) toast(ui, rich(c.evolved(name, PLAYABLE[p.starter].line[p.stage]!.name)), 3200, `evolve-${slot}`)
       return
     case 'mega':
       playSfx('megaBurst', 0)

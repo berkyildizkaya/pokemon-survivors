@@ -51,6 +51,8 @@ export const friendsScreen = (root: HTMLElement, input: Input, actions: FriendsA
     query = search.value
     void runSearch()
   })
+  // Inside the field the game's keys are off (see `createInput`), so Esc is caught here.
+  search.addEventListener('keydown', (e) => e.key === 'Escape' && close())
 
   const load = async () => {
     failed = false

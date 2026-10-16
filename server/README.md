@@ -145,9 +145,9 @@ A second Dokploy application from the same repository and Dockerfile:
 - **Environment:** `PORT=3001`, plus `DATABASE_URL`, `CLERK_SECRET_KEY` (and `CLERK_JWT_KEY`, `CORS_ORIGINS` if `api` has them) with the same values as `api`. The image's healthcheck calls `/health` on `$PORT`.
 - **Domain:** host `api.pokemonsurvivors.com`, path `/ws`, container port `3001`, HTTPS with Let's Encrypt, path stripping off (the server expects `/ws`). Traefik prefers the longer rule (`Host && PathPrefix(/ws)`) over the API's host-only one, so `wss://api.pokemonsurvivors.com/ws` reaches `play` with no DNS change.
 - **Replicas:** one. Rooms live in its memory.
-- **Watch paths:** `server/src/play/**`, `server/src/play.ts`, `src/net/**`, plus what it shares: `server/src/friends.ts`, `server/src/auth.ts`, `server/src/db.ts`, `server/src/env.ts`, `server/package.json`, and the playable list `src/data/starters.ts`, `src/data/hatchlings.ts`. Keep it narrow on purpose: every deploy of `play` ends the runs in progress.
+- **Watch paths:** `server/src/play/**`, `server/src/play.ts`, `src/net/**`, plus what it shares: `server/src/friends.ts`, `server/src/auth.ts`, `server/src/db.ts`, `server/src/env.ts`, `server/package.json`. Keep it narrow on purpose: every deploy of `play` ends the runs in progress.
 
-The protocol's parser also reads the playable list, the Poké Mart upgrades (`src/game/meta.ts`) and the difficulties (`src/game/difficulty.ts`). A `play` older than the game drops a `loadout` with a Pokémon it doesn't know (the member stays on the default) and clamps ranks of upgrades it doesn't know to 0 for everyone. That's why the playable files are watched; when a new upgrade or difficulty ships, redeploy `play` by hand.
+The relay doesn't need the game's data: a member's loadout travels loosely typed (any Pokémon id, any upgrade name) and the clients read it with `setupOf`, all on the same build (a room only admits its creator's `build`). So a new Pokémon or upgrade never needs a `play` deploy; only a new difficulty does (the lobby's difficulty is still checked).
 
 ### When it deploys
 

@@ -4469,11 +4469,21 @@ a.btn.dex-site {
 
 .coop-join .field {
   flex: 1;
+  min-width: 0;
+}
+
+.coop-join .field-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.coop-join .btn {
+  flex: none;
 }
 
 .code-input {
   font-family: var(--title);
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 4px;
   text-transform: uppercase;
 }

@@ -219,8 +219,6 @@ export const pt = {
   /** Public profiles and the profile editor. */
   profile: {
     title: 'PERFIL',
-    follow: 'Seguir',
-    unfollow: 'Seguindo',
     /** Friendship with this player: none yet, request sent, request received, friends. */
     addFriend: 'Adicionar amigo',
     requestSent: 'Pedido enviado',
@@ -228,7 +226,7 @@ export const pt = {
     friends: 'Amigos ✓',
     followers: (n: number) => (n === 1 ? '1 seguidor' : `${n} seguidores`),
     following: (n: number) => `${n} seguindo`,
-    followGuest: 'Entre com uma conta para seguir treinadores.',
+    followGuest: 'Entre com uma conta para adicionar amigos.',
     records: 'Recordes',
     noRecord: '—',
     dex: 'Pokédex',
@@ -327,6 +325,7 @@ export const pt = {
     revived: (name: string) => `*${name}* voltou à luta!`,
     youRevived: 'Você voltou à luta!',
     left: (name: string) => `${name} saiu da partida.`,
+    evolving: (name: string, form: string) => `O *${form}* de *${name}* está evoluindo!`,
     evolved: (name: string, form: string) => `*${name}* evoluiu para *${form}*!`,
     mega: (name: string, form: string) => `*${name}* virou *${form}*!`,
     menu: 'MENU',

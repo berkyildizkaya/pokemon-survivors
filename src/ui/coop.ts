@@ -72,7 +72,8 @@ export const coopHub = (root: HTMLElement, input: Input, actions: HubActions, co
     { label: m.back, run: actions.back },
   ]
   const buttons = items.map((i) => h('button', { class: 'btn' }, i.label))
-  const nav = menu(input, buttons, (i) => (playSfx('select'), later(items[i]!.run)))
+  // Arriving from a room link, Join is the move.
+  const nav = menu(input, buttons, (i) => (playSfx('select'), later(items[i]!.run)), { initial: code ? 1 : 0 })
   const offEsc = input.onKey((k) => (k === 'Escape' || k === 'Backspace') && later(actions.back))
 
   const el = h(

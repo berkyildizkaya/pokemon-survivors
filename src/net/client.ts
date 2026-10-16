@@ -100,6 +100,7 @@ export const onConnection = (fn: (c: Connection) => void) => {
 
 /** Sends now, or right after the handshake while it's still going. */
 export const send = (m: ClientMessage) => {
+  if (!coopEnabled) return
   if (socket && welcomed && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(m))
   else outbox.push(m)
 }
