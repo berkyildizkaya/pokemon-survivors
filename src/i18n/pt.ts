@@ -1,4 +1,4 @@
-import type { AchievementId, AchievementStat, TitleId } from '../data/achievements'
+import type { AchievementId, AchievementStat, GiftTitleId, TitleId } from '../data/achievements'
 import type { BiomeId } from '../data/biomes'
 import type { PokeType } from '../data/types'
 import type { PlayableId } from '../data/hatchlings'
@@ -7,6 +7,9 @@ import type { ItemId } from '../data/items'
 import type { TraitId } from '../data/traits'
 import type { ConsumableId } from '../game/consumables'
 import type { Difficulty } from '../game/difficulty'
+import type { BackgroundId, FrameId, StyleSlot, WallpaperId } from '../data/style'
+import type { BagItem } from '../game/bag'
+import type { RibbonTier } from '../game/ribbons'
 import type { EggTier } from '../game/eggs'
 import type { UpgradeId } from '../game/meta'
 import type { MOVES, MoveId } from '../game/moves'
@@ -66,6 +69,7 @@ export const pt = {
     pressTouch: 'Toque para começar',
     play: 'Jogar',
     coop: 'Jogar com amigos',
+    challenge: 'Desafio do dia',
     missions: 'Missões',
     pokedex: 'Pokédex',
     ranking: 'Ranking',
@@ -90,6 +94,10 @@ export const pt = {
     special: 'Especial',
     moves: 'Golpes',
     signature: 'INICIAL',
+    /** Normal/Shiny pick, for a Pokémon whose shiny the player once rolled (key `Z`). */
+    normal: 'Normal',
+    shiny: 'Shiny',
+    shinyPick: 'Cores',
     credits: 'Fan game não oficial · Sprites: PMD SpriteCollab · Cries: PokéAPI · Pokémon © Nintendo/Creatures/GAME FREAK',
   },
 
@@ -214,6 +222,19 @@ export const pt = {
     guest: 'Entre com uma conta para aparecer no ranking.',
     noHandle: 'Crie seu perfil na tela da conta para aparecer no ranking.',
     open: 'Ranking',
+    /** The Desafio do dia's board: a tab beside the difficulties, by day. */
+    challengeTab: 'Desafio',
+    days: { today: 'Hoje', yesterday: 'Ontem' },
+    challengeHead: (date: string, name: string, difficulty: string, n: number) => `${date} · ${name} · ${difficulty} · ${n === 1 ? '1 treinador' : `${n} treinadores`}`,
+    challengeEmpty: 'Ninguém fez a tentativa oficial deste dia ainda.',
+    challengeResets: 'Só a primeira partida terminada de cada treinador conta. As fitas saem às 3h (Brasília) do dia seguinte.',
+    challengeHint: '↑ ↓ jogador · ← → dia · Q E quadro · F amigos · ENTER perfil · ESC voltar',
+    /** End of a challenge run. */
+    challengePlace: (date: string, rank: number, total: number) => `Desafio de ${date}: *#${rank}* de ${total}`,
+    challengeSent: 'Tentativa oficial enviada: a posição aparece quando você criar seu perfil.',
+    challengePractice: 'Treino: sua tentativa oficial de hoje já foi.',
+    challengePracticePlace: (rank: number, total: number) => `Treino · sua tentativa oficial: #${rank} de ${total}`,
+    challengeGuest: 'Treino local: entre com uma conta para entrar no ranking do desafio.',
   },
 
   /** Public profiles and the profile editor. */
@@ -226,6 +247,7 @@ export const pt = {
     friends: 'Amigos ✓',
     followers: (n: number) => (n === 1 ? '1 seguidor' : `${n} seguidores`),
     following: (n: number) => `${n} seguindo`,
+    brought: (n: number) => (n === 1 ? '1 amigo trazido' : `${n} amigos trazidos`),
     followGuest: 'Entre com uma conta para adicionar amigos.',
     records: 'Recordes',
     noRecord: '—',
@@ -234,6 +256,7 @@ export const pt = {
     recent: 'Partidas recentes',
     noRuns: 'Nenhuma partida no ranking ainda.',
     share: 'Compartilhar',
+    card: 'Cartão de Treinador',
     copied: 'Link do perfil copiado!',
     edit: 'Editar',
     loading: 'Carregando…',
@@ -387,6 +410,75 @@ export const pt = {
     dexShinies: (n: number) => (n === 1 ? '1 shiny capturado' : `${n} shinies capturados`),
   },
 
+  /** Share cards (`render/card.ts`): the preview with its buttons, the text that goes along and the card's own labels. */
+  share: {
+    button: 'Compartilhar',
+    title: 'COMPARTILHAR',
+    trainerTitle: 'CARTÃO DE TREINADOR',
+    rendering: 'Desenhando o cartão…',
+    failed: 'Não deu para desenhar o cartão. Tente de novo.',
+    share: 'Compartilhar',
+    copy: 'Copiar imagem',
+    download: 'Baixar PNG',
+    back: 'Voltar',
+    copied: 'Imagem copiada! É só colar.',
+    saved: 'Imagem salva!',
+    hintKeys: '← → escolher · ENTER confirmar · ESC voltar',
+    hintTouch: 'Toque para escolher',
+    /** The text that goes with the run's card, e.g. "Sobrevivi 15:00 com Charizard ✨ e peguei 6 shinies. Me supera: <link>". */
+    runText: (r: { name: string; shiny: boolean; time: string; outcome: 'victory' | 'fainted' | 'endless'; shinies: number; link: string }) => {
+      const who = `${r.name}${r.shiny ? ' ✨' : ''}`
+      const caught = r.shinies === 0 ? '' : r.shinies === 1 ? ' e peguei 1 shiny' : ` e peguei ${r.shinies} shinies`
+      return r.outcome === 'victory' ? `Venci o Mewtwo com ${who}${caught}! Me supera: ${r.link}` : `Sobrevivi ${r.time} com ${who}${caught}. Me supera: ${r.link}`
+    },
+    trainerText: (shinies: number, caught: number, link: string) =>
+      `Meu Cartão de Treinador no Pokémon Survivors: ${shinies === 1 ? '1 shiny' : `${shinies} shinies`} e ${caught} Pokémon na Pokédex. Vem jogar: ${link}`,
+    card: {
+      shiny: 'SHINY',
+      outcomes: { victory: 'VITÓRIA', fainted: 'DESMAIOU', endless: 'SEM FIM' },
+      time: 'Tempo',
+      level: 'Nível',
+      kills: 'Derrotados',
+      shinies: 'SHINIES DA RUN',
+      newShinies: (n: number) => (n === 1 ? '1 novo na Pokédex' : `${n} novos na Pokédex`),
+      newSpecies: 'NOVOS NA POKÉDEX',
+      speciesCount: (n: number) => (n === 1 ? '1 espécie' : `${n} espécies`),
+      moves: 'GOLPES MAIS FORTES',
+      topMove: 'Golpe mais forte',
+      more: 'mais',
+      /** Header of the Trainer Card, one line each. */
+      trainerCard: ['CARTÃO DE', 'TREINADOR'],
+      idLabel: 'Treinador(a)',
+      guest: 'Visitante',
+      medals: 'Medalhas',
+      shinyTotal: 'Shinies',
+      pokedex: 'Pokédex',
+      best: 'Recorde',
+      showcase: 'SHINIES',
+      inBox: (n: number) => `${n} na Caixa do PC`,
+      noShinies: 'Nenhum shiny ainda',
+      /** An official challenge attempt, in the header: "Desafio de 15/10" over "#12 DE 340". */
+      challenge: (date: string) => `Desafio de ${date}`,
+      challengePlace: (rank: number, total: number) => `#${rank} DE ${total}`,
+      ribbons: 'Fitas',
+      play: 'Jogue grátis no navegador',
+    },
+  },
+
+  /** The Caixa do PC: every shiny caught, in boxes of 30. */
+  pc: {
+    title: 'CAIXA DO PC',
+    box: (n: number, total: number) => `CAIXA ${n}/${total}`,
+    prev: 'Caixa anterior',
+    next: 'Próxima caixa',
+    empty: 'Espaço vazio',
+    none: 'Ainda sem shinies. Todo shiny que você derrota vem morar aqui!',
+    trainer: 'Cartão de Treinador',
+    back: 'Voltar',
+    hintKeys: 'SETAS navegar · Q E caixa · ESC voltar',
+    hintTouch: 'Toque num shiny para ver · ◀ ▶ trocam de caixa',
+  },
+
   /** In-game Pokédex (title menu). */
   dex: {
     seen: 'Vistos',
@@ -402,6 +494,7 @@ export const pt = {
     empty: 'Nada aqui ainda.',
     back: 'Voltar',
     site: 'Onde encontrar ↗',
+    pc: 'Caixa do PC',
     hintKeys: 'SETAS navegar · Q E filtro · ESC voltar',
     hintTouch: 'Toque num Pokémon para ver detalhes',
   },
@@ -418,7 +511,106 @@ export const pt = {
     refundConfirm: (amount: string) => `Reembolsar tudo e receber ${amount}?`,
     yes: 'Sim',
     no: 'Não',
-    hint: '↑ ↓ escolher · ENTER comprar · ESC voltar',
+    hint: 'Q E prateleira · ↑ ↓ escolher · ENTER comprar · ESC voltar',
+    tabs: { upgrades: 'Melhorias', counter: 'Balcão do dia', style: 'Estilo' },
+    counterIntro: (time: string) => `Igual para todo mundo, com estoque do dia. Renova em ${time}.`,
+    stock: (left: number, max: number) => `Estoque ${left}/${max}`,
+    inBag: (n: number) => `Na bolsa: ${n}`,
+    sale: (pct: number) => `-${pct}%`,
+    saleNote: (pct: number) => `Promoção do dia: ${pct}% off!`,
+    soldOut: 'Esgotado hoje',
+    incubatorFull: 'Incubadora cheia',
+    eggDescription: (steps: string) => `Vai direto para a incubadora e choca com ${steps} passos.`,
+    owned: 'Seu',
+    equipped: 'Equipado',
+    equip: 'Equipar',
+    styleSlots: { frame: 'Molduras', background: 'Fundos', wallpaper: 'Papéis de parede' } satisfies Record<StyleSlot, string>,
+    styleDescriptions: {
+      frame: 'Moldura do cartão da run e do Cartão de Treinador que você compartilha.',
+      background: 'Céu do cartão da run e do Cartão de Treinador.',
+      wallpaper: 'Papel de parede da Caixa do PC.',
+    } satisfies Record<StyleSlot, string>,
+    styles: {
+      frame: { classic: 'Clássica', poke: 'Poké Ball', great: 'Great Ball', ultra: 'Ultra Ball', master: 'Master Ball', ambassador: 'Embaixador(a)' } satisfies Record<FrameId, string>,
+      background: { night: 'Noite estrelada', meadow: 'Rota 1', forest: 'Floresta de Viridian', cave: 'Monte Moon', snow: 'Monte Prateado', tower: 'Torre de Lavender' } satisfies Record<BackgroundId, string>,
+      wallpaper: { classic: 'Clássico', forest: 'Folhas', cave: 'Pedrinhas', snow: 'Flocos de neve', tower: 'Fantasminhas' } satisfies Record<WallpaperId, string>,
+    },
+  },
+
+  /** Surto do dia: one species everywhere today, its shiny far likelier. */
+  outbreak: {
+    title: 'Surto de hoje',
+    blurb: 'Aparece em todas as partidas de hoje: uns 2 shinies dele por partida.',
+    started: (name: string) => `Surto de *${name}*!`,
+    hint: 'Ele aparece muito mais hoje, e o shiny também.',
+  },
+
+  /** Desafio do dia: one run the same for everyone, the first finished one counting. */
+  challenge: {
+    title: 'DESAFIO DO DIA',
+    day: (date: string) => `Desafio de ${date}`,
+    same: 'A mesma partida para todo mundo hoje: semente, Pokémon e dificuldade.',
+    off: 'Sem melhorias da Poké Mart, Isca, Incenso ou Amuleto Brilhante. O surto do dia vale.',
+    outbreak: (name: string) => `Surto: ${name}`,
+    locked: 'Ainda no ovo para você: hoje dá para jogar com ele!',
+    official: 'TENTATIVA OFICIAL',
+    officialHint: 'Só a sua primeira partida terminada hoje entra no ranking do desafio.',
+    practice: 'TREINO',
+    practiceHint: 'Sua tentativa oficial de hoje já foi: as próximas são treino.',
+    attempt: (time: string) => `Sua tentativa: ${time}`,
+    place: (rank: number, total: number) => `#${rank} de ${total}`,
+    next: (time: string) => `Novo desafio em ${time}`,
+    guest: 'Visitantes jogam e treinam, mas só contas entram no ranking do desafio e ganham fitas.',
+    ribbons: 'Fitas: ouro para os 10% melhores, prata para a metade de cima e bronze para quem participou.',
+    play: 'Jogar (oficial)',
+    practicePlay: 'Treinar',
+    board: 'Ranking',
+    back: 'Voltar',
+    hintKeys: '← → escolher · ENTER confirmar · ESC voltar',
+    hintTouch: 'Toque para escolher',
+    /** The run's first toast. */
+    started: (date: string) => `*Desafio de ${date}*`,
+    startedOfficial: 'Tentativa oficial: boa sorte!',
+    startedPractice: 'Treino: não entra no ranking do desafio.',
+  },
+
+  /** Ribbons of the Desafio do dia, on the profile and the Trainer Card. */
+  ribbons: {
+    names: { gold: 'Fita de Ouro', silver: 'Fita de Prata', bronze: 'Fita de Bronze' } satisfies Record<RibbonTier, string>,
+    section: 'Fitas do desafio',
+  },
+
+  /** Invites: the banner a guest who came by a friend's link sees on the title screen. */
+  invite: {
+    banner: (name: string) => `*${name}* te convidou!`,
+    blurb: 'Crie uma conta e vocês dois ganham um Ovo da Amizade.',
+  },
+
+  /** Presente Misterioso: gifts from the server (invites, and later ribbons). */
+  gifts: {
+    title: 'Presente Misterioso!',
+    egg: (egg: string) => `Um *${egg}* foi para a incubadora.`,
+    coins: (coins: string) => `Você ganhou *${coins}*.`,
+    newTitle: (title: string) => `Novo título: *${title}*! Já está em uso.`,
+    style: (name: string) => `Novo estilo: *${name}*! Já está em uso.`,
+    shinyHatch: (name: string) => `Um *${name}* _shiny_ veio para você!`,
+    ribbon: (name: string) => `*${name}*! Já está no seu perfil.`,
+    ribbonWhy: (date: string, rank: number, total: number) => `Desafio de ${date}: #${rank} de ${total}`,
+    wait: 'Um Presente Misterioso espera espaço na incubadora.',
+    welcome: (from: string | null) => (from ? `Por entrar com o convite de @${from}` : 'Por entrar com um convite'),
+    friends: (n: number) => (n === 1 ? 'Por trazer seu primeiro amigo' : `Por trazer ${n} amigos`),
+  },
+
+  /** The Bag: Lures and Incenses from the Poké Mart's counter or from missions. */
+  bag: {
+    label: 'Bolsa',
+    descriptions: {
+      lure: 'Shinies selvagens 2× mais comuns na próxima partida (os do surto também).',
+      incense: 'Chance de ovo 2× maior na próxima partida.',
+    } satisfies Record<BagItem, string>,
+    active: { lure: 'Shinies 2× mais comuns nesta partida!', incense: 'Chance de ovo 2× maior nesta partida!' } satisfies Record<BagItem, string>,
+    toggle: (name: string, n: number) => `${name} ×${n}`,
+    pickHint: 'Usar na próxima partida',
   },
 
   toast: {
@@ -427,7 +619,7 @@ export const pt = {
     legendary: (name: string) => `Um *${name}* _lendário_ apareceu!`,
     boss: (name: string) => `Um *${name}* selvagem apareceu!`,
     bossFled: (name: string) => `O *${name}* selvagem fugiu!`,    shiny: (name: string) => `Um *${name}* shiny apareceu!`,
-    shinyPlayer: (name: string) => `Que sorte! Seu *${name}* é shiny!`,
+    shinyPlayer: (name: string) => `Que sorte! Seu *${name}* é shiny! Agora ele fica _liberado_ na seleção.`,
     caught: (name: string) => `*${name}* shiny é seu! Registrado na _Pokédex_.`,
     evolving: (name: string) => `Hã? ${name} está evoluindo!`,
     evolved: (from: string, to: string) => `Parabéns! ${from} evoluiu para ${to}!`,
@@ -523,7 +715,7 @@ export const pt = {
   },
   /** Eggs: the incubator, the hatching scene and the egg box in the Pokémon select. */
   eggs: {
-    tiers: { common: 'Ovo comum', rare: 'Ovo raro', ultra: 'Ovo ultra raro' } satisfies Record<EggTier, string>,
+    tiers: { common: 'Ovo comum', rare: 'Ovo raro', ultra: 'Ovo ultra raro', friend: 'Ovo da Amizade' } satisfies Record<EggTier, string>,
     found: (egg: string) => `Você achou um *${egg}*! Ele vai para a incubadora.`,
     title: 'INCUBADORA',
     intro: 'Os ovos chocam com os passos dados nas partidas. Todos os ovos da incubadora andam juntos.',
@@ -548,6 +740,7 @@ export const pt = {
     tab: 'OVOS',
     locked: '???',
     lockedBlurb: (egg: string) => `Ainda está no ovo. Sai de um *${egg}*.`,
+    friendBlurb: 'Só sai do *Ovo da Amizade*: convide amigos pelo seu link para ganhar um.',
     lockedButton: 'Ainda no ovo',
     incubator: (n: number, slots: number) => `Incubadora ${n}/${slots}`,
     readyBadge: (n: number) => (n === 1 ? '1 ovo pronto!' : `${n} ovos prontos!`),
@@ -615,6 +808,9 @@ export const pt = {
     toastEgg: (n: number) => (n === 1 ? 'Um *ovo* foi para a incubadora!' : `${n} *ovos* foram para a incubadora!`),
     rewardEgg: (tier: string) => `+ ${tier}`,
     reportEggs: (n: number) => (n === 1 ? '+1 ovo' : `+${n} ovos`),
+    rewardItem: (name: string) => `+ ${name} (vai para a bolsa)`,
+    reportItems: (n: number) => (n === 1 ? '+1 item na bolsa' : `+${n} itens na bolsa`),
+    toastItem: (n: number) => (n === 1 ? 'Um *item* foi para a bolsa!' : `${n} *itens* foram para a bolsa!`),
     goals: {
       kills: (n: string) => `Derrote ${n} Pokémon`,
       typeKills: (n: string, type: string) => `Derrote ${n} Pokémon do tipo ${type}`,
@@ -634,6 +830,7 @@ export const pt = {
       } satisfies Record<BiomeId, (n: string) => string>,
       traitKills: (n: string) => `Derrote ${n} Pokémon com comportamento`,
       shinyKills: (n: string) => (n === '1' ? 'Derrote um Pokémon shiny' : `Derrote ${n} Pokémon shiny`),
+      outbreakKills: (n: string, name: string) => `Derrote ${n} ${name} do surto de hoje`,
       bossKills: (n: string) => `Derrote ${n} chefes`,
       rifts: (n: string) => (n === '1' ? 'Vença uma fenda lendária' : `Vença ${n} fendas lendárias`),
       chests: (n: string) => (n === '1' ? 'Abra um baú' : `Abra ${n} baús`),
@@ -662,6 +859,8 @@ export const pt = {
     noTitle: 'nenhum',
     titleTag: 'TÍTULO',
     equipped: 'EM USO',
+    /** Titles that come as a Mystery Gift, with how they were earned. */
+    giftTitles: { ambassador: 'Trouxe 3 amigos para o jogo' } satisfies Record<GiftTitleId, string>,
     newMedals: 'Novas medalhas',
     names: {
       firstRun: 'Primeiros passos',
@@ -734,6 +933,7 @@ export const pt = {
       champion: 'Campeão',
       regions: 'Mestre das Regiões',
       reaperDown: 'Lenda Viva',
+      ambassador: 'Embaixador(a)',
     } satisfies Record<TitleId, string>,
     goals: {
       runs: (n: string) => (n === '1' ? 'Jogue uma partida' : `Jogue ${n} partidas`),
@@ -1267,6 +1467,7 @@ export const pt = {
     amuletCoin: '+10% de ₽ ganhos por nível.',
     abilityCapsule: '+1 troca de opções por partida ao subir de nível.',
     escapeRope: '+1 pulo de subida de nível por partida.',
+    shinyCharm: 'Shinies selvagens mais comuns: +1/3 da chance por nível (1/450 → 1/225 no máximo).',
   },
 
   consumables: {
@@ -1361,6 +1562,7 @@ export const pt = {
     bagon: 'Sonha em voar. Fogo dracônico desde o ovo.',
     slakoth: 'Preguiça. Lento para agir, mas bate muito forte.',
     feebas: 'O mais sem graça. Até virar o mais belo.',
+    munchlax: 'Tanque guloso. Muita vida, defesa e regeneração; puxa os itens de longe.',
   },
 
   specials: {

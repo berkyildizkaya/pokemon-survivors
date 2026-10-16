@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { NO_ACHIEVEMENTS } from './achievements'
 import { buyUpgrade, EMPTY_SAVE, NO_RANKS, refundAll, upgradePrice, type Save } from './meta'
+import { bagCount } from './bag'
+import { buyFromCounter, buyStyle, counterOf } from './mart'
 import { applyPush, mergeSaves } from './sync'
 
 const save = (patch: Partial<Save>): Save => ({ ...EMPTY_SAVE, ...patch })
@@ -11,8 +13,10 @@ const guest = save({
   dex: { 1: [10, 1], 25: [2, 0] },
   eggs: [{ tier: 'common', steps: 1500 }],
   hatched: { eevee: { shiny: true } },
+  shinyStarters: { charmander: false },
   missions: { daily: { key: '2026-10-14', progress: { 'kills:500': 300 } }, weekly: { key: '2026-10-12', progress: {} } },
   achievements: { unlocked: ['survive5'], lifetime: { ...NO_ACHIEVEMENTS.lifetime, kills: 900, legends: ['lugia'] } },
+  gifts: ['gift-a'],
 })
 
 const account = save({
@@ -21,20 +25,36 @@ const account = save({
   dex: { 1: [40, 0], 150: [1, 0] },
   eggs: [{ tier: 'common', steps: 200 }, { tier: 'rare', steps: 0 }],
   hatched: { eevee: { shiny: false }, gible: { shiny: false } },
+  shinyStarters: { pichu: true },
   missions: { daily: { key: '2026-10-13', progress: { 'kills:500': 500 } }, weekly: { key: '2026-10-12', progress: { 'steps:5000': 4000 } } },
   achievements: { unlocked: ['firstRun'], lifetime: { ...NO_ACHIEVEMENTS.lifetime, kills: 600, runs: 40, legends: ['kyogre'] } },
+  titles: ['ambassador'],
+  gifts: ['gift-b', 'gift-a'],
 })
 
 describe('mergeSaves', () => {
+  it("never pays back what one side spent at the counter or on styles", () => {
+    const before = save({ wallet: 10_000 })
+    const shopped = buyStyle(buyFromCounter(before, counterOf('2026-10-15'), 'lure')!, 'frame', 'master')!
+    const m = mergeSaves(before, shopped)
+    expect(m.wallet).toBe(shopped.wallet)
+    expect(m.style.owned.frame).toEqual(['master'])
+    expect(bagCount(m.bag, 'lure')).toBe(1)
+    expect(mergeSaves(m, before)).toEqual({ ...m, style: { ...m.style, equipped: before.style.equipped }, bag: { ...m.bag, armed: before.bag.armed } })
+  })
+
   it('joins the collection and keeps the larger upgrades and records', () => {
     const m = mergeSaves(account, guest)
     expect(m.ranks).toMatchObject({ hpUp: 3, protein: 2, iron: 0 })
     expect(m.dex).toEqual({ 1: [40, 1], 25: [2, 0], 150: [1, 0] })
     expect(m.hatched).toEqual({ eevee: { shiny: true }, gible: { shiny: false } })
+    expect(m.shinyStarters).toEqual({ charmander: false, pichu: true })
     expect(m.eggs).toEqual([{ tier: 'rare', steps: 0 }, { tier: 'common', steps: 1500 }])
     expect(m.achievements.unlocked).toEqual(expect.arrayContaining(['survive5', 'firstRun']))
     expect(m.achievements.lifetime).toMatchObject({ kills: 900, runs: 40 })
     expect(m.achievements.lifetime.legends).toEqual(expect.arrayContaining(['kyogre', 'lugia']))
+    expect(m.titles).toEqual(['ambassador'])
+    expect(m.gifts).toEqual(['gift-a', 'gift-b'])
   })
 
   it('keeps the current day of missions, and the most progress on the same week', () => {

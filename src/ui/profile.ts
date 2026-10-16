@@ -5,7 +5,8 @@ import { formatTime } from '../engine/math'
 import { PLAYABLE, type PlayableId } from '../data/hatchlings'
 import { DIFFICULTY_IDS, type Difficulty } from '../game/difficulty'
 import { handleProblem, normalizeHandle, parseDisplayName, suggestHandle, type ProfileRun, type PublicProfile } from '../game/ranking'
-import { pokeballIcon } from '../render/art'
+import { RIBBON_TIERS, type RibbonTier } from '../game/ribbons'
+import { pokeballIcon, ribbonIcon } from '../render/art'
 import { portraitUrl } from '../render/sprites'
 import { send } from '../net/client'
 import { fetchProfile, profileUrl, setFollow } from '../ranking'
@@ -13,6 +14,7 @@ import { pokedex } from '../site/pokedex'
 import { LOCALES, locale, t } from '../i18n'
 import { h, later } from './dom'
 import { titleBadge } from './missions'
+import { sharePreview, trainerShare } from './share'
 import { difficultyTag, hint, menu, type Screen } from './screens'
 import { toast } from './toasts'
 
@@ -54,6 +56,22 @@ const recentRow = (run: ProfileRun) =>
     h('small', {}, `${run.verified === null ? t().ranking.pending : t().ranking.outcomes[run.outcome]} · ${runDay(run.at)}`),
   )
 
+/** The Desafio do dia ribbons won, gold first, or null before the first one (or from an older API). */
+const ribbonRow = (ribbons: Record<RibbonTier, number> | undefined) => {
+  if (!ribbons || RIBBON_TIERS.every((tier) => ribbons[tier] === 0)) return null
+  const names = t().ribbons.names
+  return section(
+    t().ribbons.section,
+    h(
+      'div',
+      { class: 'profile-ribbons' },
+      ...RIBBON_TIERS.map((tier) =>
+        h('div', { class: ribbons[tier] > 0 ? 'profile-ribbon' : 'profile-ribbon empty', title: names[tier] }, h('img', { src: ribbonIcon(tier), alt: names[tier] }), h('b', {}, `×${ribbons[tier]}`)),
+      ),
+    ),
+  )
+}
+
 /** The profile's face: the Pokémon of its longest record, or a Poké Ball before any. */
 const headPortrait = (p: PublicProfile) => {
   const best = Object.values(p.records).sort((a, b) => b.time - a.time)[0]
@@ -74,7 +92,7 @@ const share = async (root: HTMLElement, p: PublicProfile) => {
 
 /**
  * A public profile (`/?u=handle` opens it straight away): name, handle, the
- * equipped title, records per difficulty, Pokédex progress, recent ranked runs
+ * equipped title, records per difficulty, Desafio do dia ribbons, Pokédex progress, recent ranked runs
  * and follower counts. Signed in, it offers Follow, or Edit on one's own.
  * Back, Esc or Backspace close it and call `onClose` after the key dispatch.
  */
@@ -126,7 +144,7 @@ export const profileScreen = (root: HTMLElement, input: Input, handle: string, o
       },
     }
     const actions = [
-      ...(p.self ? [{ label: m.edit, run: openEditor }] : signedIn ? [follow] : []),
+      ...(p.self ? [{ label: m.edit, run: openEditor }, { label: m.card, run: () => openCard(p) }] : signedIn ? [follow] : []),
       { label: m.share, run: () => void share(root, p) },
       back(),
     ]
@@ -138,9 +156,10 @@ export const profileScreen = (root: HTMLElement, input: Input, handle: string, o
           h('img', { class: 'profile-portrait', src: headPortrait(p), alt: '' }),
           h('div', { class: 'profile-id' }, h('b', { class: 'profile-name' }, p.name), h('span', { class: 'profile-handle' }, `@${p.handle}`), titleBadge(p.title)),
         ),
-        h('p', { class: 'profile-social' }, `${m.followers(p.followers)} · ${m.following(p.following)}`),
+        h('p', { class: 'profile-social' }, [m.followers(p.followers), m.following(p.following), ...(p.brought ? [m.brought(p.brought)] : [])].join(' · ')),
         !p.self && !signedIn ? note(m.followGuest) : null,
         section(m.records, h('div', { class: 'profile-records' }, ...DIFFICULTY_IDS.map((d) => recordCell(d, p.records[d])))),
+        ribbonRow(p.ribbons),
         section(
           m.dex,
           h('div', { class: 'profile-dex' }, h('span', { class: 'progress' }, h('span', { style: `width:${Math.min(100, Math.round((p.dex.caught / Math.max(1, total)) * 100))}%` })), h('span', {}, m.dexLine(p.dex.caught, p.dex.seen, total))),
@@ -160,6 +179,21 @@ export const profileScreen = (root: HTMLElement, input: Input, handle: string, o
     if (p === 'missing') return frame([note(m.missing(current))], [back()])
     if (!p) return frame([note(m.offline)], [{ label: m.retry, run: () => void load() }, back()])
     show(p)
+  }
+
+  /**
+   * The Trainer Card's share preview over one's own profile: drawn from this
+   * device's save, with the Pokémon of the longest record as the partner.
+   */
+  const openCard = (p: PublicProfile) => {
+    nav?.off()
+    el.classList.add('hidden')
+    const best = Object.values(p.records).sort((a, b) => b.time - a.time)[0]
+    sub = sharePreview(root, input, trainerShare(best?.starter ?? 'charmander'), () => {
+      sub = null
+      el.classList.remove('hidden')
+      show(p)
+    })
   }
 
   /** The editor replaces the profile until it closes; a saved one may have a new handle. */

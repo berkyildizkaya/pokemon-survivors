@@ -4,6 +4,8 @@ import { clerkVerifier } from './auth'
 import { connect, migrate, saveStore } from './db'
 import { createChecks } from './checks'
 import { friendStore } from './friends'
+import { createRibbons } from './challenge'
+import { giftStore } from './gifts'
 import { rankingStore } from './ranking'
 import { loadEnv } from './env'
 
@@ -12,14 +14,18 @@ const sql = connect(env.databaseUrl)
 await migrate(sql, new URL('../migrations/', import.meta.url))
 
 const ranking = rankingStore(sql)
-const checks = createChecks(ranking)
+const gifts = giftStore(sql)
+const checks = createChecks(ranking, gifts.credit)
 // Runs that were waiting for a check when the last instance stopped.
 void checks.resume()
+// The Desafio do dia's ribbons, once a day closes (safe on every instance: each gift has a key per day).
+createRibbons(ranking, gifts).start()
 
 const app = createApp({
   store: saveStore(sql),
   ranking,
   friends: friendStore(sql),
+  gifts,
   checks,
   verify: clerkVerifier(env),
   allowedOrigin: env.allowedOrigin,

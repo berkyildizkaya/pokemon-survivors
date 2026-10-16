@@ -16,21 +16,44 @@ The merge rules are not here: `mergeSaves` and `applyPush` live in `src/game/syn
 | `PUT /save` | Body `{ save, base }`: the device's save and the revision it last got (`null` if it never synced). Stores the save as is when `base` is the latest revision, else merges both. Returns `{ save, revision, merged }` |
 | `GET /me` | `{ profile }`: the player's `{ handle, name }`, `null` before they pick them |
 | `PUT /me` | Body `{ handle, name }`. 400 when invalid, 409 `{ suggestion }` when the handle is taken |
-| `POST /runs` | `{ token }` for a run that just started (the id of a new `runs` row). 429 past 30 starts in 10 minutes |
-| `PUT /runs/:token` | Body `RunResult` (`src/game/ranking.ts`). Records how the run ended and returns `{ ranks: { day, week, all } }`. 400 implausible, 404 unknown token, 409 contradicts what the run recorded, 422 more play than the wall clock since the token allows |
+| `POST /runs` | Body `{ challenge? }`. `{ token }` for a run that just started (the id of a new `runs` row). 429 past 30 starts in 10 minutes. With `challenge` (a Brasília day, `YYYY-MM-DD`) it's that day's Desafio do dia; 400 when that challenge isn't open (its day, or 10 minutes past it) |
+| `PUT /runs/:token` | Body `RunResult` (`src/game/ranking.ts`). Records how the run ended and returns `{ ranks: { day, week, all }, challenge }` (`ChallengePlace` for a challenge run, else null). 400 implausible or a challenge run whose replay isn't its day's challenge, 404 unknown token, 409 contradicts what the run recorded, 422 more play than the wall clock since the token allows |
 | `GET /boards/:difficulty` | `?period=day\|week\|all&starter=<id>&friends=1`. `{ entries, me }`: the top 50, each player once with their best run, and the asker's own line |
+| `GET /challenge/:day` | `?friends=1`. `ChallengeBoard`: the day's official attempts (top 50, the asker's line), how many took part and whether the asker made theirs (`attempted`) |
 | `GET /profiles/:handle` | The public profile: name, title, Pokédex counts, records, recent runs, follower counts, and whether the asker follows them (`followed`) and they follow the asker (`followsYou`). 404 if nobody has the handle |
 | `PUT /follows/:handle`, `DELETE /follows/:handle` | Follows or unfollows. `{ followed, followers }`. Following is a friend request; following back accepts it |
+| `GET /gifts` | `{ gifts }`: the player's unclaimed Mystery Gifts (`{ id, content, reason, at }`), oldest first, 20 at most |
+| `POST /gifts/claim` | Body `{ ids }`: marks those gifts claimed once the game applied them. `{ claimed }` |
+| `POST /referral` | Body `{ ref }`: the inviter's handle a new account came with. `{ referred }`, whether it counted |
 | `GET /friends` | `FriendList`: `{ friends, incoming, outgoing }`, each `{ handle, name, title }`. Friends follow each other; `incoming` follow the player, who doesn't follow back; `outgoing` the other way round |
 | `DELETE /followers/:handle` | Declines a request: drops their follow of the player. `{ ok: true }`, 404 unknown handle |
 | `DELETE /friends/:handle` | Unfriends: drops both follows. `{ ok: true }`, 404 unknown handle |
 | `GET /players?q=` | `{ players }`: up to 8 `{ handle, name }` whose handle starts with `q` (normalized, 2+ characters, else empty), without the asker |
 
-`/save`, `/me`, `/runs`, `/follows`, `/friends` and `/followers` need `Authorization: Bearer <Clerk session token>`. `/boards`, `/profiles` and `/players` are public and read the token when there is one (`friends=1` needs it). The response shapes (`PublicProfile`, `FriendList`, `PlayerMatch`) live in `src/game/ranking.ts`, shared with the game. CORS allows `https://www.pokemonsurvivors.com`, `https://pokemonsurvivors.com`, any `http://localhost` port and whatever `CORS_ORIGINS` adds.
+`/save`, `/me`, `/runs`, `/follows`, `/friends`, `/followers`, `/gifts` and `/referral` need `Authorization: Bearer <Clerk session token>`. `/boards`, `/challenge`, `/profiles` and `/players` are public and read the token when there is one (`friends=1` needs it). The response shapes (`PublicProfile`, `FriendList`, `PlayerMatch`) live in `src/game/ranking.ts`, shared with the game. CORS allows `https://www.pokemonsurvivors.com`, `https://pokemonsurvivors.com`, any `http://localhost` port and whatever `CORS_ORIGINS` adds.
 
 ### Ranked runs
 
 The game asks for a start token when a run begins and sends the result when it ends. The server takes it only if the wall clock since the token is at least the time survived, minus a 30 s slack for a token that arrived late (the simulation never runs faster than real time, and pausing only widens the gap). It also checks plausible numbers (`parseRunResult`) and limits run starts per player. A victory that goes on into endless mode sends again with the same token; the run may only grow. Day and week boards start at midnight and on Monday in America/Sao_Paulo, and a run counts for the period it started in.
+
+### Desafio do dia and ribbons
+
+The day's challenge is pure from the Brasília date (`dailyChallenge` in `src/game/challenge.ts`): the seed, the Pokémon and the difficulty, with no upgrades, Lure, Incense or lucky egg, and the day's outbreak on.
+
+- A challenge run says so when it starts (`POST /runs { challenge }`), and the row keeps the day (`runs.challenge`). It can only start on its day (10 minutes of grace past midnight).
+- When it ends, its replay must be that day's challenge (`challengeProblem`: seed, Pokémon, difficulty, outbreak, all ranks at 0, no items), else 400. The first challenge run of the player's day to finish is their official attempt (`runs.official`); later ones are practice and stay off the challenge board (they still count on the regular boards, like any run). Re-simulation then checks the attempt like any run, and a failed one leaves the board.
+- The challenge board ranks each player's official attempt, players with a handle only, like the other boards.
+- Ribbons (`src/challenge.ts`): every 15 minutes the API looks at the last two days, and once a day ended 3 hours ago (`ribbonsDue`), ranks its verified official attempts with ties sharing a place and sends each player a Mystery Gift `ribbon` (`ribbonFor`: gold for the top 10%, silver for the top half, bronze for the rest, the #1 always gold) with `key` `ribbon:<day>`. Running it again sends nothing twice, and a run verified late still gets its ribbon on the next look. Profiles count ribbons from the `gifts` table, so they show before the game claims them.
+
+### Invites and Mystery Gifts
+
+Every reward outside a run goes through the gift inbox (`src/gifts.ts`): `send(userId, content, reason, key)` adds a gift, and a `key` keeps one gift per occasion (sending the same key again does nothing), so a job can safely retry. The game fetches the unclaimed ones on every sync, applies them (`applyGift` in `src/game/gifts.ts`, which keeps the applied ids in the save) and claims them. A kind an older game doesn't know stays unclaimed until a newer one picks it up.
+
+Invites are counted here, never on the device:
+
+- `POST /referral` records `referred_by` only for a new account: no save stored yet, first seen in the last 48 hours, no inviter yet, and not the player's own handle (`canRefer` in `src/game/referral.ts`). The game sends it on a device's first sync, before the save goes up. Both players then follow each other and the newcomer gets a Friendship Egg (`key` `welcome`).
+- After each verified run (`checks.ts` calls `credit`), once the newcomer has 3 verified runs the invite counts for the inviter (once: `referral_credited_at`), who gets the milestone's gifts (`key` `friends:<count>:<i>`): 1 friend, a Friendship Egg; 3, the Ambassador title and frame; 10, a shiny Munchlax.
+- Public profiles show `brought`, the friends whose invite counted.
 
 ### Verification by re-simulation
 
@@ -108,6 +131,9 @@ Migrations are plain SQL files in `migrations/`, run in name order at boot (each
 - `runs`: one row per ranked run, created at its start (the id is the start token) and filled when it ends. Unfinished rows never show, and are dropped after 7 days.
 - `follows`: who follows whom, one way. Both ways make friends (`src/friends.ts`).
 - `runs.replay`, `runs.verified`: the replay waiting for its check, and the verdict (null while pending).
+- `gifts`: each player's Mystery Gifts (`kind`, `payload` = `GiftContent`, `reason`, a per-player unique `key`, `claimed_at`).
+- `users.referred_by`, `referred_at`, `referral_credited_at`: who brought the player and when the invite counted.
+- `runs.challenge`, `runs.official`: the Desafio do dia a run plays (its day) and whether it's the player's official attempt of that day.
 - `users_handle_prefix`: a `text_pattern_ops` index on `users.handle`, so `/players` prefix searches stay fast under any collation.
 
 The realtime server reads `users` and `follows` but never runs migrations: the API owns the schema.

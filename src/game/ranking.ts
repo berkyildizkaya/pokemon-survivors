@@ -1,9 +1,11 @@
 import type { TitleId } from '../data/achievements'
 import { PLAYABLE, type PlayableId } from '../data/hatchlings'
 import { RUN_LENGTH } from '../data/waves'
+import { DAY_TIME_ZONE, isDayKey, type DayKey } from './day'
 import { isDifficulty, type Difficulty } from './difficulty'
 import { wonRun } from './meta'
 import { isRecord } from './parse'
+import type { RibbonTier } from './ribbons'
 import type { Game } from './types'
 
 /**
@@ -163,9 +165,10 @@ export type ProfileName = { handle: string; name: string }
 /**
  * Day and week boards follow Brazil's clock (no daylight saving since 2019):
  * most players are there, so the day turns at their midnight and the week on
- * their Monday, like the missions on their devices.
+ * their Monday, like the missions on their devices. The same day as the
+ * Surto do dia and the Poké Mart's counter (`game/day.ts`).
  */
-export const BOARD_TIME_ZONE = 'America/Sao_Paulo'
+export const BOARD_TIME_ZONE = DAY_TIME_ZONE
 
 export const BOARD_PERIODS = ['day', 'week', 'all'] as const
 
@@ -189,6 +192,28 @@ export type Board = { entries: BoardEntry[]; me: BoardEntry | null }
 /** Where a run's player stands on its difficulty's boards, after it. Null on a board they're not on. */
 export type RunRanks = Record<BoardPeriod, number | null>
 
+/* ---------------- Desafio do dia ---------------- */
+
+/**
+ * Where a challenge run stands after it (`game/challenge.ts`): whether it was
+ * the player's official attempt of `day` (the first finished one), and its
+ * place among the `total` players on that day's board (null when it's not
+ * on it: practice, or no handle yet).
+ */
+export type ChallengePlace = { day: DayKey; official: boolean; rank: number | null; total: number }
+
+/**
+ * A day's challenge board: every player once, with their official attempt.
+ * `attempted`: the asking player has finished theirs (null for a guest).
+ */
+export type ChallengeBoard = Board & { day: DayKey; total: number; attempted: boolean | null }
+
+/** A challenge place from the API's answer, or null. */
+export const parseChallengePlace = (v: unknown): ChallengePlace | null => {
+  if (!isRecord(v) || !isDayKey(v.day) || typeof v.total !== 'number') return null
+  return { day: v.day, official: v.official === true, rank: typeof v.rank === 'number' ? v.rank : null, total: v.total }
+}
+
 /** A run on a public profile (`verified` as on `BoardEntry`). */
 export type ProfileRun = { starter: PlayableId; stage: number; difficulty: Difficulty; time: number; outcome: RunOutcome; at: string; verified: boolean | null }
 
@@ -205,6 +230,10 @@ export type PublicProfile = ProfileName & {
   following: number
   followed: boolean
   followsYou: boolean
+  /** Friends this player brought whose invite counted (`game/referral.ts`). Missing from an older API. */
+  brought?: number
+  /** Desafio do dia ribbons won, by tier (`game/ribbons.ts`). Missing from an older API. */
+  ribbons?: Record<RibbonTier, number>
   self: boolean
 }
 

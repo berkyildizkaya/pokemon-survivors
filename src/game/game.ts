@@ -2,7 +2,9 @@ import { dir8, type Vec } from '../engine/math'
 import { createRng } from '../engine/rng'
 import { createGrid } from '../engine/spatial'
 import { bodyOf } from '../data/bodies'
+import type { EnemyId } from '../data/enemies'
 import { PLAYABLE, type PlayableId } from '../data/hatchlings'
+import { BAG_ITEMS } from './bag'
 import { updateAttacks } from './attacks'
 import { createBiome, updateBiome } from './biomes'
 import { healPlayer } from './combat'
@@ -24,8 +26,9 @@ import type { MegaState } from './mega'
 import { isManual, MOVES, moveStats } from './moves'
 import { createSpecialState, specialBusy, specialSpeedFactor, updateSpecial } from './special'
 import { updatePickups } from './pickups'
-import { rollShiny, SHINY_ODDS } from './shiny'
+import { rollShiny, SHINY_ODDS, shinyBoost } from './shiny'
 import { updateProps } from './props'
+import { withOutbreak } from './outbreak'
 import { createTerrain, groundAt, playerWaterPace, updateTerrain } from './terrain'
 import { drawRoster, type Roster } from './roster'
 import { createRiftState } from './rift'
@@ -51,10 +54,15 @@ export const playerDex = (g: Game, p: Player = g.player) => PLAYABLE[p.starter].
 export type RunOptions = {
   /** Picked on the starter select screen; Normal when omitted. */
   difficulty?: Difficulty
-  /** The family hatched shiny: the whole run uses its shiny form. */
+  /** The run plays shiny from the start (a shiny hatch, or the shiny starter picked): the whole run uses its shiny form. */
   shiny?: boolean
   /** The player never had an egg, so the first egg roll can't miss (`rollEgg`). */
   luckyEgg?: boolean
+  /** The day's outbreak species (`game/outbreak.ts`), put in every stage of the roster (`withOutbreak`, which a roster drawn ahead may already have). */
+  outbreak?: EnemyId | null
+  /** Bag items the run uses (`game/bag.ts`): a Lure doubles wild shinies, an Incense egg drops. */
+  lure?: boolean
+  incense?: boolean
 }
 
 /** One player's side of a run: their Pokémon, its hatched shininess and their Poké Mart ranks. */
@@ -62,7 +70,7 @@ export type PlayerSetup = { starter: PlayableId; ranks: Ranks; shiny: boolean }
 
 const bodyRadius = (dex: number) => Math.max(6, Math.round(bodyOf(dex).bodyW * 0.3))
 
-const createPlayer = (slot: number, setup: PlayerSetup, shiny: boolean, x: number, view: Game['view']): Player => {
+const createPlayer = (slot: number, setup: PlayerSetup, lucky: boolean, x: number, view: Game['view']): Player => {
   const def = PLAYABLE[setup.starter]
   return {
     slot,
@@ -85,7 +93,8 @@ const createPlayer = (slot: number, setup: PlayerSetup, shiny: boolean, x: numbe
     stats: BASE_STATS,
     radius: bodyRadius(def.line[0].dex),
     animTime: 0,
-    shiny,
+    shiny: lucky || setup.shiny,
+    luckyShiny: lucky,
     walked: 0,
     special: createSpecialState(),
     mega: createMegaState() satisfies MegaState,
@@ -110,7 +119,7 @@ const createPlayer = (slot: number, setup: PlayerSetup, shiny: boolean, x: numbe
 const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetup[], coop: boolean, roster: Roster | undefined, options: Omit<RunOptions, 'shiny'>): Game => {
   const rng = createRng(seed)
   const lucky = setups.map(() => rollShiny(rng, SHINY_ODDS.player))
-  const players = setups.map((setup, slot) => createPlayer(slot, setup, lucky[slot] || setup.shiny, (slot - (setups.length - 1) / 2) * COOP.spacing, view))
+  const players = setups.map((setup, slot) => createPlayer(slot, setup, lucky[slot]!, (slot - (setups.length - 1) / 2) * COOP.spacing, view))
   const g: Game = {
     difficulty: options.difficulty ?? DEFAULT_DIFFICULTY,
     rng,
@@ -133,7 +142,7 @@ const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetu
     hitstop: 0,
     kills: 0,
     coins: 0,
-    roster: roster ?? drawRoster(rng),
+    roster: withOutbreak(roster ?? drawRoster(rng), options.outbreak ?? null),
     spawnBudget: 0,
     nextEvent: 0,
     bossId: null,
@@ -150,9 +159,12 @@ const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetu
     rift: createRiftState(),
     endless: null,
     tally: createTally(),
-    eggs: { found: [], lucky: options.luckyEgg === true },
+    eggs: { found: [], lucky: options.luckyEgg === true, boost: options.incense ? BAG_ITEMS.incense.boost : 1 },
+    outbreak: options.outbreak ?? null,
+    // The team's best Shiny Charm counts (solo, the player's).
+    shinyBoost: shinyBoost(Math.max(...setups.map((s) => s.ranks.shinyCharm)), options.lure === true),
     dexLog: createDexLog(),
-    // Only a lucky roll is news: a shiny hatch is shiny every run.
+    // Only a lucky roll is news: a shiny picked (or hatched) is shiny every run.
     events: players.flatMap((p, slot) => (lucky[slot] && !setups[slot]!.shiny ? [{ kind: 'shinyPlayer' as const, slot: p.slot }] : [])),
   }
   for (const p of players) {
@@ -175,7 +187,10 @@ export const createGame = (
   options: RunOptions = {},
 ): Game => createRun(view, seed, [{ starter, ranks, shiny: options.shiny === true }], false, roster, options)
 
-/** A fresh co-op run for `setups` (by slot). No lucky first egg: each player's save would disagree on it. */
+/**
+ * A fresh co-op run for `setups` (by slot). No lucky first egg, outbreak or
+ * Bag items: each player's save (and clock) could disagree on them.
+ */
 export const createCoopGame = (view: Game['view'], seed: number, setups: readonly PlayerSetup[], difficulty: Difficulty, roster?: Roster): Game =>
   createRun(view, seed, setups, true, roster, { difficulty })
 

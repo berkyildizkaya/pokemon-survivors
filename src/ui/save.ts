@@ -1,4 +1,10 @@
 import type { TitleId } from '../data/achievements'
+import type { EnemyId } from '../data/enemies'
+import { dailyChallenge, type Attempt } from '../game/challenge'
+import { brasiliaDay, isDayKey } from '../game/day'
+import { isRecord } from '../game/parse'
+import { counterOf } from '../game/mart'
+import { outbreakAt } from '../game/outbreak'
 import { depositEggs, type Egg } from '../game/eggs'
 import { parseSave, recordHatch, recordRun, type Save } from '../game/meta'
 import type { RunSummary } from '../game/tally'
@@ -55,6 +61,47 @@ export const today = () => new Date(Date.now() + clockOffset)
 export const setToday = (date: Date | null) => {
   clockOffset = date ? date.getTime() - Date.now() : 0
 }
+
+/** Dev-only outbreak held instead of the day's (`ps.outbreak`). */
+let outbreakOverride: EnemyId | null = null
+
+/** The outbreak of the day (Brasília) on the missions' clock, unless the dev console holds another. */
+export const outbreakToday = (): EnemyId => outbreakOverride ?? outbreakAt(today())
+
+export const setOutbreak = (id: EnemyId | null) => {
+  outbreakOverride = id
+}
+
+/** Today's Desafio do dia (Brasília day, on the missions' clock). */
+export const challengeToday = () => dailyChallenge(brasiliaDay(today()))
+
+const ATTEMPT_KEY = 'ps:challenge'
+
+/**
+ * The last official challenge attempt this device finished (`Attempt`),
+ * kept apart from the save: it's only a hint for the challenge screen, the
+ * API keeps the real one for an account (`nextIsOfficial`).
+ */
+export const loadAttempt = (): Attempt | null => {
+  try {
+    const data: unknown = JSON.parse(localStorage.getItem(ATTEMPT_KEY) ?? 'null')
+    return isRecord(data) && isDayKey(data.day) && typeof data.time === 'number' ? { day: data.day, time: data.time } : null
+  } catch {
+    return null
+  }
+}
+
+export const saveAttempt = (attempt: Attempt | null) => {
+  try {
+    if (attempt) localStorage.setItem(ATTEMPT_KEY, JSON.stringify(attempt))
+    else localStorage.removeItem(ATTEMPT_KEY)
+  } catch {
+    // Storage blocked: the screen just can't tell practice apart this session.
+  }
+}
+
+/** Today's Poké Mart counter (Brasília day, on the missions' clock). */
+export const counterToday = () => counterOf(brasiliaDay(today()))
 
 /**
  * Records a run into the missions and achievements, pays their rewards and saves.

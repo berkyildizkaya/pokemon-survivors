@@ -18,6 +18,8 @@ export const EGG_TIERS = {
   common: { steps: 2000, refund: 300 },
   rare: { steps: 4000, refund: 600 },
   ultra: { steps: 8000, refund: 1200 },
+  /** The Friendship Egg: only a Mystery Gift for an invite brings it (`game/referral.ts`), and only Munchlax comes out. */
+  friend: { steps: 2000, refund: 600 },
 } as const satisfies Record<string, { steps: number; refund: number }>
 
 export type EggTier = keyof typeof EGG_TIERS
@@ -64,14 +66,14 @@ export const bossEggSource = (kind: EnemyId): EggSource =>
 /** An egg found this run, with the distance walked (px) when it was found. */
 export type FoundEgg = { tier: EggTier; at: number }
 
-/** `lucky`: this player never had an egg, so the next roll can't miss. */
-export type RunEggs = { found: FoundEgg[]; lucky: boolean }
+/** `lucky`: this player never had an egg, so the next roll can't miss. `boost` multiplies every source's chance (Incense). */
+export type RunEggs = { found: FoundEgg[]; lucky: boolean; boost: number }
 
 /** Whether `source` leaves an egg, and which. Null on a miss or once the run's cap is reached. */
 export const rollEgg = (rng: Rng, source: EggSource, eggs: RunEggs): EggTier | null => {
   if (eggs.found.length >= EGGS.perRun) return null
   const rule: DropRule = EGG_SOURCES[source]
-  if (!eggs.lucky && !chance(rng, rule.chance)) return null
+  if (!eggs.lucky && !chance(rng, Math.min(1, rule.chance * eggs.boost))) return null
   return weightedPick(rng, EGG_TIER_IDS.flatMap((tier) => (rule.odds[tier] ? [[tier, rule.odds[tier]] as const] : [])))
 }
 

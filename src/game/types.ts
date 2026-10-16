@@ -73,8 +73,10 @@ export type Player = {
   stats: PlayerStats
   radius: number
   animTime: number
-  /** Rolled once per run (or owned from a shiny hatch); the whole evolution line uses shiny sprites. */
+  /** Rolled once per run, or picked (a shiny hatch, a shiny starter unlocked before); the whole evolution line uses shiny sprites. */
   shiny: boolean
+  /** The run's 1/64 roll hit: the only shiny the `shinyStarter` medal counts, and what unlocks the shiny starter for good. */
+  luckyShiny: boolean
   /** Distance walked this run, in world px. Hatches the incubator's eggs (`eggs.ts`). */
   walked: number
   special: SpecialState
@@ -417,8 +419,12 @@ export type Game = {
   kills: number
   /** Poké Dollars collected this run, by the whole team (already multiplied by greed). */
   coins: number
-  /** This run's wild cast, drawn at the start (`game/roster.ts`). */
+  /** This run's wild cast, drawn at the start (`game/roster.ts`), with the day's outbreak in every stage. */
   roster: Roster
+  /** The day's outbreak species, or null (`game/outbreak.ts`): its kills count toward missions (`countKill`). */
+  outbreak: EnemyId | null
+  /** Multiplier on wild shiny odds: Shiny Charm ranks and a Lure (`shinyBoost`). */
+  shinyBoost: number
   spawnBudget: number
   nextEvent: number
   bossId: number | null

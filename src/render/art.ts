@@ -1,7 +1,9 @@
 import { context2d, createCanvas, fromStrings, type Palette, type PixelSprite } from '../engine/pixelart'
 import type { Medal } from '../data/achievements'
 import type { ItemId } from '../data/items'
+import type { BagItem } from '../game/bag'
 import type { EggTier } from '../game/eggs'
+import type { RibbonTier } from '../game/ribbons'
 import type { UpgradeId } from '../game/meta'
 import type { MoveId } from '../game/moves'
 
@@ -206,9 +208,10 @@ const EGG_PALETTES = {
   common: { 1: '#c8b890', 2: '#f8f0d8', 3: '#ffffff', 4: '#58b858' },
   rare: { 1: '#c8b890', 2: '#f8f0d8', 3: '#ffffff', 4: '#4888e8' },
   ultra: { 1: '#282840', 2: '#45456a', 3: '#9090c0', 4: '#f8c830' },
+  friend: { 1: '#d888a0', 2: '#f8d0dc', 3: '#ffffff', 4: '#e84870' },
 } as const satisfies Record<EggTier, Palette>
 
-const CRACK_COLORS = { common: '#584830', rare: '#584830', ultra: '#f8f0c0' } as const satisfies Record<EggTier, string>
+const CRACK_COLORS = { common: '#584830', rare: '#584830', ultra: '#f8f0c0', friend: '#803048' } as const satisfies Record<EggTier, string>
 
 /** Memoized sprite per key (one per tier and crack stage). */
 const eggCache = new Map<string, PixelSprite>()
@@ -450,6 +453,13 @@ const UPGRADE_ART: Record<UpgradeId, readonly [readonly string[], Palette]> = {
   amuletCoin: [['1......1', '.1....1.', '..1111..', '.122221.', '12233221', '12322321', '12233221', '.122221.', '..1111..'], { 1: '#805000', 2: '#f8c830', 3: '#fff8b0' }],
   abilityCapsule: [['..1111..', '.122221.', '12222221', '12222221', '13333331', '13333331', '13333331', '.133331.', '..1111..'], { 1: '#283048', 2: '#e85878', 3: '#f8f0f8' }],
   escapeRope: [['..1111..', '.12..21.', '12.11.21', '1.1221.1', '1.1..1.1', '12.11.21', '.12..21.', '..1111..'], { 1: '#805828', 2: '#d8a868' }],
+  shinyCharm: [['....1....', '...131...', '...121...', '.1122211.', '122232221', '.1122211.', '...121...', '...121...', '....1....'], { 1: '#805000', 2: '#f8c830', 3: '#ffffff' }],
+}
+
+/** The bag's items: a Lure spray (pink, like the games') and an Incense jar with its smoke. */
+const BAG_ART: Record<BagItem, readonly [readonly string[], Palette]> = {
+  lure: [['...11...', '..1221..', '.111111.', '.133331.', '.134431.', '.134431.', '.133331.', '.133331.', '..1111..'], { 1: '#402030', 2: '#f8f8f8', 3: '#f070b0', 4: '#ffe0f0' }],
+  incense: [['..2..2..', '.2..2...', '..2..2..', '.111111.', '13333331', '13444431', '13333331', '.133331.', '..1111..'], { 1: '#302018', 2: '#d8d0f0', 3: '#c88848', 4: '#f8d8a0' }],
 }
 
 const iconCache = new Map<string, string>()
@@ -475,6 +485,12 @@ export const itemIcon = (id: ItemId) =>
     return art(rows, pal, '#181818')
   })
 
+export const bagIcon = (id: BagItem) =>
+  toIconUrl(`bag:${id}`, () => {
+    const [rows, pal] = BAG_ART[id]
+    return art(rows, pal, '#181818')
+  })
+
 export const upgradeIcon = (id: UpgradeId) =>
   toIconUrl(`upgrade:${id}`, () => {
     const [rows, pal] = UPGRADE_ART[id]
@@ -486,6 +502,23 @@ export const candyIcon = (tier: number) => toIconUrl(`candy:${tier}`, () => PICK
 export const berryIcon = () => toIconUrl('berry', PICKUPS.berry)
 export const pokeballIcon = () => toIconUrl('pokeball', PICKUPS.pokeball)
 export const sparkleIcon = () => toIconUrl('sparkle', () => outlined(SPARKLE()[2]!, '#584010'))
+
+/** Presente Misterioso: a wrapped box with a bow. 1 outline, 2 ribbon, 3 paper, 4 paper shade, 5 ribbon shade. */
+const GIFT = [
+  '..11....11..',
+  '.1221..1221.',
+  '.1222112221.',
+  '..11122111..',
+  '133332233331',
+  '144442254441',
+  '111111111111',
+  '.1333223331.',
+  '.1333223331.',
+  '.1444225441.',
+  '.1111111111.',
+]
+
+export const giftIcon = () => toIconUrl('gift', () => art(GIFT, { 1: '#301018', 2: '#f8d030', 3: '#e83850', 4: '#a82038', 5: '#c89000' }))
 
 /* ---------------- Medals ---------------- */
 
@@ -517,5 +550,51 @@ const MEDAL_RIBBON = { 1: '#282830', 2: '#e04848', 3: '#4878e0' } as const
 /** Locked medals are a flat silhouette of the same shape. */
 const MEDAL_LOCKED = { 1: '#383848', 2: '#686878', 3: '#585868', 4: '#9898a8', 5: '#585868', 6: '#787888' } as const
 
-export const medalIcon = (medal: Medal, locked = false) =>
-  toIconUrl(`medal:${locked ? 'locked' : medal}`, () => art(MEDAL, locked ? MEDAL_LOCKED : { ...MEDAL_RIBBON, ...MEDAL_METAL[medal] }))
+const MEDAL_SPRITES = new Map<string, PixelSprite>()
+
+/** A medal as a sprite (share cards draw it on a canvas), cached. */
+export const medalSprite = (medal: Medal, locked = false) => {
+  const key = locked ? 'locked' : medal
+  let sprite = MEDAL_SPRITES.get(key)
+  if (!sprite) MEDAL_SPRITES.set(key, (sprite = art(MEDAL, locked ? MEDAL_LOCKED : { ...MEDAL_RIBBON, ...MEDAL_METAL[medal] })))
+  return sprite
+}
+
+/* ---------------- Ribbons ---------------- */
+
+/** Desafio do dia ribbon: a pleated rosette with two tails. 1 outline, 2 pleat shade, 3 pleat, 4 pleat light, 5 button, 6 shine. */
+const RIBBON = [
+  '...11111...',
+  '..1343431..',
+  '.134444431.',
+  '.134555431.',
+  '13455655431',
+  '13455555431',
+  '.134555431.',
+  '.134444431.',
+  '..1343431..',
+  '...12121...',
+  '..1221221..',
+  '..122.221..',
+  '.1221.1221.',
+  '.111...111.',
+]
+
+const RIBBON_COLORS = {
+  gold: { 1: '#584010', 2: '#b07010', 3: '#e0a828', 4: '#f8d860', 5: '#fff0a0', 6: '#ffffff' },
+  silver: { 1: '#303848', 2: '#788098', 3: '#a8b0c8', 4: '#d8dce8', 5: '#f0f2f8', 6: '#ffffff' },
+  bronze: { 1: '#402010', 2: '#985028', 3: '#c87840', 4: '#e8a868', 5: '#f8d0a0', 6: '#fff0e0' },
+} as const satisfies Record<RibbonTier, Palette>
+
+const RIBBON_SPRITES = new Map<RibbonTier, PixelSprite>()
+
+/** A ribbon as a sprite (the Trainer Card draws it), cached. */
+export const ribbonSprite = (tier: RibbonTier) => {
+  let sprite = RIBBON_SPRITES.get(tier)
+  if (!sprite) RIBBON_SPRITES.set(tier, (sprite = art(RIBBON, RIBBON_COLORS[tier])))
+  return sprite
+}
+
+export const ribbonIcon = (tier: RibbonTier) => toIconUrl(`ribbon:${tier}`, () => ribbonSprite(tier))
+
+export const medalIcon = (medal: Medal, locked = false) => toIconUrl(`medal:${locked ? 'locked' : medal}`, () => medalSprite(medal, locked))

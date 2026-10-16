@@ -1,4 +1,5 @@
 import type { BiomeId, WeatherId } from '../data/biomes'
+import type { EnemyId } from '../data/enemies'
 import { evolvedFrom } from '../data/evolutions'
 import type { RiftLegend } from '../data/rifts'
 import type { PlayableId } from '../data/hatchlings'
@@ -26,6 +27,8 @@ export type RunTally = {
   shinyBossKills: number
   /** Enemies with a behavior trait (healer, kamikaze…). */
   traitKills: number
+  /** Pokémon of the day's outbreak. */
+  outbreakKills: number
   /** Map event notices heard, by kind (`chestOpen`, `payDay`, `altar`…). */
   notices: Partial<Record<MapEventNotice['kind'], number>>
 }
@@ -38,6 +41,7 @@ export const createTally = (): RunTally => ({
   bossKills: 0,
   shinyBossKills: 0,
   traitKills: 0,
+  outbreakKills: 0,
   notices: {},
 })
 
@@ -45,8 +49,8 @@ const bump = <K extends string>(counts: Partial<Record<K, number>>, key: K) => {
   counts[key] = (counts[key] ?? 0) + 1
 }
 
-/** Counts a fainted enemy, with the weather and biome it fell in. */
-export const countKill = (tally: RunTally, e: Enemy, weather: WeatherId, biome: BiomeId) => {
+/** Counts a fainted enemy, with the weather and biome it fell in and the run's outbreak species. */
+export const countKill = (tally: RunTally, e: Enemy, weather: WeatherId, biome: BiomeId, outbreak: EnemyId | null) => {
   for (const type of e.types) bump(tally.killsByType, type)
   bump(tally.killsByWeather, weather)
   bump(tally.killsByBiome, biome)
@@ -54,6 +58,7 @@ export const countKill = (tally: RunTally, e: Enemy, weather: WeatherId, biome: 
   if (e.boss) tally.bossKills++
   if (e.boss && e.shiny) tally.shinyBossKills++
   if (e.trait.act) tally.traitKills++
+  if (e.kind === outbreak) tally.outbreakKills++
 }
 
 export const countNotice = (tally: RunTally, notice: MapEventNotice) => bump(tally.notices, notice.kind)
@@ -64,6 +69,7 @@ export type RunSummary = {
   starter: PlayableId
   /** What the ranking files the run under: each level has its own board. */
   difficulty: Difficulty
+  /** The 1/64 roll hit (a shiny picked on the select screen doesn't count). */
   shinyStarter: boolean
   /** Seconds survived, endless overtime included. */
   time: number
@@ -76,6 +82,8 @@ export type RunSummary = {
   /** ₽ picked up during the run (the end bonus not included). */
   coins: number
   shinyKills: number
+  /** Pokémon of the day's outbreak defeated. */
+  outbreakKills: number
   bossKills: number
   shinyLegends: number
   traitKills: number
@@ -104,7 +112,7 @@ export const summarizeRun = (g: Game): RunSummary => {
   return {
     starter: g.player.starter,
     difficulty: g.difficulty,
-    shinyStarter: g.player.shiny,
+    shinyStarter: g.player.luckyShiny,
     time: g.time,
     level: g.player.level,
     stage: g.player.stage,
@@ -112,6 +120,7 @@ export const summarizeRun = (g: Game): RunSummary => {
     kills: g.kills,
     coins: g.coins,
     shinyKills: t.shinyKills,
+    outbreakKills: t.outbreakKills,
     bossKills: t.bossKills,
     shinyLegends: t.shinyBossKills,
     traitKills: t.traitKills,
