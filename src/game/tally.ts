@@ -102,7 +102,7 @@ export type RunSummary = {
 export const summarizeRun = (g: Game): RunSummary => {
   const t = g.tally
   return {
-    starter: g.starter,
+    starter: g.player.starter,
     difficulty: g.difficulty,
     shinyStarter: g.player.shiny,
     time: g.time,
@@ -121,7 +121,7 @@ export const summarizeRun = (g: Game): RunSummary => {
     legends: [...g.rift.cleared],
     reaperDefeats: g.endless?.reaperDefeats ?? 0,
     moveEvolutions: g.player.moves.filter((m) => evolvedFrom(m.id)).length,
-    megas: g.mega.count,
+    megas: g.player.mega.count,
     steps: toSteps(g.player.walked),
     species: g.dexLog.seen.size,
     killsByType: { ...t.killsByType },

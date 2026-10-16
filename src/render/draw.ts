@@ -509,12 +509,12 @@ const drawPlayer = (ctx: Ctx, g: Game) => {
   const p = g.player
   // A Mega wears its Mega form (flickering white while it transforms); Aegislash its Blade Forme in Blade stance.
   const mega = megaLook(g)
-  const s = sprites(playerDex(g), p.shiny, mega.form ?? (g.special.stance ? STANCE_FORMS[g.special.stance] : undefined))
+  const s = sprites(playerDex(g), p.shiny, mega.form ?? (g.player.special.stance ? STANCE_FORMS[g.player.special.stance] : undefined))
   const anim: AnimName = p.hurt > 0 ? 'Hurt' : p.moving ? 'Walk' : 'Idle'
-  const charging = g.special.charge > 0 && Math.floor(p.animTime * 16) % 2 === 0
-  const blink = p.iframes > 0 && g.special.active <= 0 && Math.floor(p.iframes * 20) % 2 === 0
+  const charging = g.player.special.charge > 0 && Math.floor(p.animTime * 16) % 2 === 0
+  const blink = p.iframes > 0 && g.player.special.active <= 0 && Math.floor(p.iframes * 20) % 2 === 0
   // Aegislash flashes white for a moment as it swaps stance.
-  const swapped = g.special.stance !== null && g.special.total - g.special.cooldown < 0.12
+  const swapped = g.player.special.stance !== null && g.player.special.total - g.player.special.cooldown < 0.12
   const flash = Math.max(mega.flash, p.hurt > 0.2 ? 0.7 : charging || swapped ? 0.6 : 0)
   drawPokemon(ctx, s, anim, p.dir, p.animTime, p.x, p.y, { alpha: blink && mega.flash === 0 ? 0.45 : 1, flash, outline: mega.outline })
   // The shiny entrance plays shortly after the run starts.
@@ -560,7 +560,7 @@ const drawPickups = (ctx: Ctx, g: Game, t: number) => {
 /* ---------------- Evolution scene ---------------- */
 
 const drawEvolution = (ctx: Ctx, g: Game, t: number) => {
-  const evo = g.evolution
+  const evo = g.player.evolution
   if (!evo) return
   const { w, h } = g.view
   const k = evo.t

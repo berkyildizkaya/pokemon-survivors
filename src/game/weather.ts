@@ -68,7 +68,7 @@ export const setWeather = (g: Game, id: WeatherId) => {
   if (id !== prev) g.events.push({ kind: 'weather', weather: id, prev })
 }
 
-const playerTypes = (g: Game) => PLAYABLE[g.starter].line[g.player.stage]!.types
+const playerTypes = (g: Game) => PLAYABLE[g.player.starter].line[g.player.stage]!.types
 
 /** Sandstorm and snow wear: a slice of max HP every few seconds to everyone who isn't immune. */
 const chip = (g: Game) => {

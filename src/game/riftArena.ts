@@ -120,7 +120,7 @@ const win = (g: Game, arena: RiftArena, boss: Enemy | undefined) => {
   for (let i = 0; i < loot.pokeballs; i++) dropPickup(g, x - 8 + i * 8, y + 4, 'pokeball')
   loot.items.forEach((item, i) => dropItem(g, x + 10 + i * 6, y, item))
   // A Mega line's first beaten legendary also leaves its Mega Stone (or both, to choose from).
-  if (!g.mega.stone && !g.pickups.some((k) => k.kind === 'megaStone')) dropMegaStones(g, x, y - 10)
+  if (!g.player.mega.stone && !g.pickups.some((k) => k.kind === 'megaStone')) dropMegaStones(g, x, y - 10)
   const p = g.player
   const heal = Math.round(healPlayer(g, p.stats.maxHp * loot.heal))
   floatText(g, p.x, p.y - 30, `+${heal}`, '#58e858')

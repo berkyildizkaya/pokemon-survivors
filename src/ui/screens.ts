@@ -95,7 +95,7 @@ const offerRecipes = (g: Game, offer: Offer) => {
       return evo ? [evoRecipe(evo, canEvolve(evo, { moves: [{ ...offer, cooldown: 0 }], items: p.items }))] : []
     }
     case 'item': {
-      const learnset: readonly MoveId[] = PLAYABLE[g.starter].learnset
+      const learnset: readonly MoveId[] = PLAYABLE[g.player.starter].learnset
       return EVOLUTIONS.filter((e) => e.item === offer.id && learnset.includes(e.from)).map((e) =>
         evoRecipe(e, canEvolve(e, { moves: p.moves, items: [offer] })),
       )
@@ -126,7 +126,7 @@ const offerView = (g: Game, offer: Offer) => {
       return { icon: itemIcon(offer.id), name: ITEMS[offer.id].name, tag: isNew ? m.new : m.level(offer.level), isNew, desc: m.items[offer.id], type: null }
     }
     case 'berry':
-      return { icon: berryIcon(), name: 'Oran Berry', tag: '', isNew: false, desc: m.levelUp.berry(PLAYABLE[g.starter].name), type: null }
+      return { icon: berryIcon(), name: 'Oran Berry', tag: '', isNew: false, desc: m.levelUp.berry(PLAYABLE[g.player.starter].name), type: null }
     case 'evolution': {
       const to: MoveDef = MOVES[offer.to]
       const desc = m.levelUp.evolves(MOVES[offer.from].name, m.moves[offer.to].description)
@@ -140,8 +140,8 @@ type LevelUpExtras = { reroll: () => void; skip: () => void }
 
 export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (offer: Offer) => void, extras?: LevelUpExtras): Screen => {
   const m = t().levelUp
-  const name = PLAYABLE[g.starter].line[g.player.stage]!.name
-  const buttons = g.offers.map((offer, i) => {
+  const name = PLAYABLE[g.player.starter].line[g.player.stage]!.name
+  const buttons = g.player.offers.map((offer, i) => {
     const v = offerView(g, offer)
     const recipes = offerRecipes(g, offer)
     return h(
@@ -162,8 +162,8 @@ export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (off
 
   const actions = extras
     ? [
-        g.rerolls > 0 && ([h('button', { class: 'btn' }, m.reroll(g.rerolls)), extras.reroll] as const),
-        g.skips > 0 && ([h('button', { class: 'btn' }, m.skip(g.skips)), extras.skip] as const),
+        g.player.rerolls > 0 && ([h('button', { class: 'btn' }, m.reroll(g.player.rerolls)), extras.reroll] as const),
+        g.player.skips > 0 && ([h('button', { class: 'btn' }, m.skip(g.player.skips)), extras.skip] as const),
       ].filter((a) => a !== false)
     : []
 
@@ -174,7 +174,7 @@ export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (off
     if (done || performance.now() - openedAt < 400) return
     done = true
     playSfx('select')
-    const offer = g.offers[i]
+    const offer = g.player.offers[i]
     if (offer) onChoose(offer)
     else actions[i - buttons.length]?.[1]()
   })
@@ -185,7 +185,7 @@ export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (off
     h(
       'div',
       { class: 'dialog box pop' },
-      h('div', { class: 'dialog-title' }, m.title(name, g.player.level - g.pendingLevelUps + 1)),
+      h('div', { class: 'dialog-title' }, m.title(name, g.player.level - g.player.pendingLevelUps + 1)),
       h('div', { class: 'offers' }, ...buttons),
       actions.length > 0 && h('div', { class: 'buttons' }, ...actions.map(([b]) => b)),
       hint(m.hintKeys, m.hintTouch),
@@ -308,7 +308,7 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
 /** Icon, name and type for a results-screen damage row. */
 const damageSource = (g: Game, id: DamageSource) => {
   if (id !== 'special') return { icon: moveIcon(id), name: MOVES[id].name, type: MOVES[id].type }
-  const r = resolveSpecial(g.starter, g.player.stage)
+  const r = resolveSpecial(g.player.starter, g.player.stage)
   return { icon: specialIcon(r.id), name: r.tier.name, type: r.def.type }
 }
 
@@ -372,8 +372,8 @@ export const results = (
   const e = t().eggs
   const r = t().rifts
   const victory = g.phase === 'victory'
-  const name = PLAYABLE[g.starter].line[g.player.stage]!.name
-  const entries = (Object.entries(g.damageByMove) as Array<[DamageSource, number]>).sort((a, b) => b[1] - a[1])
+  const name = PLAYABLE[g.player.starter].line[g.player.stage]!.name
+  const entries = (Object.entries(g.player.damageByMove) as Array<[DamageSource, number]>).sort((a, b) => b[1] - a[1])
   const top = entries[0]?.[1] ?? 1
   const earned = runEarnings(g)
   const extra = overtime(g.time)

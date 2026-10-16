@@ -185,7 +185,7 @@ const applyEvent = (g: Game, e: ReplayEvent) => {
     case 'lunge':
       return
     case 'offer': {
-      const offer = g.offers[e[2]]
+      const offer = g.player.offers[e[2]]
       if (offer) chooseOffer(g, offer)
       return
     }

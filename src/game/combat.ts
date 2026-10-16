@@ -25,7 +25,7 @@ export const damageEnemy = (g: Game, e: Enemy, attack: Attack) => {
   const dmg = absorb(e.trait, raw)
   e.hp -= dmg
   e.flash = 0.16
-  g.damageByMove[attack.move] = (g.damageByMove[attack.move] ?? 0) + dmg
+  g.player.damageByMove[attack.move] = (g.player.damageByMove[attack.move] ?? 0) + dmg
 
   // Vines push sideways; everything else pushes away from the hitbox center.
   const p = g.player
@@ -53,7 +53,7 @@ export const damageEnemy = (g: Game, e: Enemy, attack: Attack) => {
 export const dotDamage = (g: Game, e: Enemy, amount: number, move: DamageSource | null, kind: StatusKind) => {
   const dmg = Math.max(1, Math.round(amount))
   e.hp -= dmg
-  if (move) g.damageByMove[move] = (g.damageByMove[move] ?? 0) + dmg
+  if (move) g.player.damageByMove[move] = (g.player.damageByMove[move] ?? 0) + dmg
   damageText(g, e, dmg, STATUS_RULES[kind].color)
   if (e.hp <= 0) killEnemy(g, e, move)
 }
@@ -63,7 +63,7 @@ export const killEnemy = (g: Game, e: Enemy, source?: DamageSource | null) => {
   e.dying = 0
   e.hp = 0
   g.kills++
-  if (source === 'special' || g.special.chaining) g.special.kills++
+  if (source === 'special' || g.player.special.chaining) g.player.special.kills++
   countKill(g.tally, e, weatherHere(g), g.biome.id)
   const big = e.boss || e.shiny
   burst(g, e.x, e.y - e.radius, { colors: ['#ffffff', '#f8f8c8', '#c8d8f8'], count: big ? 60 : 8, speed: big ? 160 : 70, ttl: 0.45 })

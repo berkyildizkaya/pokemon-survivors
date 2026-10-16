@@ -191,7 +191,7 @@ export const overTerrain = (e: Enemy) =>
 export const enemyGroundPace = (g: Game, e: Enemy) =>
   overTerrain(e) || e.types.includes('water') || groundAt(g, e.x, e.y) !== 'water' ? 1 : TERRAIN.waterPace
 
-export const playerTypes = (g: Game) => PLAYABLE[g.starter].line[g.player.stage]!.types
+export const playerTypes = (g: Game) => PLAYABLE[g.player.starter].line[g.player.stage]!.types
 
 /** The player's pace in water: Water types swim at full speed. */
 export const playerWaterPace = (g: Game) => (playerTypes(g).includes('water') ? 1 : TERRAIN.waterPace)

@@ -127,7 +127,7 @@ type Run = {
   hud: Hud
   overlay: Screen | null
   /** Phase + offers snapshot the overlay was built for. */
-  shown: { phase: Phase; offers: Game['offers'] } | null
+  shown: { phase: Phase; offers: Game['player']['offers'] } | null
   closeText: (() => void) | null
   /** ₽ of this run already in the wallet: a victory banks right away and again if the run goes on endless. */
   paid: number
@@ -173,10 +173,10 @@ const queueMega = () => {
 }
 
 /** The player's name right now: its stage's, or its Mega form's while that lasts. */
-const playerName = (g: Game) => (g.mega.active > 0 && heldMega(g)?.name) || PLAYABLE[g.starter].line[g.player.stage]!.name
+const playerName = (g: Game) => (g.player.mega.active > 0 && heldMega(g)?.name) || PLAYABLE[g.player.starter].line[g.player.stage]!.name
 
 /** The player's cry right now: its Mega form's own while that lasts. */
-const playerCry = (g: Game) => cryUrl(playerDex(g), g.mega.active > 0 ? heldMega(g)?.form : undefined)
+const playerCry = (g: Game) => cryUrl(playerDex(g), g.player.mega.active > 0 ? heldMega(g)?.form : undefined)
 
 const queueSpecial = () => {
   unlockAudio()
@@ -339,7 +339,7 @@ const reportRun = (r: Run) => {
   r.reported = true
   const g = r.game
   const outcome = g.endless ? 'endless' : g.phase === 'victory' || g.phase === 'gameover' ? g.phase : 'quit'
-  track('run_end', { starter: g.starter, difficulty: g.difficulty, outcome, minute: Math.floor(g.time / 60), level: g.player.level, kills: g.kills })
+  track('run_end', { starter: g.player.starter, difficulty: g.difficulty, outcome, minute: Math.floor(g.time / 60), level: g.player.level, kills: g.kills })
 }
 
 const endRun = () => {
@@ -479,13 +479,13 @@ const runSettings = (r: Run, back: () => void) => {
 /** Rebuilds the modal overlay whenever the simulation phase (or offer set) changes. */
 const syncOverlay = (r: Run) => {
   const g = r.game
-  if (r.shown?.phase === g.phase && r.shown.offers === g.offers) return
+  if (r.shown?.phase === g.phase && r.shown.offers === g.player.offers) return
   r.overlay?.dispose()
   r.overlay = null
-  r.shown = { phase: g.phase, offers: g.offers }
+  r.shown = { phase: g.phase, offers: g.player.offers }
   switch (g.phase) {
     case 'levelup':
-      r.overlay = levelUp(ui, input, g, (offer) => (recordEvent(r.recorder, ['offer', g.offers.indexOf(offer)]), chooseOffer(g, offer)), {
+      r.overlay = levelUp(ui, input, g, (offer) => (recordEvent(r.recorder, ['offer', g.player.offers.indexOf(offer)]), chooseOffer(g, offer)), {
         reroll: () => (recordEvent(r.recorder, ['reroll']), rerollOffers(g)),
         skip: () => (recordEvent(r.recorder, ['skip']), skipLevelUp(g)),
       })
@@ -554,14 +554,14 @@ const handleEvent = (r: Run, e: GameEvent) => {
       return toast(ui, rich(t().toast.used(playerName(g), e.name)), 1600, 'special')
     }
     case 'megaChoice': {
-      const [a, b] = megasOf(g.starter).map((id) => MEGAS[id].stone)
+      const [a, b] = megasOf(g.player.starter).map((id) => MEGAS[id].stone)
       playSfx('unlock')
       return a && b && toast(ui, rich(t().mega.choose(a, b)), 4200, 'mega')
     }
     case 'megaStone': {
       const def = heldMega(g)
       if (!def) return
-      const line = PLAYABLE[g.starter].line
+      const line = PLAYABLE[g.player.starter].line
       const final = g.player.stage >= line.length - 1
       playSfx('unlock')
       return toast(
@@ -580,7 +580,7 @@ const handleEvent = (r: Run, e: GameEvent) => {
     case 'mega': {
       playSfx('megaBurst', 0)
       playCry(playerCry(g), 0.9)
-      return banner(ui, rich(t().mega.evolved(PLAYABLE[g.starter].line[g.player.stage]!.name, e.name)), 2400)
+      return banner(ui, rich(t().mega.evolved(PLAYABLE[g.player.starter].line[g.player.stage]!.name, e.name)), 2400)
     }
     case 'megaEnd':
       playSfx('stance', 0)
@@ -590,7 +590,7 @@ const handleEvent = (r: Run, e: GameEvent) => {
       return toast(ui, rich(t().mega.ready), 2400, 'mega')
     case 'stance': {
       playSfx('stance', 0)
-      const who = PLAYABLE[g.starter].line[g.player.stage]!.name
+      const who = PLAYABLE[g.player.starter].line[g.player.stage]!.name
       return toast(ui, rich(t().toast.stance(who, t().hud.stances[e.stance])), 1200, 'special')
     }
     case 'boss': {
@@ -630,16 +630,16 @@ const handleEvent = (r: Run, e: GameEvent) => {
     }
     case 'shinyPlayer': {
       playSfx('shiny')
-      return toast(ui, rich(t().toast.shinyPlayer(PLAYABLE[g.starter].name)), 3600)
+      return toast(ui, rich(t().toast.shinyPlayer(PLAYABLE[g.player.starter].name)), 3600)
     }
     case 'evolve': {
       playCry(sprites(e.from).cry)
       r.closeText?.()
-      r.closeText = textBox(ui, t().toast.evolving(PLAYABLE[g.starter].line[g.player.stage]!.name))
+      r.closeText = textBox(ui, t().toast.evolving(PLAYABLE[g.player.starter].line[g.player.stage]!.name))
       return
     }
     case 'evolved': {
-      const line = PLAYABLE[g.starter].line
+      const line = PLAYABLE[g.player.starter].line
       playSfx('evolve')
       playCry(sprites(e.to).cry)
       r.closeText?.()
@@ -949,17 +949,17 @@ const devSpawn = (kind: EnemyId, count = 1, shiny = false) => {
  */
 const devMega = (mode: 'now' | 'ready' | 'stone' = 'now', mega?: MegaId) => {
   const g = run?.game
-  const ids = g ? megasOf(g.starter) : []
+  const ids = g ? megasOf(g.player.starter) : []
   if (!g || !ids[0]) return `Start a run with a Mega line: ${MEGA_LINES.join(', ')}`
   const p = g.player
   if (mode === 'stone') return dropMegaStones(g, p.x + 40, p.y)
-  if (mega && !ids.includes(mega)) return `${PLAYABLE[g.starter].name}'s Megas: ${ids.join(', ')}`
-  p.stage = PLAYABLE[g.starter].line.length - 1
+  if (mega && !ids.includes(mega)) return `${PLAYABLE[g.player.starter].name}'s Megas: ${ids.join(', ')}`
+  p.stage = PLAYABLE[g.player.starter].line.length - 1
   p.radius = Math.max(6, Math.round(bodyOf(playerDex(g)).bodyW * 0.3))
   recomputeStats(g)
-  g.mega.stone = null
+  g.player.mega.stone = null
   grantStone(g, mega ?? ids[0])
-  g.mega.charge = 0
+  g.player.mega.charge = 0
   if (mode === 'now') queueMega()
 }
 

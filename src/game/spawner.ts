@@ -10,6 +10,7 @@ import { eliteSpawn, makeElite, makeRunner } from './horde'
 import { oldestRenewable, RENEWAL } from './renewal'
 import { hasTrait, pickSpawn } from './roster'
 import { makeShiny, rollShiny, SHINY_ODDS } from './shiny'
+import { screens } from './players'
 import type { Game } from './types'
 import * as dm from '../engine/dmath'
 
@@ -105,7 +106,7 @@ const pressureOf = (g: Game, finale: boolean, bossNear: boolean) =>
 
 /** Retires one long-lived off-screen enemy per tick (`RENEWAL.maxAge`), cap or not; the spawner refills the room. */
 const retireOld = (g: Game) => {
-  const old = oldestRenewable(g.enemies, g.camera, g.view, g.time)
+  const old = oldestRenewable(g.enemies, screens(g), g.view, g.time)
   if (old >= 0 && g.time - g.enemies[old]!.bornAt >= RENEWAL.maxAge) despawnEnemy(g.enemies[old]!)
 }
 
@@ -148,7 +149,7 @@ export const updateSpawner = (g: Game, dt: number) => {
     g.spawnBudget--
     if (regular >= cap) {
       // At the cap, swap the oldest off-screen enemy for the fresh pick so the horde keeps turning over.
-      const old = oldestRenewable(g.enemies, g.camera, g.view, g.time)
+      const old = oldestRenewable(g.enemies, screens(g), g.view, g.time)
       if (old < 0) continue
       const gone = g.enemies[old]!
       if (hasTrait(gone.kind)) traitsAlive--
