@@ -1,6 +1,6 @@
-import type { PlayableId } from '../data/hatchlings'
 import { isDifficulty, type Difficulty } from '../game/difficulty'
-import { parseRanks, type Ranks } from '../game/meta'
+import type { PlayerSetup } from '../game/game'
+import { parseRanks } from '../game/meta'
 import { isRecord } from '../game/parse'
 import { isPlayable, parseDisplayName } from '../game/ranking'
 
@@ -46,8 +46,16 @@ export const roomView = (views: readonly View[]): View => {
   return { w: clamp(Math.max(VIEW_LIMITS.min, ...views.map((v) => v.w))), h: clamp(Math.max(VIEW_LIMITS.min, ...views.map((v) => v.h))) }
 }
 
-/** What a member brings into the run: their Pokémon, its shininess and their Poké Mart ranks. */
-export type Loadout = { starter: PlayableId; shiny: boolean; ranks: Ranks }
+/**
+ * What a member brings into the run: their Pokémon, its shininess and their
+ * Poké Mart ranks. Loosely typed on the wire, so the relay never needs the
+ * game's data (a server older than the game still carries a new Pokémon);
+ * clients read it with `setupOf`, all on the same build.
+ */
+export type Loadout = { starter: string; shiny: boolean; ranks: Readonly<Record<string, number>> }
+
+/** A member's loadout as the simulation takes it: an unknown Pokémon plays Bulbasaur, ranks are clamped. */
+export const setupOf = (l: Loadout): PlayerSetup => ({ starter: isPlayable(l.starter) ? l.starter : 'bulbasaur', shiny: l.shiny, ranks: parseRanks(l.ranks) })
 
 /** A member of a room as everyone sees it. `slot` is their index in the run's players. */
 export type Member = Loadout & {
@@ -133,8 +141,11 @@ const isWhole = (v: unknown, max: number): v is number => typeof v === 'number' 
 const parseView = (v: unknown): View | null =>
   isRecord(v) && isWhole(v.w, 4096) && isWhole(v.h, 4096) && v.w > 0 && v.h > 0 ? { w: v.w, h: v.h } : null
 
+const parseRankRecord = (v: unknown): Record<string, number> =>
+  isRecord(v) ? Object.fromEntries(Object.entries(v).slice(0, 24).flatMap(([k, n]) => (/^[A-Za-z]{1,24}$/.test(k) && isWhole(n, 20) ? [[k, n]] : []))) : {}
+
 const parseLoadout = (v: unknown): Loadout | null =>
-  isRecord(v) && isPlayable(v.starter) ? { starter: v.starter, shiny: v.shiny === true, ranks: parseRanks(v.ranks) } : null
+  isRecord(v) && typeof v.starter === 'string' && /^[a-z0-9]{1,24}$/.test(v.starter) ? { starter: v.starter, shiny: v.shiny === true, ranks: parseRankRecord(v.ranks) } : null
 
 const oneOf = <T extends string>(v: unknown, options: readonly T[]): v is T => options.some((o) => o === v)
 

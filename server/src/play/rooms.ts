@@ -1,5 +1,4 @@
 import { DEFAULT_DIFFICULTY, type Difficulty } from '../../../src/game/difficulty'
-import { NO_RANKS } from '../../../src/game/meta'
 import {
   MAX_PLAYERS,
   roomView,
@@ -49,7 +48,7 @@ export const ROOM_TIMES = {
 /** Checksums older than this many ticks behind the clock are forgotten (clients send one every 120 ticks). */
 const SUM_WINDOW = 60 * TICK_HZ
 
-const DEFAULT_LOADOUT: Loadout = { starter: 'bulbasaur', shiny: false, ranks: NO_RANKS }
+const DEFAULT_LOADOUT: Loadout = { starter: 'bulbasaur', shiny: false, ranks: {} }
 
 const DEFAULT_VIEW: View = { w: VIEW_LIMITS.min, h: VIEW_LIMITS.min }
 
