@@ -231,6 +231,8 @@ export type Attack = {
   /** Blast visual of a mine. */
   blastVisual: Visual
   turret: Turret | null
+  /** The player whose move or special made it: it follows them, and their hits count as theirs. */
+  owner: Player
 }
 
 /** Enemy-owned hitbox that hurts the player (boss attacks). */

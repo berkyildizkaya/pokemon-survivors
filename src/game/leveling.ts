@@ -158,7 +158,7 @@ const evolveMove = (g: Game, from: MoveId, to: MoveId) => {
   owned.level = 1
   owned.cooldown = 0.3
   // Drop lingering hitboxes of the old move (e.g. Whirlpool's permanent aura).
-  retain(g.attacks, (a) => a.move !== from)
+  retain(g.attacks, (a) => a.move !== from || a.owner !== p)
   const colors = [TYPE_COLORS[MOVES[to].type], '#ffffff', '#ffd830']
   burst(g, p.x, p.y - 10, { colors, count: 70, speed: 170, ttl: 0.9, size: 2, drag: 3 })
   burst(g, p.x, p.y - 10, { colors: ['#ffffff', '#fff8c0'], count: 30, speed: 60, ttl: 1.2, gravity: -50 })

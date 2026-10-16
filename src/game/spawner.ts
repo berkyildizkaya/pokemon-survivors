@@ -10,21 +10,38 @@ import { eliteSpawn, makeElite, makeRunner } from './horde'
 import { oldestRenewable, RENEWAL } from './renewal'
 import { hasTrait, pickSpawn } from './roster'
 import { makeShiny, rollShiny, SHINY_ODDS } from './shiny'
-import { screens } from './players'
+import { COOP } from '../data/coop'
+import { coopScale } from './coop'
+import { anchorPlayer, nearestPlayer, onAnyScreen, screens } from './players'
 import type { Game } from './types'
 import * as dm from '../engine/dmath'
 
 /** Just outside the visible area, in a random direction around the player. */
 const ringDistance = (g: Game) => dm.hypot(g.view.w, g.view.h) / 2 + 12
 
-const offscreen = (g: Game, angle = range(g.rng, 0, TAU)) => {
+/** Tries for a spot that shows on no teammate's screen either (co-op only: solo, the ring is always off screen). */
+const OFFSCREEN_TRIES = 4
+
+/**
+ * A spot just past the screen edge, in a random direction around one player
+ * (they take turns, `anchorPlayer`). In co-op it re-rolls a few times to stay
+ * off every teammate's screen too.
+ */
+const offscreen = (g: Game) => {
+  const p = anchorPlayer(g, g.nextId)
   const d = ringDistance(g)
-  return { x: g.player.x + dm.cos(angle) * d, y: g.player.y + dm.sin(angle) * d }
+  let spot = { x: 0, y: 0 }
+  for (let i = 0; i < OFFSCREEN_TRIES; i++) {
+    const angle = range(g.rng, 0, TAU)
+    spot = { x: p.x + dm.cos(angle) * d, y: p.y + dm.sin(angle) * d }
+    if (!g.coop || !onAnyScreen(g, spot.x, spot.y)) break
+  }
+  return spot
 }
 
-/** A closing circle of `count` × `species` around the player. The endless mode reuses it. */
+/** A closing circle of `count` × `species` around a player (taking turns). The endless mode reuses it. */
 export const spawnRing = (g: Game, species: EnemyId, count: number) => {
-  const p = g.player
+  const p = anchorPlayer(g, g.nextId)
   const d = ringDistance(g) - 20
   for (let i = 0; i < count; i++) {
     const a = (i / count) * TAU
@@ -32,9 +49,9 @@ export const spawnRing = (g: Game, species: EnemyId, count: number) => {
   }
 }
 
-/** A flock of `count` × `species` that enters from one side and crosses the screen through the player's area. The endless mode reuses it. */
+/** A flock of `count` × `species` that enters from one side and crosses the screen through a player's area. The endless mode reuses it. */
 export const spawnSwarm = (g: Game, species: EnemyId, count: number) => {
-  const p = g.player
+  const p = anchorPlayer(g, g.nextId)
   const heading = range(g.rng, 0, TAU)
   const d = ringDistance(g)
   const speed = ENEMIES[species].speed * 1.7
@@ -123,7 +140,7 @@ export const updateSpawner = (g: Game, dt: number) => {
   const pool = g.roster.stages[index] ?? []
   const runner = g.roster.runners[index] ?? null
   const reach = bossReach(g)
-  const more = DIFFICULTIES[g.difficulty].spawnRate
+  const more = DIFFICULTIES[g.difficulty].spawnRate * coopScale(g, COOP.spawn)
   let regular = 0
   let traitsAlive = 0
   let elites = 0
@@ -132,7 +149,8 @@ export const updateSpawner = (g: Game, dt: number) => {
     if (e.dying >= 0) continue
     if (e.boss) {
       if (!bossNear && g.time - e.bornAt < BOSS_FIGHT.duration && bossWaveAt(e.kind) !== null) {
-        bossNear = dm.sq(e.x - g.player.x) + dm.sq(e.y - g.player.y) < reach * reach
+        const p = nearestPlayer(g, e.x, e.y)
+        bossNear = dm.sq(e.x - p.x) + dm.sq(e.y - p.y) < reach * reach
       }
       continue
     }
@@ -164,7 +182,8 @@ export const updateSpawner = (g: Game, dt: number) => {
       // Shinies pop in just inside the screen edge so their sparkle entrance is seen.
       const a = range(g.rng, 0, TAU)
       const d = Math.min(g.view.w, g.view.h) / 2 - 16
-      makeShiny(g, spawnEnemy(g, kind, g.player.x + dm.cos(a) * d, g.player.y + dm.sin(a) * d))
+      const p = anchorPlayer(g, g.nextId)
+      makeShiny(g, spawnEnemy(g, kind, p.x + dm.cos(a) * d, p.y + dm.sin(a) * d))
     } else {
       const pos = offscreen(g)
       const e = spawnEnemy(g, kind, pos.x, pos.y)

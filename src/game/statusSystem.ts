@@ -38,8 +38,10 @@ export const updateStatuses = (g: Game, dt: number) => {
     const poison = dotDps(st.poison) * DOT_INTERVAL
     const burnMove = st.burn.move
     const poisonMove = st.poison.move
+    const burnBy = st.burn.by
+    const poisonBy = st.poison.by
     if (!tickStatus(st, dt, e.boss, g.rng)) continue
-    if (burn > 0) dotDamage(g, e, burn, burnMove, 'burn')
-    if (poison > 0 && e.dying < 0) dotDamage(g, e, poison, poisonMove, 'poison')
+    if (burn > 0) dotDamage(g, e, burn, burnMove, 'burn', burnBy)
+    if (poison > 0 && e.dying < 0) dotDamage(g, e, poison, poisonMove, 'poison', poisonBy)
   }
 }

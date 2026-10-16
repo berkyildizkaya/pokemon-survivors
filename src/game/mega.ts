@@ -69,11 +69,12 @@ export const heldMega = (g: Game): MegaDef | null => (g.player.mega.stone ? MEGA
 const STONE_GAP = 40
 
 /**
- * Drops the line's Mega Stones around (x, y): one, or two side by side to choose
- * from. A choice isn't pulled by the magnet (`updatePickups`), it waits to be touched.
+ * Drops `line`'s Mega Stones around (x, y) (the acting player's line by default):
+ * one, or two side by side to choose from. A choice isn't pulled by the magnet
+ * (`updatePickups`), it waits to be touched.
  */
-export const dropMegaStones = (g: Game, x: number, y: number) => {
-  const ids = megasOf(g.player.starter)
+export const dropMegaStones = (g: Game, x: number, y: number, line: PlayableId = g.player.starter) => {
+  const ids = megasOf(line)
   ids.forEach((mega, i) => {
     const dx = ids.length > 1 ? (i - (ids.length - 1) / 2) * STONE_GAP : 0
     g.pickups.push({ id: g.nextId++, x: x + dx, y, vx: 0, vy: 0, attracted: false, age: 0, kind: 'megaStone', mega })
