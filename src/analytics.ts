@@ -3,8 +3,9 @@ import type { Difficulty } from './game/difficulty'
 
 /** Custom events sent to Umami, with their payloads. Keep this list short: every event counts. */
 type AnalyticsEvents = {
-  run_start: { starter: PlayableId; difficulty: Difficulty }
-  run_end: { starter: PlayableId; difficulty: Difficulty; outcome: 'victory' | 'gameover' | 'endless' | 'quit'; minute: number; level: number; kills: number }
+  /** `team`: players in the run (1 solo, 2 to 4 in co-op). */
+  run_start: { starter: PlayableId; difficulty: Difficulty; team: number }
+  run_end: { starter: PlayableId; difficulty: Difficulty; outcome: 'victory' | 'gameover' | 'endless' | 'quit'; minute: number; level: number; kills: number; team: number }
 }
 
 declare global {

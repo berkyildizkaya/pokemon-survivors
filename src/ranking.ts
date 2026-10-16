@@ -2,9 +2,10 @@ import { accountUserId, API_URL, sessionToken } from './account'
 import type { PlayableId } from './data/hatchlings'
 import type { Difficulty } from './game/difficulty'
 import { isRecord } from './game/parse'
-import { parseRunResult, type Board, type BoardPeriod, type PublicProfile, type RunRanks, type RunResult } from './game/ranking'
+import { parseRunResult, type Board, type BoardPeriod, type FriendList, type PlayerMatch, type PublicProfile, type RunRanks, type RunResult } from './game/ranking'
 import type { Replay } from './game/replay'
 import { locale, type Locale } from './i18n'
+import { ROOM_PARAM } from './net/protocol'
 
 /**
  * Ranked runs and the public side of accounts (boards, profiles, follows),
@@ -180,6 +181,30 @@ export const setFollow = async (handle: string, follow: boolean) => {
   return isRecord(body) && typeof body.followers === 'number' ? { followed: body.followed === true, followers: body.followers } : null
 }
 
+/* ---------------- Friends ---------------- */
+
+/** The signed-in player's friends and requests, or null offline (or as a guest). */
+export const fetchFriends = async (): Promise<FriendList | null> => {
+  const token = await sessionToken()
+  if (!token) return null
+  const { body } = await read('/friends', token)
+  return isRecord(body) && Array.isArray(body.friends) && Array.isArray(body.incoming) && Array.isArray(body.outgoing) ? (body as FriendList) : null
+}
+
+/** Declines `handle`'s request (or unfriends them, dropping both follows). True when it went through. */
+export const dropFriend = async (handle: string, how: 'decline' | 'unfriend') => {
+  const token = await sessionToken()
+  if (!token) return false
+  const { body } = await read(`/${how === 'decline' ? 'followers' : 'friends'}/${encodeURIComponent(handle)}`, token, { method: 'DELETE' })
+  return isRecord(body) && body.ok === true
+}
+
+/** Players whose handle starts with `query`, or null offline. */
+export const searchPlayers = async (query: string): Promise<PlayerMatch[] | null> => {
+  const { body } = await read(`/players?q=${encodeURIComponent(query)}`, await sessionToken())
+  return isRecord(body) && Array.isArray(body.players) ? (body.players as PlayerMatch[]) : null
+}
+
 /* ---------------- Links ---------------- */
 
 /** The game's page per language: a profile link opens the game in the language it was shared in. */
@@ -187,6 +212,9 @@ const PLAY_PATH = { pt: '/', en: '/en/' } as const satisfies Record<Locale, stri
 
 /** Query parameter of a shared profile link (`/?u=handle`). */
 export const PROFILE_PARAM = 'u'
+
+/** The shareable link to a co-op room: the game opens straight in its lobby. */
+export const roomUrl = (code: string) => `${location.origin}${PLAY_PATH[locale()]}?${ROOM_PARAM}=${code}`
 
 /** The shareable link to a profile: the game opens straight on it. */
 export const profileUrl = (handle: string) => `${location.origin}${PLAY_PATH[locale()]}?${PROFILE_PARAM}=${encodeURIComponent(handle)}`

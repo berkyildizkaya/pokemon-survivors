@@ -135,8 +135,11 @@ const offerView = (g: Game, offer: Offer) => {
   }
 }
 
-/** Poké Mart charges offered under the level-up choices (only shown when owned). */
-type LevelUpExtras = { reroll: () => void; skip: () => void }
+/**
+ * Poké Mart charges offered under the level-up choices (only shown when owned),
+ * and in co-op the seconds left before the game picks (`countdown`).
+ */
+type LevelUpExtras = { reroll: () => void; skip: () => void; countdown?: () => number }
 
 export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (offer: Offer) => void, extras?: LevelUpExtras): Screen => {
   const m = t().levelUp
@@ -179,20 +182,24 @@ export const levelUp = (root: HTMLElement, input: Input, g: Game, onChoose: (off
     else actions[i - buttons.length]?.[1]()
   })
 
+  const countdown = extras?.countdown
+  const timer = countdown ? h('span', { class: 'team-timer' }) : null
+  const tick = () => timer && countdown && (timer.textContent = t().coop.timer(Math.max(0, Math.ceil(countdown()))))
+  tick()
   const el = h(
     'div',
     { class: 'screen dim' },
     h(
       'div',
       { class: 'dialog box pop' },
-      h('div', { class: 'dialog-title' }, m.title(name, g.player.level - g.player.pendingLevelUps + 1)),
+      h('div', { class: 'dialog-title' }, m.title(name, g.player.level - g.player.pendingLevelUps + 1), timer),
       h('div', { class: 'offers' }, ...buttons),
       actions.length > 0 && h('div', { class: 'buttons' }, ...actions.map(([b]) => b)),
       hint(m.hintKeys, m.hintTouch),
     ),
   )
   root.append(el)
-  return { el, dispose: () => (nav.off(), el.remove()) }
+  return { el, tick, dispose: () => (nav.off(), el.remove()) }
 }
 
 /* ---------------- Pause ---------------- */
@@ -244,9 +251,10 @@ const loadoutList = (g: Game) =>
 /**
  * `settings` opens the settings screen on top (see `openSettings`) and must
  * call `back` once it closes; the pause menu hides meanwhile, then redraws
- * itself, in the new language if it changed.
+ * itself, in the new language if it changed. `coop` turns it into the co-op
+ * menu: the run goes on behind it and quitting leaves the room's run.
  */
-type PauseActions = { resume: () => void; quit: () => void; settings: (back: () => void) => Screen }
+type PauseActions = { resume: () => void; quit: () => void; settings: (back: () => void) => Screen; coop?: boolean }
 
 export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: PauseActions): Screen => {
   const el = h('div', { class: 'screen dim' })
@@ -267,9 +275,10 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
   /** `opening` plays the pop-in; redraws after closing the settings don't. */
   const render = (focus: number, opening: boolean) => {
     const m = t().pause
+    const c = t().coop
     const resume = h('button', { class: 'btn' }, m.resume)
     const settingsButton = h('button', { class: 'btn' }, m.settings)
-    const quit = h('button', { class: 'btn' }, m.quit)
+    const quit = h('button', { class: 'btn' }, actions.coop ? c.quit : m.quit)
     nav?.off()
     nav = menu(input, [resume, settingsButton, quit], (i) => {
       if (i === 0) actions.resume()
@@ -282,8 +291,9 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
       h(
         'div',
         { class: opening ? 'dialog box pop wide' : 'dialog box wide' },
-        h('div', { class: 'dialog-title' }, m.title),
+        h('div', { class: 'dialog-title' }, actions.coop ? c.menu : m.title),
         difficultyTag(g.difficulty),
+        actions.coop && h('p', { class: 'profile-note small' }, c.menuNote),
         h(
           'div',
           { class: 'pause-grid' },
@@ -326,7 +336,16 @@ type ResultsRanking = { panel: HTMLElement; open: (back: () => void) => Screen }
  * moved and the medals it earned (built by `ui/missions.ts`), the incubator,
  * the Pokédex news and the ranking.
  */
-type ResultsExtras = { badge: HTMLElement | null; report: HTMLElement | null; medals: readonly HTMLElement[]; eggs: ResultEggs; news: DexNews; ranking: ResultsRanking | null }
+type ResultsExtras = {
+  badge: HTMLElement | null
+  report: HTMLElement | null
+  medals: readonly HTMLElement[]
+  eggs: ResultEggs
+  news: DexNews
+  ranking: ResultsRanking | null
+  /** Co-op: the buttons read "Back to room" and "Leave", and the team shows under the stats. */
+  coop?: { team: HTMLElement }
+}
 
 const NO_EXTRAS: ResultsExtras = { badge: null, report: null, medals: [], eggs: { refund: 0, ready: 0 }, news: { species: 0, shinies: 0 }, ranking: null }
 
@@ -379,8 +398,8 @@ export const results = (
   const extra = overtime(g.time)
   const reaperDefeats = g.endless?.reaperDefeats ?? 0
   const legends = g.rift.cleared
-  const retry = h('button', { class: 'btn' }, m.retry)
-  const back = h('button', { class: 'btn' }, m.change)
+  const retry = h('button', { class: 'btn' }, extras.coop ? t().coop.backToRoom : m.retry)
+  const back = h('button', { class: 'btn' }, extras.coop ? t().coop.leaveRoom : m.change)
   const goOn = victory && onContinue ? h('button', { class: 'btn' }, r.continue) : null
   const ranking = extras.ranking
   const boards = ranking ? h('button', { class: 'btn' }, t().ranking.open) : null
@@ -431,6 +450,7 @@ export const results = (
         g.eggs.found.length > 0 &&
           h('div', {}, h('span', {}, e.eggs), h('b', { class: 'result-legends' }, ...g.eggs.found.map((egg) => h('img', { src: eggIcon(egg.tier), alt: e.tiers[egg.tier], title: e.tiers[egg.tier] })))),
       ),
+      extras.coop?.team,
       runNews(extras),
       ranking?.panel,
       goOn && h('p', { class: 'endless-hint' }, r.continueHint),
