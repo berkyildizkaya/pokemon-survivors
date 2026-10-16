@@ -70,7 +70,6 @@ const FINISH_ERRORS = { unknown: 404, mismatch: 409, clock: 422, challenge: 400 
  * - `DELETE /followers/:handle` (auth): declines their request (drops their follow). `{ ok }`.
  * - `DELETE /friends/:handle` (auth): unfriends (drops both follows). `{ ok }`.
  * - `GET /players?q=`: `{ players }`, up to 8 `PlayerMatch` whose handle starts with `q` (2+ characters), without the asker.
- */
  * - `GET /gifts` (auth): `{ gifts }`, the player's unclaimed Mystery Gifts, oldest first.
  * - `POST /gifts/claim` (auth) `{ ids }`: marks those gifts claimed (the game applied them). `{ claimed }`.
  * - `POST /referral` (auth) `{ ref }`: the inviter's handle a new account came with. `{ referred }`:
