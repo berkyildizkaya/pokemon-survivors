@@ -47,8 +47,10 @@ export type Prediction = {
   ghost: Player | null
   world: Game | null
   terrain: Game['terrain']
-  /** |predicted − confirmed| (px) each time the confirmed state reaches a predicted sample (the PR's numbers). */
+  /** |predicted − confirmed| (px) each time the confirmed state reaches a predicted sample; the shell takes them every frame (`noteDraw`). */
   errors: number[]
+  /** Corrections past `SNAP` (drawn at once instead of blended) since the shell last took them. */
+  snaps: number
 }
 
 export const createPrediction = (): Prediction => ({
@@ -62,6 +64,7 @@ export const createPrediction = (): Prediction => ({
   world: null,
   terrain: { seed: 0, cells: new Map() },
   errors: [],
+  snaps: 0,
 })
 
 /**
@@ -141,7 +144,10 @@ export const predict = (pr: Prediction, r: Runner, history: Uint8Array, sample: 
       pr.err.y += was.y - now.y
     }
   }
-  if (Math.hypot(pr.err.x, pr.err.y) > SNAP) pr.err = { x: 0, y: 0 }
+  if (Math.hypot(pr.err.x, pr.err.y) > SNAP) {
+    pr.err = { x: 0, y: 0 }
+    pr.snaps++
+  }
   const fade = Math.exp(-dt / BLEND)
   pr.err.x *= fade
   pr.err.y *= fade
