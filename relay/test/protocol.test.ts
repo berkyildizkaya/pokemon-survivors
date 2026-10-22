@@ -17,4 +17,11 @@ describe('protocol', () => {
     expect(parseClientMessage(chunk)).toMatchObject({ t: 'snap', part: 0 })
     expect(parseClientMessage(JSON.stringify({ t: 'hash', tick: 61, h: 'ab' }))).toBeNull()
   })
+
+  it('takes a link report of whole numbers only', () => {
+    const net = { t: 'net', rtt: 120, rtt95: 180, hold: 5, underruns: 2, stalls: 7, reconnects: 1 }
+    expect(parseClientMessage(JSON.stringify(net))).toEqual(net)
+    expect(parseClientMessage(JSON.stringify({ ...net, rtt: 1.5 }))).toBeNull()
+    expect(parseClientMessage(JSON.stringify({ ...net, stalls: undefined }))).toBeNull()
+  })
 })
