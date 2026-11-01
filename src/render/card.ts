@@ -1,5 +1,5 @@
 import { formatTime } from '../engine/math'
-import { canvasCache, context2d, createCanvas, ellipse, fromStrings, onCanvasReset, type PixelSprite } from '../engine/pixelart'
+import { blitPacked, canvasCache, context2d, createCanvas, ellipse, fromStrings, onCanvasReset, type PixelSprite } from '../engine/pixelart'
 import { MEDALS, type Medal } from '../data/achievements'
 import type { BackgroundId, FrameId } from '../data/style'
 import type { Difficulty } from '../game/difficulty'
@@ -99,10 +99,11 @@ const OUTCOME_COLORS = { victory: '#3878e8', fainted: '#d04848', endless: '#7048
 
 type Font = 'title' | 'body'
 
-const FAMILY = { title: '"Press Start 2P"', body: 'VT323' } as const satisfies Record<Font, string>
+/** Cubic 11 draws the Chinese text the Latin pixel fonts have no glyphs for (see `ui/style.css`). */
+const FAMILY = { title: '"Press Start 2P", "Cubic 11"', body: 'VT323, "Cubic 11"' } as const satisfies Record<Font, string>
 
-/** Waits for the game fonts: a card drawn before them would fall back to a smooth system font. */
-const fontsReady = () => Promise.all([document.fonts.load(`8px ${FAMILY.title}`), document.fonts.load(`16px ${FAMILY.body}`)])
+/** Waits for the game fonts: a card drawn before them would fall back to a smooth system font. A line of the current language as the sample loads Cubic 11 only when the card is in Chinese. */
+const fontsReady = () => Promise.all([document.fonts.load(`8px ${FAMILY.title}`, t().loading), document.fonts.load(`16px ${FAMILY.body}`, t().loading)])
 
 type Mask = { canvas: HTMLCanvasElement; width: number; baseline: number }
 
@@ -220,7 +221,10 @@ const sparkles = () => SPARKLE()
 
 /** Sparkles outlined for light backgrounds (cells, chips). */
 let darkSparkles: PixelSprite[] | null = null
-onCanvasReset(() => (darkSparkles = null))
+onCanvasReset(
+  () => (darkSparkles = null),
+  () => darkSparkles,
+)
 const outlinedSparkles = () => (darkSparkles ??= SPARKLE().map((s) => outlined(s, '#584010')))
 
 const blit = (ctx: CanvasRenderingContext2D, sprite: PixelSprite, cx: number, cy: number) =>
@@ -328,11 +332,11 @@ const heroScale = (s: SpeciesSprites, maxW: number, maxH: number) => Math.max(1,
 
 /** A battle platform: a rim, its face and a lighter ring, like the stages of the games. */
 const platform = (ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, colors: { rim: string; face: string; ring: string }) => {
-  blit(ctx, ellipse(rx + 1, ry + 1, SHADOW), cx, cy + 4)
-  blit(ctx, ellipse(rx, ry, colors.rim), cx, cy + 3)
-  blit(ctx, ellipse(rx, ry, colors.face), cx, cy)
-  blit(ctx, ellipse(rx - 5, ry - 2, colors.ring), cx, cy)
-  blit(ctx, ellipse(rx - 7, ry - 3, colors.face), cx, cy + 1)
+  blitPacked(ctx, ellipse(rx + 1, ry + 1, SHADOW), cx, cy + 4)
+  blitPacked(ctx, ellipse(rx, ry, colors.rim), cx, cy + 3)
+  blitPacked(ctx, ellipse(rx, ry, colors.face), cx, cy)
+  blitPacked(ctx, ellipse(rx - 5, ry - 2, colors.ring), cx, cy)
+  blitPacked(ctx, ellipse(rx - 7, ry - 3, colors.face), cx, cy + 1)
 }
 
 const NIGHT_PLATFORM = { rim: '#1c2648', face: '#3a5288', ring: '#5070b0' }

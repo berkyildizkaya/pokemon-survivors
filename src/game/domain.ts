@@ -7,18 +7,19 @@ import { ARENAS, isRiftLegend, RIFT, type RiftLegend } from '../data/rifts'
 import { onFloor } from './arenaFloor'
 import { joinAs, offstage } from './bosses'
 import { hurtPlayer, killEnemy } from './combat'
+import { harmBy } from './harm'
 import { DOMAIN_HOOKS } from './domainHooks'
 import { pairFighter, revealPartner, updatePair, type PairState } from './domainPair'
 import {
   advanceFront, CAPTURE, composePlan, ENCOUNTER_LENGTH, encounterBeat, REVEAL_AT, threatGround, transformStage,
 } from './domainRules'
-import { burst, updateEffects } from './effects'
+import { burst, setScreenShake, shakeScreen, updateEffects } from './effects'
 import { spawnEnemy } from './enemies'
 import { riftLoot, riftScale, type RiftArena } from './rift'
 import { exitArena, LAVA_BURN, riftWin } from './riftArena'
 import { keepOnFloor, setAside } from './room'
 import { rollShiny } from './shiny'
-import { groundAt, inSolid, playerTypes, type Solid } from './terrain'
+import { footOf, groundAt, inSolid, playerTypes, type Solid } from './terrain'
 import { actAs, aimScreen, anchorPlayer, centerScreen, placeTeam, standing } from './players'
 import type { Enemy, Game, Player } from './types'
 import * as dm from '../engine/dmath'
@@ -137,7 +138,7 @@ export const enterDomain = (g: Game, legend: RiftLegend, x: number, y: number) =
     domain: d,
   }
   g.flash = 0.9
-  g.shake = 9
+  setScreenShake(g, 9, 'team')
   g.events.push({ kind: 'riftEnter', enemy: legend, shiny })
 }
 
@@ -203,7 +204,7 @@ const crossingTick = (g: Game, arena: RiftArena, d: DomainState, def: LegendDoma
       p.y -= threat.push * dt
       if (!bite) continue
       const before = actAs(g, p)
-      hurtPlayer(g, p.stats.maxHp * threat.damage, undefined, [], 'hazard')
+      hurtPlayer(g, p.stats.maxHp * threat.damage, undefined, [], 'hazard', harmBy(arena.legend))
       actAs(g, before)
       burst(g, p.x, p.y - 4, { colors: STING[threat.kind], count: 8, speed: 70, ttl: 0.4, gravity: 120 })
     }
@@ -232,7 +233,7 @@ const startEncounter = (g: Game, arena: RiftArena, d: DomainState, def: LegendDo
     p.vx = 0
     p.vy = 0
   }
-  g.shake = Math.max(g.shake, 7)
+  shakeScreen(g, 7, 'team')
   g.events.push({ kind: 'quake' })
 }
 
@@ -245,14 +246,14 @@ const reveal = (g: Game, arena: RiftArena, d: DomainState, def: LegendDomain) =>
   const boss = spawnEnemy(g, d.legend, at.x, at.y)
   const scale = riftScale(g.time)
   // The difficulty presses a legendary with its patterns (pace, telegraphs, damage) and with `DOMAIN_PRESS`.
-  boss.hp = boss.maxHp = Math.round(ENEMIES[d.legend].hp * scale.hp * def.hp * DOMAIN_PRESS[g.difficulty].hp)
+  boss.hp = boss.maxHp = dm.round(ENEMIES[d.legend].hp * scale.hp * def.hp * DOMAIN_PRESS[g.difficulty].hp)
   boss.damage *= scale.damage * (def.touch ?? 1)
   boss.xp = riftLoot(g.time, arena.shiny).xp
   boss.shiny = arena.shiny
   d.bossId = arena.bossId = boss.id
   g.bossId = boss.id
   g.flash = 1
-  g.shake = 12
+  setScreenShake(g, 12, 'team')
   const theme = ARENAS[d.legend]
   burst(g, at.x, at.y - 10, { colors: ['#ffffff', theme.wall[0], theme.motes], count: 90, speed: 220, ttl: 0.7, size: 2, gravity: 160 })
   if (def.partner) {
@@ -284,7 +285,7 @@ export const updateDomainScene = (g: Game, dt: number) => {
     const [bx, by] = def.arena.boss
     const at = arenaPoint(arena, d, def.partner ? [(bx + def.partner.at[0]) / 2, (by + def.partner.at[1]) / 2] : def.arena.boss)
     // The ground rumbles harder as the legendary comes in.
-    if (beat.entrance > 0 && beat.entrance < 1) g.shake = Math.max(g.shake, 2 + beat.entrance * 5)
+    if (beat.entrance > 0 && beat.entrance < 1) shakeScreen(g, 2 + beat.entrance * 5, 'team')
     for (const p of g.players) centerScreen(g, p, p.x + (at.x - p.x) * beat.camera, p.y + (at.y - p.y) * beat.camera)
     if (d.scene >= ENCOUNTER_LENGTH) {
       d.act = 'battle'
@@ -307,10 +308,14 @@ export const updateDomainScene = (g: Game, dt: number) => {
   return true
 }
 
-/** The legendary fell for good: its adds go, and the capture scene plays where it knelt. */
+/**
+ * The legendary fell for good: its adds go, and the capture scene plays where
+ * it knelt (and the loot drops there). One that fell off the floor on its
+ * script (hidden on a dive, out on a swoop's pass) kneels at its spot instead.
+ */
 const startCapture = (g: Game, arena: RiftArena, d: DomainState, boss: Enemy | undefined) => {
-  const x = boss?.x ?? arenaPoint(arena, d, defOf(d).arena.boss).x
-  const y = boss?.y ?? arenaPoint(arena, d, defOf(d).arena.boss).y
+  const spot = boss && !offstage(boss) ? boss : arenaPoint(arena, d, defOf(d).arena.boss)
+  const { x, y } = spot
   const mate = d.pair ? g.enemies.find((e) => e.id === d.pair!.partnerId) : undefined
   const partner = mate ? { kind: mate.kind, x: mate.x, y: mate.y, shiny: mate.shiny } : null
   d.capture = { kind: d.legend, x, y, shiny: arena.shiny, settled: false, partner }
@@ -357,7 +362,7 @@ const battleTick = (g: Game, arena: RiftArena, d: DomainState, def: LegendDomain
     t.landed = true
     d.landed.push(t.def)
     arena.layout = composePlan(def, true, d.landed)
-    g.shake = Math.max(g.shake, 7)
+    shakeScreen(g, 7, 'team')
     g.events.push({ kind: 'quake' })
   }
   DOMAIN_HOOKS[d.legend]?.battle?.(g, d, boss, dt)
@@ -389,7 +394,7 @@ export const updateDomain = (g: Game, arena: RiftArena, d: DomainState, dt: numb
 
 /** Keeps the players on the floor and out of its holes, walkers on the floor (the legendary and the retinue swim the holes), and breaks shots past its edge. */
 const keepInDomain = (g: Game, plan: FloorPlan, arena: RiftArena) => {
-  for (const p of g.players) keepOnFloor(p, arena, plan.floor, plan.holes ?? [], p.radius)
+  for (const p of g.players) keepOnFloor(p, arena, plan.floor, plan.holes ?? [], footOf(p))
   for (const e of g.enemies) if (e.dying < 0 && !offstage(e)) keepOnFloor(e, arena, plan.floor, [], e.boss ? e.radius * 0.5 : e.radius * 0.8)
   retain(g.hazards, (h) => h.kind !== 'shot' || h.phantom > 0 || onFloor(plan.floor, h.x - arena.x, h.y - arena.y, 6))
 }

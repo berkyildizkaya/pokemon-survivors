@@ -8,27 +8,62 @@ import type { BagItem } from './data/shop'
 import type { SurveyAnswer } from './data/survey'
 import type { Difficulty } from './game/difficulty'
 import type { RunMode } from './game/ranking'
-import { isRecord } from './game/parse'
+import type { RelayHome, VpsHome } from './net/protocol'
 import type { LobbyFocus } from './ui/title'
+import type { NetSummary } from './coop/netStats'
+import type { MatchKind, QueueKind } from './data/arenaRanked'
+import type { QueueServerMessage } from './net/arena'
+import type { CrumbMoment, Quality } from './crumb'
+import type { DeviceInfo } from './telemetry'
+import type { ArenaFormat } from './data/arenaFormats'
 
 /**
  * Analytics and error reports. Events go to PostHog (product analytics and
- * error tracking, through our `/ingest` proxy) and, while we compare the two,
- * to our self-hosted Umami. PostHog loads after the game is up, so play never
- * waits on it; events and errors from before it loads wait in a short queue.
+ * error tracking, through our `/ingest` proxy). It loads after the game is up,
+ * so play never waits on it; events and errors from before it loads wait in a short queue.
  * Only production domains report (or a device with `ps:analytics` set to `on`, for testing).
  */
 
+/**
+ * How the device coped with a run, and which device it was (`telemetry.ts`). Memory in MB (w×h×4),
+ * at the end and at its peak (sampled every 5 s and at key moments): the canvases the game's caches
+ * hold (`heldCanvases`, not every canvas made: those include garbage not yet collected) and the
+ * downloaded sprite sheets' decoded pixels (`sheetStats`). Then the quality the governor drew at
+ * by the end, `navigator.deviceMemory` (GB), and the frames while playing (ms; long: past 50 ms).
+ */
+export type RunPerf = {
+  liveCanvasMb: number
+  peakLiveCanvasMb: number
+  liveCanvases: number
+  sheetMb: number
+  peakSheetMb: number
+  sheets: number
+  quality: Quality
+  deviceMemory: number | null
+  frameAvg: number | null
+  frameP95: number | null
+  longFrames: number
+} & DeviceInfo
+
+/** How a public queue attempt resolved, for `arena_queue`. */
+export type QueueEnd =
+  | { result: 'matched'; downgraded: 0 | 1 }
+  | { result: 'cancelled' | 'lost' | 'left' }
+  | { result: 'refused'; why: Extract<QueueServerMessage, { t: 'refused' }>['why'] }
+
 /** Custom events, with their payloads. Keep this list short: every event counts against the free tier. */
 type AnalyticsEvents = {
-  /** `mode`: a regular run or the Legend mode's (a legend played, `runMode`). */
-  run_start: { starter: PlayableId; difficulty: Difficulty; mode: RunMode; challenge?: 'official' | 'practice' }
-  /** How a run ended, with what it was built from: the build and the cause of a faint are what tuning needs. */
+  /**
+   * How a run ended, with what it was built from: the build and the cause of a faint are what tuning needs.
+   * The run's only event (no `run_start`): `mode` is a regular run or the Legend mode's (`runMode`), and
+   * `left` is a page closed or reloaded mid-run. Runs left or quit in their first minute send nothing; the
+   * next run that reports counts the quits (`rerolls`). Co-op runs report through `coop` and `coop_net`.
+   */
   run_end: {
     starter: PlayableId
     difficulty: Difficulty
     mode: RunMode
-    outcome: 'victory' | 'gameover' | 'endless' | 'quit'
+    outcome: 'victory' | 'gameover' | 'endless' | 'quit' | 'left'
     minute: number
     level: number
     kills: number
@@ -50,44 +85,82 @@ type AnalyticsEvents = {
     /** The Bag items the run took (`ReplayStart.bag`). */
     bag: BagItem[]
     challenge?: 'official' | 'practice'
-    /** How the device coped: canvas memory at its peak (MB, `createCanvas`), `navigator.deviceMemory` (GB), and the frames while playing (ms; long: past 50 ms). */
-    peakCanvasMb: number
-    peakCanvases: number
-    deviceMemory: number | null
-    frameAvg: number | null
-    frameP95: number | null
-    longFrames: number
     /** A haunted run's (Noite das Bruxas) candies, to tune the candy jar. */
     candies?: number
+    /** Runs quit in their first minute since the last report (restarts hunting for a good start). */
+    rerolls: number
+    /** The lobby entries opened since the last report (`lobbyPress`), each once. */
+    opened: LobbyFocus[]
+    /** Whether the device played it in safe mode (`safeMode.ts`, on after a crash). */
+    safeMode: boolean
+  } & RunPerf
+  /**
+   * A Dojo session ended (`game/training.ts`), one per visit: who trained, for how long, and the
+   * loadout it left with (`id:level`, as `run_end`), saved as a build or not. Says which builds
+   * players plan, next to the ones `run_end` shows them playing.
+   */
+  dojo_end: {
+    starter: PlayableId
+    seconds: number
+    saved: boolean
+    moves: string[]
+    items: string[]
   }
   /**
    * The page died mid-run last time (the crash watch, `takeCrash` in `bugReport.ts`), sent once
    * by the next boot whether or not the player files a report. Rare, so it fits the budget.
+   * The memory fields are the breadcrumb's (`crumb.ts`, as `RunPerf` has them), null from a
+   * build before it; the device is this boot's (the same phone).
    */
   run_crash: {
     version: string
     sameVersion: boolean
-    /** When the watch last wrote (ISO): the crash came within 5 s of it. */
+    /** When the watch last wrote (ISO): the crash came within 5 s of it (1 s after a key moment). */
     at: string
     partner: string | null
     phase: string | null
     minute: number | null
+    /** Seconds into the run when the watch last wrote. */
+    seconds: number | null
     enemies: number | null
     projectiles: number | null
     wave: string | null
     boss: string | null
     place: string | null
+    biome: string | null
+    /** The run's last key moment before the crash (a boss, a rift, a pick…) and the run's second it came at. */
+    moment: CrumbMoment | null
+    momentAt: number | null
     heapMb: number | null
-    canvases: number | null
-    canvasMb: number | null
-    peakCanvasMb: number | null
+    liveCanvasMb: number | null
+    peakLiveCanvasMb: number | null
+    liveCanvases: number | null
+    sheetMb: number | null
+    peakSheetMb: number | null
+    sheets: number | null
+    quality: Quality | null
     frameMs: number | null
     deviceMemory: number | null
     /** The session's last error, if one came first. */
     error: string | null
-  }
-  /** An entry pressed in the lobby: what players open. */
-  lobby_press: { entry: LobbyFocus }
+    /** Whether safe mode was on for the run that died (`safeMode.ts`). */
+    safeMode: boolean
+  } & DeviceInfo
+  /**
+   * The page went away mid-run last time while the player was elsewhere (`takeCrash`'s `away`):
+   * `hidden`, another tab or app (where the phone may close it to free memory); `blur`, out of the
+   * window (Android's Recents, where a swipe closes the browser). Not a crash: no safe mode, no prompt.
+   * At most one per run, and only for runs that ended that way.
+   */
+  run_closed: {
+    version: string
+    away: 'hidden' | 'blur'
+    partner: string | null
+    phase: string | null
+    minute: number | null
+    seconds: number | null
+    deviceMemory: number | null
+  } & DeviceInfo
   /** A share card left the game (the run's or the Trainer Card), or the invite link, through the share sheet, the clipboard or a download. */
   share: { kind: 'run' | 'trainer' | 'invite'; method: 'share' | 'copy' | 'download' }
   /** The game opened from a link carrying a handle this device didn't hold (`?ref=` or a profile's `?u=`); `first`: the device had no inviter yet. */
@@ -105,25 +178,95 @@ type AnalyticsEvents = {
   /** A co-op client diverged and was healed from the agreed snapshot: the room, the tick it was told at, and how long until it was back in step. */
   coop_heal: { room: string; tick: number; ms: number }
   /**
-   * Co-op's beta, one event per step: a room created, a room joined (by a typed code, a link or a friend's
-   * invite), a run started (by the host, once per run), a run ended for this player (how, how long, how many),
-   * a failure to create, join or stay (`why`: the client's `CloseWhy` or the create refusal), and a guest
+   * An Arena (Versus) match for this player, exactly once per player per match (`arena/report.ts`): at its
+   * end, or when they leave it before (`outcome`). Against bots (the in-page relay) or with friends (a room),
+   * the winner and this player's side and result, the score, this player's knockouts, falls, points and
+   * level, their Pokémon, how many seats humans played (the rest were bots) and the match clock then.
+   * Events from before `outcome` existed are all `end`.
+   */
+  versus_end: {
+    mode: 'bots' | 'friends'
+    /** Where the match came from: practice against bots, a public queue's (casual, ranked as matched) or a friends' room. */
+    kind: MatchKind
+    /**
+     * `end`: the clock ran out. Left before: `quit`, from the match's menu (or anything else that took
+     * the player elsewhere); `dropped`, the connection closed for good; `left`, the page closed or reloaded
+     * (by beacon); `gone`, the page went away without a word (a phone killing the tab in the background,
+     * a crash), sent on the next page load with the time and numbers last held (`ps:versusHeld`, every 5 s).
+     */
+    outcome: 'end' | 'quit' | 'dropped' | 'left' | 'gone'
+    /** The match's second when it ended or was left (its format's length at its end: 420 in a 4v4, 180 in a 3v3). */
+    second: number
+    /** Null for a match left before it ended. */
+    winner: 'blue' | 'red' | 'draw' | null
+    team: 'blue' | 'red'
+    /** Null for a match left before it ended. */
+    result: 'win' | 'loss' | 'draw' | null
+    /** The score then, final at the end. */
+    blue: number
+    red: number
+    kos: number
+    deaths: number
+    scored: number
+    level: number
+    starter: string
+    humans: number
+    /** The match's format (`data/arenaFormats.ts`): 4v4 on the Vale (`standard`) or 3v3 on the Clareira (`quick`). */
+    format: ArenaFormat
+    /** The team that surrendered (the vote passed: an ordinary loss for it, `outcome` still `end`); null when none did or the match didn't end. */
+    surrender: 'blue' | 'red' | null
+  }
+  /**
+   * One public queue attempt (Casual, Ranqueada; practice against bots has no queue), sent once as it
+   * resolves: `kind` as asked, how it went (`matched`; `cancelled` by the player; `lost`, the queue's
+   * connection; `refused` by the matchmaker, `why`; `left`, the page closed while waiting), the seconds
+   * waited and the humans in it: the match's when matched (the rest are bots), else the most the screen
+   * found, this player included. `downgraded`: a ranked ticket matched as Casual. `format`: the queue's (a 3v3 one is Casual).
+   */
+  arena_queue: { kind: QueueKind; format: ArenaFormat; seconds: number; humans: number } & QueueEnd
+  /**
+   * The Arena's screen (or its hub, `screen`) opened, once per page load whatever the opens after: the
+   * top of the funnel to `arena_queue` and `versus_end`. `account`: past co-op's door (an account with a
+   * handle: the queues and rooms are open), else only bots are.
+   */
+  arena_open: { screen: 'arena' | 'hub'; account: 0 | 1 }
+  /**
+   * How a co-op run's link and pacing went for this player (`coop/netStats.ts`), one per player per run,
+   * flat: where the relay ran and this player met Cloudflare, round trip, frame jitter, the hold, underruns,
+   * stalls, reconnects by reason, heals and syncs, the display, simulation and render times, prediction
+   * errors, shake, the network type and platform, and the device's run perf (as `run_end` has it; co-op
+   * sends no `run_end`). Sent at the run's end (`final` 1), or once with what it has when the page hides
+   * mid-run (`hidden`, `final` 0: the run may go on, and a final one follows) or unloads (`unload`).
+   */
+  coop_net: NetSummary &
+    RunPerf & {
+      room: string
+      run: number
+      seat: number
+      seats: number
+      outcome: 'victory' | 'wipe' | 'endless' | 'left' | 'hidden' | 'unload'
+      final: 0 | 1
+      minute: number
+      difficulty: Difficulty
+      effectiveType: string | null
+      platform: string | null
+      mobile: 0 | 1
+    }
+  /**
+   * Co-op's beta, one event per step: a room created (on which relay: Cloudflare's `cf` or São Paulo's `sa`), a
+   * room joined (by a typed code, a link or a friend's invite), a run started (by the host, once per run), a run
+   * ended for this player (how, how long, how many), a failure to create, join or stay (`why`: the client's
+   * `CloseWhy` or the create refusal), and a guest
    * stopped at the door to sign in (`gate`: from the lobby's tile or a room's link).
    */
   coop:
     | { step: 'gate'; via: 'tile' | 'link' }
-    | { step: 'create' }
+    /** `overflow`: the near VPS relay was full, so the room went to Cloudflare. */
+    | { step: 'create'; relay: RelayHome; overflow?: VpsHome }
     | { step: 'join'; via: 'code' | 'link' | 'invite' }
     | { step: 'start'; players: number; difficulty: Difficulty }
     | { step: 'end'; players: number; minute: number; outcome: 'victory' | 'wipe' | 'endless' | 'left'; difficulty: Difficulty }
     | { step: 'fail'; at: 'create' | 'join' | 'room' | 'run'; why: string }
-}
-
-declare global {
-  interface Window {
-    /** Umami's tracker, set by the script in the page head. Missing in dev, offline or behind an ad blocker. */
-    umami?: { track: (event: string, data?: Record<string, string | number>) => void }
-  }
 }
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY
@@ -151,13 +294,36 @@ const giveUp = () => {
   for (const p of waiting) p.never?.()
 }
 
-/** Umami takes flat data only. */
-const flat = (data: object) => Object.fromEntries(Object.entries(data).filter((e): e is [string, string | number] => typeof e[1] === 'string' || typeof e[1] === 'number'))
+/** An event's payload, for code that builds one away from its `track`. */
+export type EventData<E extends keyof AnalyticsEvents> = AnalyticsEvents[E]
 
-/** Sends a custom event. Silently does nothing where analytics don't run. */
-export const track = <E extends keyof AnalyticsEvents>(event: E, data: AnalyticsEvents[E]) => {
-  window.umami?.track(event, flat(data))
-  withPosthog((ph) => ph.capture(event, data))
+/**
+ * Sends a custom event. Silently does nothing where analytics don't run. Dev builds log it to the console.
+ * `beacon`: the page may be going away (`pagehide`, hidden), so PostHog sends it at once by `sendBeacon`.
+ * `at`: when it happened, for one sent later (a page that went away mid-match, sent on the next load).
+ */
+export const track = <E extends keyof AnalyticsEvents>(event: E, data: AnalyticsEvents[E], opts: { beacon?: boolean; at?: Date } = {}) => {
+  if (import.meta.env.DEV) console.debug('[analytics]', event, data)
+  const beacon = opts.beacon ? ({ transport: 'sendBeacon', send_instantly: true } as const) : {}
+  withPosthog((ph) => ph.capture(event, data, { ...beacon, ...(opts.at ? { timestamp: opts.at } : {}) }))
+}
+
+/** The lobby entries opened since the last run report (`takeOpened`). */
+const opened = new Set<LobbyFocus>()
+
+/**
+ * An entry pressed in the lobby: what players open. A press per event would be a third of
+ * PostHog's budget, so the set goes along on the next `run_end`.
+ */
+export const lobbyPress = (entry: LobbyFocus) => {
+  opened.add(entry)
+}
+
+/** The lobby entries opened since the last call, for a run's report. */
+export const takeOpened = () => {
+  const list = [...opened]
+  opened.clear()
+  return list
 }
 
 let identity: { userId: string | null; handle: string | null } | null = null
@@ -178,39 +344,6 @@ export const identify = (userId: string | null, handle: string | null) => {
   })
 }
 
-/**
- * Evaluates one feature flag for this device's person, or null where PostHog
- * doesn't run (the promise waits for it to load, and gets null if it never
- * does). PostHog's own flags stay off (`advanced_disable_flags`: they'd fetch
- * the remote config, whose `/array/<key>/config` gets Vercel's trailing-slash
- * 308 and a 404, and could turn on features from the dashboard), so this asks
- * `/flags/` itself, a path that already ends in a slash, for the one key. The
- * handle goes along so a flag can target players before PostHog has ingested
- * their person.
- */
-export const featureFlag = (key: string): Promise<boolean | null> =>
-  new Promise((resolve) => {
-    withPosthog(
-      (ph) => {
-        const body = { token: POSTHOG_KEY, distinct_id: ph.get_distinct_id(), person_properties: identity?.handle ? { handle: identity.handle } : {}, flag_keys: [key] }
-        fetch('/ingest/flags/?v=2', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(8000) })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((json: unknown) => resolve(flagIn(json, key)))
-          .catch(() => resolve(null))
-      },
-      () => resolve(null),
-    )
-  })
-
-/** A flag's answer in a `/flags/?v=2` response (`flags[key].enabled`, or the older `featureFlags[key]`), or null. */
-export const flagIn = (json: unknown, key: string): boolean | null => {
-  if (!isRecord(json)) return null
-  const flag = isRecord(json.flags) ? json.flags[key] : undefined
-  if (isRecord(flag) && 'enabled' in flag) return flag.enabled === true
-  const legacy = isRecord(json.featureFlags) ? json.featureFlags[key] : undefined
-  return legacy === undefined ? null : Boolean(legacy)
-}
-
 /** What an error report carries besides the error: where the player was, and the run's replay (see `game/replay.ts`). */
 export type ErrorContext = { [key: string]: string | number | boolean | null }
 
@@ -223,9 +356,12 @@ const stackUrl = (stack: string) => /(?:https?|[a-z-]+-extension):\/\/[^\s)]+?(?
  * browsers inject their own scripts into the page (the Google app and Chrome
  * on iOS throw "Maximum call stack size exceeded." and "La" from theirs), and
  * WebKit names the page itself as their file; extensions throw from theirs.
- * None of that is ours to fix. With nothing to go on, it counts as ours.
+ * None of that is ours to fix. Those scripts may run in a JavaScript world
+ * of their own, whose errors aren't this page's `Error`s (no `instanceof`)
+ * though they are errors: the game's never are. With nothing to go on, it counts as ours.
  */
 export const isOwnError = (error: unknown, filename: string | undefined, origin: string) => {
+  if (!(error instanceof Error) && Object.prototype.toString.call(error) === '[object Error]') return false
   const stack = error instanceof Error ? error.stack : undefined
   const url = filename || (stack ? stackUrl(stack) : null)
   if (!url) return true
@@ -247,9 +383,28 @@ const reported = new Set<string>()
 export const isStaleChunk = (error: unknown) =>
   error instanceof Error && /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unable to preload CSS/.test(error.message)
 
-/** Reports an error once per message and place, up to `MAX_ERRORS` per page load; never a stale chunk. */
+/**
+ * Clerk couldn't load its UI script from its CDN (`loadClerkUIScript`, a
+ * blocker or a dropped connection). Clerk keeps the failed load in promises
+ * of its own nobody awaits, so it surfaces as unhandled rejections; accounts
+ * are optional and only Clerk's own modals need it (`loadClerkUI` in `account.ts`).
+ */
+const isClerkLoadFailure = (error: unknown) => error instanceof Error && 'code' in error && error.code === 'failed_to_load_clerk_ui'
+
+/**
+ * A request the network dropped or that timed out, in each browser's words,
+ * left unhandled somewhere: the game never waits on the network, so it's noise, not a bug report.
+ */
+const isNetworkFailure = (error: unknown) =>
+  (error instanceof TypeError && /^(Load failed|Failed to fetch|NetworkError when attempting to fetch resource\.?)$/.test(error.message)) ||
+  (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+
+/** Failures the game expects and recovers from on its own, which never go out as error reports. */
+export const isExpectedFailure = (error: unknown) => isStaleChunk(error) || isClerkLoadFailure(error) || isNetworkFailure(error)
+
+/** Reports an error once per message and place, up to `MAX_ERRORS` per page load; never an expected failure. */
 const reportError = (error: unknown, context: () => ErrorContext) => {
-  if (isStaleChunk(error)) return
+  if (isExpectedFailure(error)) return
   const key = error instanceof Error ? `${error.message}\n${error.stack?.split('\n')[1] ?? ''}` : String(error)
   if (reported.has(key) || reported.size >= MAX_ERRORS) return
   reported.add(key)
@@ -297,7 +452,7 @@ export const startAnalytics = (context: () => ErrorContext) => {
           capture_performance: false,
           disable_session_recording: true,
           disable_surveys: true,
-          // No feature flags, and so no remote config: its `/array/<key>/config` would get Vercel's trailing slash and a 404. The co-op beta's one flag goes through `featureFlag`.
+          // No feature flags, and so no remote config: its `/array/<key>/config` would get Vercel's trailing slash and a 404.
           advanced_disable_flags: true,
           // Our listeners above report errors, with the run's context.
           capture_exceptions: false,

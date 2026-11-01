@@ -1,6 +1,6 @@
 import { playCry, playSfx } from '../engine/audio'
 import { isLegend, LEGEND_IDS, LEGENDS, type LegendId } from '../data/legends'
-import { capturedCount, recordLegendWin, winsNeeded, type CaptureResult, type LegendWin } from '../game/capture'
+import { recordLegendWin, stillMissing, winsNeeded, type CaptureResult, type LegendWin } from '../game/capture'
 import { cryUrl, portraitUrl } from '../render/sprites'
 import { t } from '../i18n'
 import { h, rich } from './dom'
@@ -22,12 +22,12 @@ const captureToast = (root: HTMLElement, r: CaptureResult): boolean => {
   const name = legendName(r.legend)
   const dex = LEGENDS[r.legend].line[0].dex
   const say = (text: string, hint: string | null, shiny = false) => {
-    toast(root, h('span', { class: 'item-toast' }, h('img', { src: portraitUrl(dex, shiny), alt: '' }), h('span', {}, rich(text), hint && h('small', {}, hint))), 4600, `capture-${r.legend}`)
+    toast(root, h('span', { class: 'item-toast' }, h('img', { src: portraitUrl(dex, shiny), alt: '' }), h('span', {}, rich(text), hint && h('small', {}, hint))), 4600, `capture-${r.legend}`, shiny ? 'shiny' : null)
     return true
   }
   if (r.outcome === 'escaped') {
     playSfx('pokeballOpen')
-    return say(m.escaped(name, r.wins, r.need), r.counted ? m.escapedHint(r.need - r.wins) : m.arceusHint(LEGEND_IDS.length - 1 - capturedCount(loadSave().legends)))
+    return say(m.escaped(name, r.wins, r.need), r.counted ? m.escapedHint(r.need - r.wins) : m.arceusHint(stillMissing(loadSave().legends, r.legend).map(legendName)))
   }
   if (r.outcome === 'owned' && !r.shiny) return false
   playSfx('unlock')
@@ -65,7 +65,7 @@ export const showCapture = (root: HTMLElement, legend: string) => {
 /**
  * Dev console: `ps.capture('kyogre')` banks one win as if it fell, toast
  * included (`ps.capture('kyogre', 'shiny')` a shiny one), `ps.capture('kyogre', n)`
- * sets its count, `ps.captureAll()` captures all 23 (`true`: their shinies too).
+ * sets its count, `ps.captureAll()` captures them all, the event's Darkrai too (`true`: their shinies too).
  */
 export const captureDevTools = (root: HTMLElement, endless: () => boolean) => ({
   capture: (id?: string, n?: number | 'shiny') => {

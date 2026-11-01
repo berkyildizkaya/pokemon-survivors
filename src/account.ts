@@ -9,7 +9,9 @@ import { isRecord } from './game/parse'
 import type { ProfileName } from './game/ranking'
 import { brasiliaDay } from './game/day'
 import { gameGifts as madeByGame, isGameGift } from './game/gameGifts'
+import { donateFrom } from './game/festival'
 import { loadSave, today, writeSave } from './ui/save'
+import { timeoutSignal } from './net/timeout'
 
 /**
  * Optional player accounts (Google or Discord through Clerk). Playing as a guest stays
@@ -19,7 +21,8 @@ import { loadSave, today, writeSave } from './ui/save'
  * boot for a device that already did, so guests never download it.
  *
  * Each sync also lists the Mystery Gifts waiting in the account (`GET /gifts`,
- * opened from the lobby: `openGift`)
+ * opened from the lobby: `openGift`), beside the ones the game makes (its
+ * own, and others' sources such as the Festival da Praça's, `addGameGifts`)
  * and, on a device's first sync, the invite it landed with (`POST /referral`).
  * A Discord account connected to the player's (`linkDiscord`, or signing in
  * with Discord) is reported to the API (`POST /discord/link`), which puts
@@ -189,10 +192,16 @@ declare global {
 /**
  * Clerk's prebuilt UI, from Clerk's CDN like their React SDK does. The game
  * draws its own screens; it's here for the modals Clerk opens itself, such as
- * the reverification before linking Discord. It loads beside Clerk, never blocking it.
+ * the reverification before linking Discord. It loads beside Clerk, never
+ * blocking it, and a failed load (a blocker, a dropped connection) is tried
+ * once more: Clerk takes this promise once, so a later retry couldn't reach
+ * it. If both fail, only Clerk's modals are out (`isClerkLoadFailure` in
+ * `analytics.ts` keeps it out of the error reports).
  */
-const loadClerkUI = (): Promise<ClerkUIConstructor> =>
-  loadClerkUIScript({ publishableKey: PUBLISHABLE_KEY! }).then(() => window.__internal_ClerkUICtor ?? Promise.reject(new Error('no Clerk UI')))
+const loadClerkUI = (): Promise<ClerkUIConstructor> => {
+  const once = () => loadClerkUIScript({ publishableKey: PUBLISHABLE_KEY! }).then(() => window.__internal_ClerkUICtor ?? Promise.reject(new Error('no Clerk UI')))
+  return once().catch(once)
+}
 
 /** Clerk, loaded on first use (its own chunk). A failed load can be retried. */
 const loadClerk = () =>
@@ -275,7 +284,7 @@ const push = async (c: Clerk, link: Link) => {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ save: JSON.parse(sent), base: link.revision }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: timeoutSignal(TIMEOUT_MS),
   })
   const pushed = res.ok ? parsePushed(await res.json()) : null
   if (!pushed) throw new Error(`push failed: ${res.status}`)
@@ -308,7 +317,7 @@ const setProfile = (profile: ProfileName | null) => {
 const loadProfile = async (token: string) => {
   if (readLink()?.handle !== undefined) return
   try {
-    const res = await fetch(`${API_URL}/me`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    const res = await fetch(`${API_URL}/me`, { headers: { Authorization: `Bearer ${token}` }, signal: timeoutSignal(TIMEOUT_MS) })
     const body: unknown = res.ok ? await res.json() : null
     if (!isRecord(body)) throw new Error(`profile failed: ${res.status}`)
     const p = body.profile
@@ -330,7 +339,7 @@ export const saveProfile = async (profile: ProfileName): Promise<ProfileSaved> =
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(profile),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: timeoutSignal(TIMEOUT_MS),
     })
     const body: unknown = await res.json().catch(() => null)
     if (res.status === 409) return { ok: false, reason: 'taken', suggestion: isRecord(body) && typeof body.suggestion === 'string' ? body.suggestion : null }
@@ -373,7 +382,7 @@ const sendReferral = async (token: string) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ ref }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: timeoutSignal(TIMEOUT_MS),
     })
     const body: unknown = res.ok ? await res.json() : null
     if (isRecord(body) && body.referred === true) track('ref_signup', { ref })
@@ -409,7 +418,7 @@ const syncDiscord = async (c: Clerk, token: string) => {
   if ((account?.id ?? null) === known) return
   if (!account && known === undefined) return setDiscord(null, null)
   try {
-    const res = await fetch(`${API_URL}/discord/link`, { method: account ? 'POST' : 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    const res = await fetch(`${API_URL}/discord/link`, { method: account ? 'POST' : 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: timeoutSignal(TIMEOUT_MS) })
     if (!res.ok) throw new Error(`discord link failed: ${res.status}`)
     const body: unknown = await res.json()
     const username = isRecord(body) && typeof body.username === 'string' && body.username ? body.username : account ? account.username || 'Discord' : null
@@ -493,12 +502,29 @@ let inbox: Gift[] = []
 
 const inboxListeners = new Set<(gifts: readonly Gift[]) => void>()
 
+/** More sources of game-made gifts (`addGameGifts`): the Festival da Praça's (`festival.ts`). */
+const gameGiftSources: Array<() => readonly Gift[]> = []
+
 /**
  * Gifts the game makes itself, for guests too: the Noite das Bruxas candy
  * jar's rewards and the Kecleon Shop's loyalty card and Department Store
- * (`game/gameGifts.ts`), worked out from the save, so they never touch the API.
+ * (`game/gameGifts.ts`), worked out from the save, so they never touch the
+ * API, and those of the sources added with `addGameGifts`.
  */
-const gameGifts = () => madeByGame(loadSave(), brasiliaDay(today()))
+const gameGifts = () => [...madeByGame(loadSave(), brasiliaDay(today())), ...gameGiftSources.flatMap((source) => source())]
+
+/**
+ * Adds a source of game-made gifts (ids `isGameGift` knows, never claimed in
+ * the API) to the gift box. It's asked whenever the box is; call
+ * `refreshInbox` when what it gives changes.
+ */
+export const addGameGifts = (source: () => readonly Gift[]) => {
+  gameGiftSources.push(source)
+  refreshInbox()
+}
+
+/** Tells the gift box's listeners that what waits changed (a game-made source has new gifts). */
+export const refreshInbox = () => setInbox(inbox)
 
 /** The gifts waiting to be opened: the account's, then the game's own. */
 export const giftInbox = (): readonly Gift[] => [...inbox, ...gameGifts()]
@@ -526,7 +552,7 @@ const claimGifts = async (ids: readonly string[], token?: string | null) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: timeoutSignal(TIMEOUT_MS),
   }).catch(() => {})
 }
 
@@ -559,7 +585,7 @@ export const stageGifts = (gifts: readonly Gift[]) => setInbox([...inbox.filter(
  */
 const fetchGifts = async (token: string) => {
   try {
-    const res = await fetch(`${API_URL}/gifts`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    const res = await fetch(`${API_URL}/gifts`, { headers: { Authorization: `Bearer ${token}` }, signal: timeoutSignal(TIMEOUT_MS) })
     const body: unknown = res.ok ? await res.json() : null
     if (!isRecord(body) || !Array.isArray(body.gifts)) return
     const gifts = body.gifts.flatMap((g: unknown) => parseGift(g) ?? [])
@@ -617,6 +643,64 @@ export const syncSave = async () => {
     }
   } while (again)
   syncing = false
+}
+
+/** Resolves once no sync is running, after asking for one (a sync already running only queues another). */
+const synced = async () => {
+  await syncSave()
+  while (syncing) await new Promise((resolve) => setTimeout(resolve, 200))
+}
+
+/**
+ * What a festival donation came to: the API's refusal (`DonateError` in
+ * `server/src/festival.ts`: `closed`, `profile`, `runs`, `cap`, `funds`,
+ * `nosave`, `stale`, or `rate` past its limit), `guest` without an account,
+ * `offline` when it couldn't ask. `held`: it waits for the admin before
+ * counting; `today`: ₽ given today, the cap's count.
+ */
+export type FestivalDonation = { ok: true; held: boolean; today: number } | { ok: false; error: string }
+
+/** One `POST /festival/donate` on top of this device's revision; keeps the save it brings back. */
+const donateOnce = async (amount: number): Promise<FestivalDonation> => {
+  const link = readLink()
+  const token = await sessionToken()
+  if (!link || !token) return { ok: false, error: 'offline' }
+  const before = JSON.stringify(loadSave())
+  const res = await fetch(`${API_URL}/festival/donate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, base: link.revision }),
+    signal: timeoutSignal(TIMEOUT_MS),
+  })
+  const body: unknown = await res.json().catch(() => null)
+  if (!res.ok) return { ok: false, error: res.status === 429 ? 'rate' : isRecord(body) && typeof body.error === 'string' ? body.error : 'offline' }
+  const done = parsePushed(body)
+  if (!done || !isRecord(body)) return { ok: false, error: 'offline' }
+  // The stored save was this device's as of `base`: kept as is, unless the save changed meanwhile, which then takes the same donation.
+  writeSave(JSON.stringify(loadSave()) === before ? done.save : donateFrom(loadSave(), amount))
+  writeLink({ ...(readLink() ?? link), revision: done.revision })
+  savedListeners.forEach((fn) => fn())
+  return { ok: true, held: body.held === true, today: typeof body.today === 'number' ? body.today : 0 }
+}
+
+/**
+ * Puts `amount` ₽ in the Festival da Praça's pot (`POST /festival/donate`).
+ * Only the API takes ₽, from the save it stores, so this syncs first (₽ that
+ * never synced can't go) and once more if another device pushed in between
+ * (`stale`). The API's answer becomes the local save. Never throws.
+ */
+export const donateToFestival = async (amount: number): Promise<FestivalDonation> => {
+  if (!accountsEnabled || !readLink()) return { ok: false, error: 'guest' }
+  try {
+    await synced()
+    const first = await donateOnce(amount)
+    if (first.ok || first.error !== 'stale') return first
+    await synced()
+    return await donateOnce(amount)
+  } catch (err) {
+    console.warn('festival donation failed', err)
+    return { ok: false, error: 'offline' }
+  }
 }
 
 /* ---------------- Sign in and out ---------------- */

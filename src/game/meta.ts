@@ -5,7 +5,8 @@ import { NO_ACHIEVEMENTS, parseAchievements, parseGiftTitles, parseTitle, record
 import { addClear, mergeClears, parseClears, pastClears, type Clears } from './clears'
 import { EMPTY_DEX, parseDex, type Pokedex } from './dex'
 import { DEFAULT_DIFFICULTY, parseDifficulty, type Difficulty } from './difficulty'
-import { EGG_TIERS, EGGS, grantEgg, parseEggs, parseHatched, type Egg, type EggTier, type Hatched } from './eggs'
+import { EGG_TIERS, EGGS, grantEgg, incubatorSlots, parseEggPity, parseEggs, parseHatched, type Egg, type EggPity, type EggTier, type Hatched } from './eggs'
+import { NO_INCUBATOR, parseIncubator, type IncubatorSave } from './incubator'
 import { ENDLESS, overtime } from './endless'
 import { parseClaimedGifts } from './gifts'
 import { NO_HALLOWEEN, parseHalloween, recordHunt, type HalloweenSave } from './halloween'
@@ -15,7 +16,7 @@ import { NO_SHOP, parseShop, type ShopSave } from './shop'
 import { learnTms, NO_TMS, parseTms, type TmCase } from './tmShelf'
 import { parseCaps, parseEvoItems, type Caps } from './evoItems'
 import { parseCaravan, type CaravanSave } from './caravan'
-import { parseStall, type StallSave } from './stalls'
+import { parseBuilds, type Builds } from './builds'
 import type { EvoItemId } from '../data/shop'
 import { isRecord, wholeNumber } from './parse'
 import { parseRibbons, type Ribbon } from './ribbons'
@@ -31,6 +32,7 @@ import type { PlayableId } from '../data/hatchlings'
 import type { StatDelta } from './stats'
 import type { RunSummary } from './tally'
 import type { Game } from './types'
+import * as dm from '../engine/dmath'
 
 /**
  * Meta progression: Poké Dollars (₽) earned across runs and the Poké Mart's
@@ -81,7 +83,7 @@ const PRICE_GROWTH = 1.6
 /** Price of the next rank when `rank` ranks are already owned. Rounded to ₽10. */
 export const upgradePrice = (id: UpgradeId, rank: number) => {
   const def: UpgradeDef = UPGRADES[id]
-  return Math.round((def.basePrice * (def.growth ?? PRICE_GROWTH) ** rank) / 10) * 10
+  return dm.round((def.basePrice * dm.powInt(def.growth ?? PRICE_GROWTH, rank)) / 10) * 10
 }
 
 /** Everything spent on the given ranks, i.e. what a full refund gives back. */
@@ -114,10 +116,14 @@ export type Save = {
   ranks: Ranks
   /** Pokédex progress (`game/dex.ts`). */
   dex: Pokedex
-  /** The incubator (`game/eggs.ts`). */
+  /** The incubator (`game/eggs.ts`), up to `incubatorSlots` eggs. */
   eggs: readonly Egg[]
+  /** The incubator's upgrades (`game/incubator.ts`): extra slots bought for good and the Quick Incubators got and used. */
+  incubator: IncubatorSave
   /** Families unlocked from eggs (`game/eggs.ts`). */
   hatched: Hatched
+  /** The egg pity (`game/eggs.ts`): eggs of each kind hatched in a row with no new family. */
+  eggPity: EggPity
   /** Daily and weekly mission progress (`game/missions.ts`). */
   missions: MissionsSave
   /** Unlocked achievements and lifetime records (`game/achievements.ts`). */
@@ -166,10 +172,10 @@ export type Save = {
   caps: Caps
   /** Meowth's weekend caravan (`game/caravan.ts`): the weekend last traded on, what was bought then and whether Meowth haggled. */
   caravan: CaravanSave
-  /** The seasonal stalls (`game/stalls.ts`): the Brasília day last bought on and how many of each good then (Duskull's Haunted Egg, one a day). */
-  stall: StallSave
   /** The last official Desafio do dia attempt finished (`game/attempt.ts`): synced, so every device of the account shows practice after it. */
   attempt: Attempt | null
+  /** Builds planned at the Dojo (`game/builds.ts`), one per family: the level-up screen marks the cards that follow one. */
+  builds: Builds
 }
 
 /** The branch each branching family took in its latest run that got there. */
@@ -192,7 +198,9 @@ export const EMPTY_SAVE: Save = {
   ranks: NO_RANKS,
   dex: EMPTY_DEX,
   eggs: [],
+  incubator: NO_INCUBATOR,
   hatched: {},
+  eggPity: {},
   missions: NO_MISSIONS,
   achievements: NO_ACHIEVEMENTS,
   title: null,
@@ -216,10 +224,10 @@ export const EMPTY_SAVE: Save = {
   tms: NO_TMS,
   evo: [],
   caps: {},
-  // Spelled out (not `NO_CARAVAN`, `NO_STALL`): `game/caravan.ts` and `game/stalls.ts` reach this module back through the save's helpers.
+  // Spelled out (not `NO_CARAVAN`): `game/caravan.ts` reaches this module back through the save's helpers.
   caravan: { week: '', bought: [], haggled: false },
-  stall: { day: '', bought: {} },
   attempt: null,
+  builds: {},
 }
 
 /** Brings any older save shape up to the current version. Add a case per schema bump. */
@@ -256,13 +264,16 @@ export const parseSaveData = (json: unknown): Save => {
   const ranks = isRecord(data.ranks) ? data.ranks : {}
   const achievements = parseAchievements(data.achievements)
   const titles = parseGiftTitles(data.titles)
+  const incubator = parseIncubator(data.incubator)
   return {
     version: SAVE_VERSION,
     wallet: wholeNumber(data.wallet),
     ranks: Object.fromEntries(UPGRADE_IDS.map((id) => [id, wholeNumber(ranks[id], UPGRADES[id].maxRank)])) as Record<UpgradeId, number>,
     dex: parseDex(data.dex),
-    eggs: parseEggs(data.eggs),
+    eggs: parseEggs(data.eggs, incubatorSlots({ incubator })),
+    incubator,
     hatched: parseHatched(data.hatched),
+    eggPity: parseEggPity(data.eggPity),
     missions: parseMissions(data.missions),
     achievements,
     title: parseTitle(data.title, achievements.unlocked, titles),
@@ -289,8 +300,8 @@ export const parseSaveData = (json: unknown): Save => {
     evo: parseEvoItems(data.evo),
     caps: parseCaps(data.caps),
     caravan: parseCaravan(data.caravan),
-    stall: parseStall(data.stall),
     attempt: parseAttempt(data.attempt),
+    builds: parseBuilds(data.builds),
   }
 }
 
@@ -316,25 +327,42 @@ export const COIN_VALUES = [10, 50, 250] as const
 export const coinTier = (value: number) => (value >= COIN_VALUES[2] ? 2 : value >= COIN_VALUES[1] ? 1 : 0)
 
 /**
- * Coins dropped by a fainted enemy. Regular Pokémon drop one now and then
- * (tougher ones more often), shinies always pay out and bosses shower ₽.
+ * ₽ fainted foes drop, before greed. A regular one drops a coin with chance
+ * `chance + perXp × its EXP` (a pile in `pile` of those), `endless` times that
+ * past Mewtwo; shinies and bosses (Alphas too) always shower ₽. Halved when the
+ * Kecleon Shop opened: runs paid faster than its shelves could take, and
+ * bosses, Alphas and shinies made more of a run's coins than the regular horde.
  */
-export const coinDrops = (rng: Rng, enemy: { boss: boolean; xp: number; shiny?: boolean }): number[] => {
-  if (enemy.boss) return [250, 50, 50, 50, 50, 50]
-  if (enemy.shiny) return [50, 50, 50]
-  if (!chance(rng, 0.025 + enemy.xp * 0.01)) return []
-  return [chance(rng, 0.1) ? 50 : 10]
+export const FOE_COINS = {
+  chance: 0.0125,
+  perXp: 0.005,
+  pile: 0.1,
+  endless: 0.5,
+  shiny: [COIN_VALUES[1], COIN_VALUES[0], COIN_VALUES[0]],
+  boss: [COIN_VALUES[1], COIN_VALUES[1], COIN_VALUES[1], COIN_VALUES[1], COIN_VALUES[1]],
+} as const
+
+/** Coins dropped by a fainted enemy (`FOE_COINS`); `endless` once the run went on past Mewtwo. */
+export const coinDrops = (rng: Rng, enemy: { boss: boolean; xp: number; shiny?: boolean }, endless = false): readonly number[] => {
+  if (enemy.boss) return FOE_COINS.boss
+  if (enemy.shiny) return FOE_COINS.shiny
+  if (!chance(rng, (FOE_COINS.chance + enemy.xp * FOE_COINS.perXp) * (endless ? FOE_COINS.endless : 1))) return []
+  return [chance(rng, FOE_COINS.pile) ? COIN_VALUES[1] : COIN_VALUES[0]]
 }
+
+/** ₽ per survived minute in the run bonus, and the extra per endless minute past 15:00 (after Mewtwo). */
+const BONUS_PER_MINUTE = { run: 30, endless: 30 } as const
 
 /**
  * End-of-run bonus for surviving and fainting foes, scaled by greed (Amulet Coin).
- * Beating Mewtwo pays a lump sum; after it, every endless minute pays triple
+ * Beating Mewtwo pays a lump sum; after it, every endless minute pays double
  * and every defeated Arceus a fortune, so surviving longer always pays more.
  */
 export const runBonus = (run: { time: number; kills: number; victory: boolean; greed: number; reaperDefeats?: number }) => {
   const endlessMinutes = run.victory ? overtime(run.time) / 60 : 0
   const reaper = (run.reaperDefeats ?? 0) * ENDLESS.reaperBonus
-  return Math.round(((run.time / 60) * 30 + endlessMinutes * 60 + run.kills * 0.25 + (run.victory ? 1000 : 0) + reaper) * run.greed)
+  const minutes = (run.time / 60) * BONUS_PER_MINUTE.run + endlessMinutes * BONUS_PER_MINUTE.endless
+  return dm.round((minutes + run.kills * 0.25 + (run.victory ? 1000 : 0) + reaper) * run.greed)
 }
 
 /** Mewtwo fell this run: on the victory screen, or still going in endless mode. */

@@ -5,16 +5,18 @@ import { HATCHLINGS, PLAYABLE, type PlayableId } from '../data/hatchlings'
 import { BRANCHES, branchesAt } from '../data/branches'
 import type { EvolutionStage } from '../data/starters'
 import { STYLE_SLOTS, styleIds, stylePrice, type StyleId, type StyleSlot } from '../data/style'
-import { BOTTLE_CAPS, EVO_ITEM_IDS, EVO_ITEM_PRICE, EVO_ITEMS, MAX_CAPS, SHOP_LEVEL_IDS, SHOP_LEVELS, VITRINE, type BagItem, type EvoItemId, type ShopLevel, type VitrineEgg, type VitrineKey } from '../data/shop'
+import { BOTTLE_CAPS, EVO_ITEM_IDS, EVO_ITEM_PRICE, EVO_ITEMS, INCUBATOR, MAX_CAPS, SHOP_LEVEL_IDS, SHOP_LEVELS, VITRINE, type BagItem, type EvoItemId, type ShopLevel, type VitrineEgg, type VitrineKey } from '../data/shop'
 import { armBlock, armedItems, armItem, BAG_ITEM_IDS, BAG_ITEMS, bagCount } from '../game/bag'
 import { addDays, brasiliaDay, dayNumber, msToNextDay, type DayKey } from '../game/day'
 import { canPlay } from '../game/capture'
 import { branchNeeds, buyCap, buyEvoItem, capBlock, capLevel, capPrice, evoBlock, evoItemSteps } from '../game/evoItems'
 import { MOVES } from '../game/moves'
 import { armedTms, armTm, buyTm, isRegularTm, nextTmDay, shelfOf, tmBlock, tmLimit, tmListing, tmPrice, type ShelfTm, type TmBlock } from '../game/tmShelf'
-import { EGG_TIERS, EGGS, hatchOdds, type EggTier } from '../game/eggs'
+import { EGG_TIERS, EGGS, hatchOdds, incubatorSlots, MAX_SLOTS, type EggTier } from '../game/eggs'
+import { buyQuick, buySlot, quickCount, slotBlock } from '../game/incubator'
 import { buyUpgrade, refundAll, totalSpent, UPGRADE_IDS, UPGRADES, upgradePrice, type Save } from '../game/meta'
 import {
+  boughtToday,
   buyFromVitrine,
   buyKecleonEgg,
   buyStyle,
@@ -25,6 +27,7 @@ import {
   investInShop,
   isDeal,
   kecleonEggBlock,
+  kecleonEggPrice,
   nextAppearance,
   nextShopLevel,
   onPick,
@@ -41,7 +44,10 @@ import {
 } from '../game/shop'
 import { playsShiny } from '../game/shinyPicks'
 import { equipStyle, ownsStyle } from '../game/style'
-import { coinIcon, eggIcon } from '../render/art'
+import { festivalDay } from '../festival'
+import { festivalAnnounced } from '../game/festival'
+import { coinIcon, eggIcon, incubatorIcon } from '../render/art'
+import { treatIcon } from '../render/halloweenArt'
 import { portraitUrl } from '../render/sprites'
 import { styleThumb } from '../render/card'
 import { frameIcon, wallpaperUrl } from '../render/cosmetics'
@@ -50,9 +56,11 @@ import { CARAVAN, LOYALTY, STALLS, type StallGoodId } from '../data/visitors'
 import { buyFromCaravan, caravanBlock, caravanPrice, caravanStock, goldCapFits, haggle, haggled, isoWeek, listPrice, type CaravanBlock, type CaravanKey } from '../game/caravan'
 import { isGiftReward, milestoneState, nextMilestone, reachedNow, type Milestone } from '../game/loyalty'
 import { buyFromStall, stallBlock, stallGood, stallGoods, type StallBlock } from '../game/stalls'
+import { candiesLeft } from '../game/halloween'
 import { caravanDay, caravanOpen, meowthSpeaker, stallDay, stallSelling, stallSpeaker } from './visitors'
 import { dialogue, type Dialogue, type DialogueLine } from './dialogue'
 import { h, later, setText } from './dom'
+import { festivalIcon } from './festival'
 import { emptyCounter, kecleonSpeaker, levelUpLine, pickTrigger, thanks, visitLine, weekdayOf, type VisitContext } from './kecleon'
 import { loadSave, today, vitrineToday, writeSave } from './save'
 import { confirmDialog, hint, type Screen } from './screens'
@@ -197,39 +205,64 @@ const blockText = (block: VitrineBlock | null) => (block === null || block === '
 
 /**
  * The Kecleon Egg's fixed card: beside the day's cards (never one of them),
- * one a day at any level, with the odds of each of its four families for this
- * save. Kecleon has a word for whoever takes one.
+ * several a day at any level, each double the last (`kecleonEggPrice`): the
+ * card shows how many today, this one's price and the next one's, and the
+ * odds of each of its four families for this save. Kecleon has a word for
+ * whoever takes one.
  */
 const kecleonEggCard = (v: Vitrine): Card => {
   const sh = t().shop
   const k = sh.kecleonEgg
-  const { price: cost } = VITRINE.kecleonEgg
+  const max = vitrineStock('kecleonEgg')
   const name = t().eggs.tiers.kecleon
   const { el, badges, sub, price } = shell(shopIcon('kecleonEgg'), name)
+  const next = h('span', { class: 'shop-next' })
+  el.append(next)
   el.classList.add('kecleon-egg')
-  const odds = (save: Save) => hatchOdds('kecleon', save.hatched)
+  const bought = (save: Save) => boughtToday(save.shop, v, 'kecleonEgg')
   const blocked = (save: Save) => {
     const block = kecleonEggBlock(save, v)
     return block === null || block === 'poor' ? null : sh.blocks[block]
+  }
+  /** The line under the price: the egg after this one, or that this is the day's last; nothing while blocked. */
+  const nextLine = (save: Save) => {
+    if (blocked(save)) return ''
+    const after = kecleonEggPrice(bought(save) + 1)
+    // A no-break space keeps ₽ beside its number when the line wraps on a narrow card.
+    return after === null ? k.last : k.next(formatPokeDollars(after).replace(/ /g, ' '))
   }
   return {
     el,
     refresh: (save) => {
       const block = kecleonEggBlock(save, v)
       setBadges(badges, [badge('exclusive', sh.badges.exclusive)])
-      setText(sub, `${odds(save).filter(([id]) => save.hatched[id]).length}/${odds(save).length}`)
-      setText(price, blocked(save) ?? formatPokeDollars(cost))
+      setText(sub, k.today(bought(save), max))
+      setText(price, blocked(save) ?? formatPokeDollars(kecleonEggPrice(bought(save)) ?? 0))
+      setText(next, nextLine(save))
       el.classList.toggle('sold', block === 'soldOut' || block === 'full')
       el.classList.toggle('poor', block === 'poor')
     },
     describe: (save) => ({
       icon: shopIcon('kecleonEgg'),
       title: name,
-      // The odds first: on a phone the strip shows a few lines before it scrolls.
-      text: [eggOdds('kecleon', save), k.text(formatNumber(EGG_TIERS.kecleon.steps)), t().shop.stall.duplicate(formatPokeDollars(EGG_TIERS.kecleon.refund)), sh.stock(stockLeft(save.shop, v, 'kecleonEgg'), vitrineStock('kecleonEgg'))].join(' '),
-      action: blocked(save) ?? t().mart.buy(formatPokeDollars(cost)),
+      // The odds first (a full incubator's hint before them): on a phone the strip shows a few lines before it scrolls.
+      text: [
+        kecleonEggBlock(save, v) === 'full' && k.full,
+        eggOdds('kecleon', save),
+        k.text(formatNumber(EGG_TIERS.kecleon.steps)),
+        k.ladder(max, VITRINE.kecleonEgg.prices.map(formatPokeDollars).join(', ')),
+        t().shop.stall.duplicate(formatPokeDollars(EGG_TIERS.kecleon.refund)),
+        sh.stock(stockLeft(save.shop, v, 'kecleonEgg'), max),
+      ]
+        .filter((l): l is string => typeof l === 'string')
+        .join(' '),
+      action: blocked(save) ?? t().mart.buy(formatPokeDollars(kecleonEggPrice(bought(save)) ?? 0)),
       disabled: kecleonEggBlock(save, v) !== null,
     }),
+    confirm: (save) => {
+      const cost = kecleonEggPrice(bought(save))
+      return cost !== null && cost >= VITRINE.kecleonEgg.confirmFrom && kecleonEggBlock(save, v) === null ? k.confirm(formatPokeDollars(cost)) : null
+    },
     act: (save) => buyKecleonEgg(save, v),
     said: (before, after) => (after.wallet < before.wallet ? { text: t().plaza.lines.kecleonEgg, emotion: 'Inspired' } : null),
   }
@@ -696,6 +729,65 @@ const levelCard = (level: ShopLevel): Card => {
   }
 }
 
+/* ---------------- Incubadora ---------------- */
+
+/** An extra incubator slot (`INCUBATOR.slots[i]`): owned, the next one (for good, so it asks first), or waiting on the slot before it or the shop's level. */
+const slotCard = (i: number): Card => {
+  const m = t().shop.incubator
+  const def = INCUBATOR.slots[i]!
+  const n = EGGS.slots + i + 1
+  const level = t().shop.level(t().shop.levels[def.minLevel], def.minLevel)
+  const { el, badges, sub, price } = shell(img(incubatorIcon(), 'shop-egg'), m.slot(n))
+  const owned = (save: Save) => save.incubator.slots > i
+  const isNext = (save: Save) => save.incubator.slots === i
+  /** Why it waits, when it isn't the next one or the shop is too small for it. */
+  const waits = (save: Save) => (owned(save) ? null : !isNext(save) ? m.before : slotBlock(save) === 'level' ? m.needs(level) : null)
+  return {
+    el,
+    refresh: (save) => {
+      setBadges(badges, [owned(save) && badge('owned', t().shop.badges.owned), !owned(save) && badge('level', t().shop.badges.level(def.minLevel))])
+      setText(sub, waits(save) ?? m.slotText)
+      setText(price, owned(save) ? '✓' : formatPokeDollars(def.price))
+      el.classList.toggle('done', owned(save))
+      el.classList.toggle('locked', waits(save) !== null)
+      el.classList.toggle('poor', isNext(save) && slotBlock(save) === 'poor')
+    },
+    describe: (save) => ({
+      icon: img(incubatorIcon(), 'shop-egg'),
+      title: m.slot(n),
+      text: [m.slotText, owned(save) ? m.owned : (waits(save) ?? m.needs(level))].join(' '),
+      action: owned(save) ? m.owned : m.buy(formatPokeDollars(def.price)),
+      disabled: owned(save) || !isNext(save) || slotBlock(save) !== null,
+    }),
+    act: (save) => (isNext(save) ? buySlot(save) : null),
+    confirm: (save) => (isNext(save) && !slotBlock(save) ? m.confirm(n, formatPokeDollars(def.price)) : null),
+  }
+}
+
+/** The Quick Incubator: bought here (no daily stock), put on an egg from the incubator screen. */
+const quickCard = (): Card => {
+  const m = t().shop.incubator
+  const { price: cost, speed } = INCUBATOR.quick
+  const { el, badges, sub, price } = shell(img(incubatorIcon(true), 'shop-egg'), m.quick)
+  return {
+    el,
+    refresh: (save) => {
+      setBadges(badges, [])
+      setText(sub, `×${quickCount(save.incubator)}`)
+      setText(price, formatPokeDollars(cost))
+      el.classList.toggle('poor', save.wallet < cost)
+    },
+    describe: (save) => ({
+      icon: img(incubatorIcon(true), 'shop-egg'),
+      title: `${m.quick} ×${quickCount(save.incubator)}`,
+      text: [m.quickText(speed), t().shop.have(quickCount(save.incubator))].join(' '),
+      action: save.wallet < cost ? t().shop.blocks.poor : t().mart.buy(formatPokeDollars(cost)),
+      disabled: save.wallet < cost,
+    }),
+    act: buyQuick,
+  }
+}
+
 /* ---------------- Caravana (Meowth, weekends) ---------------- */
 
 /** What a caravan card shows: its name, picture and what it is. */
@@ -801,7 +893,7 @@ const haggleCard = (): Card => {
  */
 const eggOdds = (egg: EggTier, save: Save) => {
   const s = t().shop.stall
-  const shares = hatchOdds(egg, save.hatched)
+  const shares = hatchOdds(egg, save.hatched, save.eggPity)
   const family = ([id]: (typeof shares)[number]) => `${HATCHLINGS[id].name}${save.hatched[id] ? ' ✓' : ''}`
   const list = shares.every(([, share]) => share === shares[0]?.[1])
     ? s.even(shares.map(family).join(', '), Math.round((shares[0]?.[1] ?? 0) * 100))
@@ -813,25 +905,27 @@ const eggOdds = (egg: EggTier, save: Save) => {
 const stallBlockText = (block: StallBlock | null) => (block === null || block === 'poor' ? null : t().shop.stall.blocks[block])
 
 /**
- * One of a stall's goods: an egg only it sells, `perDay` per day, with the
- * odds of each family that can come out (for this save, as `hatchEgg` draws them).
+ * One of a stall's goods: an egg only it sells, for ₽ or for candies, with the
+ * odds of each family that can come out (for this save, as `hatchEgg` draws
+ * them). No stock: it sells while the incubator has room.
  */
 const stallCard = (good: StallGoodId): Card => {
   const s = t().shop.stall
-  const { egg, price: cost } = stallGood(good)
+  const { egg, price: cost, pay } = stallGood(good)
   const name = t().eggs.tiers[egg]
   const picture = () => img(eggIcon(egg), 'shop-egg')
   const { el, badges, sub, price } = shell(picture(), name)
   const day = stallDay()
   const odds = (save: Save) => hatchOdds(egg, save.hatched)
+  const cost$ = pay === 'candies' ? t().halloween.at(formatNumber(cost)) : formatPokeDollars(cost)
   return {
     el,
     refresh: (save) => {
       const block = stallBlock(save, good, day)
       setBadges(badges, [badge('exclusive', t().shop.badges.exclusive)])
-      setText(sub, `${odds(save).filter(([id]) => save.hatched[id]).length}/${odds(save).length}`)
-      setText(price, stallBlockText(block) ?? formatPokeDollars(cost))
-      el.classList.toggle('sold', block === 'soldOut' || block === 'full')
+      setText(sub, s.hatched(odds(save).filter(([id]) => save.hatched[id]).length, odds(save).length))
+      setText(price, stallBlockText(block) ?? cost$)
+      el.classList.toggle('sold', block === 'full')
       el.classList.toggle('poor', block === 'poor')
     },
     describe: (save) => {
@@ -839,13 +933,18 @@ const stallCard = (good: StallGoodId): Card => {
         icon: picture(),
         title: name,
         // The odds first: on a phone the strip shows a few lines before it scrolls.
-        text: [eggOdds(egg, save), s.egg(formatNumber(EGG_TIERS[egg].steps)), s.duplicate(formatPokeDollars(EGG_TIERS[egg].refund)), s.stock].join(' '),
-        action: stallBlockText(stallBlock(save, good, day)) ?? t().mart.buy(formatPokeDollars(cost)),
+        text: [
+          eggOdds(egg, save),
+          s.egg(formatNumber(EGG_TIERS[egg].steps)),
+          s.duplicate(formatPokeDollars(EGG_TIERS[egg].refund)),
+          pay === 'candies' ? s.candies(formatNumber(candiesLeft(save.halloween))) : s.stock,
+        ].join(' '),
+        action: stallBlockText(stallBlock(save, good, day)) ?? t().mart.buy(cost$),
         disabled: stallBlock(save, good, day) !== null,
       }
     },
     act: (save) => buyFromStall(save, good, day),
-    said: (before, after) => (after.wallet < before.wallet ? 'thanks' : null),
+    said: (before, after) => (after.eggs.length > before.eggs.length ? 'thanks' : null),
   }
 }
 
@@ -968,6 +1067,8 @@ type Shelf = {
   countdown?: boolean
   /** The Treino's Refund button. */
   refund?: boolean
+  /** Beside the ₽ in the header, the Noite das Bruxas candies left to spend (Duskull's stall takes them). */
+  candies?: boolean
   hello?: () => DialogueLine
 }
 
@@ -1020,6 +1121,7 @@ const SHELVES: readonly Shelf[] = [
     },
     intro: () => t().shop.stall.intro(formatDay(STALLS[stallSelling() ?? 'halloween'].to)),
     hello: () => stallHello(),
+    candies: true,
   },
   {
     id: 'bag',
@@ -1063,6 +1165,14 @@ const SHELVES: readonly Shelf[] = [
     layout: 'list',
     stock: () => [loyaltyCard(), ...LOYALTY.milestones.map(milestoneCard)],
     intro: (save) => t().shop.loyalty.intro(save.shop.stamps),
+  },
+  {
+    id: 'incubator',
+    keeper: 'green',
+    open: () => true,
+    layout: 'list',
+    stock: () => [quickCard(), ...INCUBATOR.slots.map((_, i) => slotCard(i))],
+    intro: (save) => t().shop.incubator.intro(incubatorSlots(save), MAX_SLOTS),
   },
   { id: 'expansion', keeper: 'green', open: () => true, layout: 'list', stock: () => SHOP_LEVEL_IDS.map(levelCard), intro: () => t().shop.expansion.intro },
 ]
@@ -1143,8 +1253,11 @@ const DIRECTIONS: Readonly<Record<string, Direction>> = {
  * Opens the shop over the plaza. Kecleon says its line for this visit (or,
  * camouflaged, waits to be talked to and pops out first); the visit counts
  * toward the regulars' streak. `close` goes back (the lobby pans home).
+ * `festival`: while a Festival da Praça runs or is about to
+ * (`festivalAnnounced`), a Festival button after the tabs calls it (the
+ * lobby swaps the shop for the festival's sheet).
  */
-export const shop = (root: HTMLElement, input: Input, opts: { close: () => void; plaza: ShopPlaza; wonLastRun: boolean; shelf?: VisitorShelf }): Screen => {
+export const shop = (root: HTMLElement, input: Input, opts: { close: () => void; plaza: ShopPlaza; wonLastRun: boolean; shelf?: VisitorShelf; festival?: () => void }): Screen => {
   const sh = t().shop
   const before = loadSave()
   let save: Save = { ...before, shop: recordVisit(before.shop, brasiliaDay(today())) }
@@ -1205,9 +1318,16 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
     let capsFor: PlayableId = save.partner
 
     const wallet = h('span')
+    const candyCount = h('span')
+    const candyWallet = h('span', { class: 'shop-wallet candies' }, img(treatIcon()), candyCount)
     const tabs = SHELVES.map((s) => h('button', { class: 'shop-tab', type: 'button', role: 'tab' }, sh.tabs[s.id]))
+    const announced = opts.festival ? festivalAnnounced(festivalDay()) : null
+    const festivalTab = h('button', { class: 'shop-tab festival-tab', type: 'button' }, img(festivalIcon(announced?.id ?? 'lanternas')), t().festival.shopButton)
+    festivalTab.hidden = !announced
     const intro = h('span', { class: 'shop-intro' })
     const clock = h('span', { class: 'shop-clock' })
+    // The shelf's line rides at the top of its list and scrolls away with it, leaving the cards the room on a phone.
+    const introRow = h('div', { class: 'shop-intro-row' }, intro, clock)
     const items = h('div', { class: 'shop-items', role: 'list' })
     const descIcon = h('div', { class: 'shop-desc-icon' })
     const descTitle = h('div', { class: 'shop-desc-title' })
@@ -1221,9 +1341,8 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
     const sheet = h(
       'section',
       { class: 'shop-sheet box', 'aria-label': sh.title },
-      h('header', { class: 'shop-head' }, back, h('h2', { class: 'shop-title' }, sh.title), h('span', { class: 'shop-wallet' }, img(coinIcon(0)), wallet)),
-      h('nav', { class: 'shop-tabs', role: 'tablist' }, ...tabs),
-      h('div', { class: 'shop-intro-row' }, intro, clock),
+      h('header', { class: 'shop-head' }, back, h('h2', { class: 'shop-title' }, sh.title), candyWallet, h('span', { class: 'shop-wallet' }, img(coinIcon(0)), wallet)),
+      h('nav', { class: 'shop-tabs', role: 'tablist' }, ...tabs, festivalTab),
       items,
       h('div', { class: 'shop-desc' }, descIcon, h('div', { class: 'shop-desc-body' }, descTitle, descText), h('div', { class: 'shop-desc-buttons' }, wishBtn, buy)),
       h('footer', { class: 'shop-foot' }, refund, hint(sh.hint, sh.hintTouch)),
@@ -1233,15 +1352,18 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
     const openShelves = () => SHELVES.filter((s) => s.open(save))
     const wishable = (card: Card | undefined) => card?.wish !== undefined && SHOP_LEVELS[save.shop.level].wishlist
     /** Everything the arrows reach, in the layout's order. */
-    const navs = () => [...tabs.filter((tab) => !tab.hidden), ...cards.map((c) => c.el), ...(wishable(cards[chosen]) ? [wishBtn] : []), buy, back, ...(shelf.refund ? [refund] : [])]
+    const navs = () => [...tabs.filter((tab) => !tab.hidden), ...(festivalTab.hidden ? [] : [festivalTab]), ...cards.map((c) => c.el), ...(wishable(cards[chosen]) ? [wishBtn] : []), buy, back, ...(shelf.refund ? [refund] : [])]
 
     const refresh = () => {
       setText(wallet, formatPokeDollars(save.wallet))
+      setText(candyCount, formatNumber(candiesLeft(save.halloween)))
+      candyWallet.classList.toggle('hidden', !shelf.candies)
+      candyWallet.setAttribute('aria-label', t().halloween.toSpend(formatNumber(candiesLeft(save.halloween))).replaceAll('*', ''))
       setText(intro, shelf.intro(save))
       setText(clock, shelf.countdown ? sh.turnsIn(countdown()) : '')
       for (const c of cards) c.refresh(save)
       cards.forEach((c, i) => c.el.classList.toggle('chosen', i === chosen))
-      for (const n of [...tabs, ...cards.map((c) => c.el), wishBtn, buy, back, refund]) n.classList.toggle('selected', n === focused)
+      for (const n of [...tabs, festivalTab, ...cards.map((c) => c.el), wishBtn, buy, back, refund]) n.classList.toggle('selected', n === focused)
       const card = cards[chosen]
       if (card) {
         const d = card.describe(save)
@@ -1269,10 +1391,12 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
         tab.classList.toggle('on', s === shelf)
         tab.setAttribute('aria-selected', String(s === shelf))
       })
+      // A phone swipes the tabs sideways: the open shelf's comes into view (a talk may open the shop on any).
+      tabs[SHELVES.indexOf(shelf)]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
       items.className = `shop-items ${shelf.layout}`
       const stock = shelf.stock(save, { capsFor, pickCaps, pickGoldCap })
       cards = stock.filter((c): c is Card => typeof c !== 'string')
-      items.replaceChildren(...stock.map((c) => (typeof c === 'string' ? h('div', { class: 'shop-group' }, c) : c.el)))
+      items.replaceChildren(introRow, ...stock.map((c) => (typeof c === 'string' ? h('div', { class: 'shop-group' }, c) : c.el)))
       cards.forEach((c, i) => wire(c.el, i))
       chosen = Math.min(chosen, Math.max(0, cards.length - 1))
       items.scrollTop = 0
@@ -1408,6 +1532,14 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
       refresh()
     }
 
+    /** The Festival button: the lobby swaps the shop for the festival's sheet. */
+    function openFestival() {
+      if (closed || !opts.festival) return
+      closed = true
+      playSfx('select')
+      later(opts.festival)
+    }
+
     const toggleWish = () => {
       const card = cards[chosen]
       if (!wishable(card) || card?.wish === undefined) return playSfx('denied')
@@ -1449,6 +1581,7 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
       const tab = tabs.findIndex((b) => b === focused)
       if (tab >= 0) return switchShelf(SHELVES[tab]!)
       if (focused === back) return close()
+      if (focused === festivalTab) return openFestival()
       if (focused === refund) return askRefund()
       if (focused === wishBtn) return toggleWish()
       act()
@@ -1465,6 +1598,8 @@ export const shop = (root: HTMLElement, input: Input, opts: { close: () => void;
       })
     }
     tabs.forEach((tab, i) => tab.addEventListener('click', () => !confirm && switchShelf(SHELVES[i]!)))
+    festivalTab.addEventListener('click', () => !confirm && openFestival())
+    festivalTab.addEventListener('pointerenter', (e) => !isTouch(e) && focus(festivalTab, false))
     buy.addEventListener('click', () => !confirm && act())
     wishBtn.addEventListener('click', () => !confirm && toggleWish())
     back.addEventListener('click', () => !confirm && close())

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { POKE_TYPES } from '../data/types'
 import {
-  beginJump, CHAIN_IFRAMES, CHAIN_WINDOW, comboCasts, createSpecialState, endChain, landJump, MIN_SPECIAL_COOLDOWN, rechargeSpecial, resolveSpecial, SPECIAL_IDS, SPECIALS,
+  beginJump, CHAIN_IFRAMES, CHAIN_WINDOW, comboCasts, createSpecialState, dashStep, endChain, jumpStep, landJump, MIN_SPECIAL_COOLDOWN, rechargeSpecial, resolveSpecial, SPECIAL_IDS, SPECIALS,
   specialCooldown, specialIdFor, specialOfType, specialReady, tickChain, triggerSpecial, type SpecialDef,
 } from './special'
 import { stanceStats, STANCES } from './stance'
@@ -54,6 +54,28 @@ describe('special resolution', () => {
     expect(resolveSpecial('bulbasaur', 2).tier.name).toBe('Frenzy Plant')
     expect(resolveSpecial('pichu', 0).tier.name).toBe('Thunderbolt')
     expect(resolveSpecial('pichu', 2).tier.name).toBe('Bolt Strike')
+  })
+})
+
+describe('special motion', () => {
+  it('carries a chain jump exactly its reach along the aim, never past it', () => {
+    let active = 0.1
+    let moved = 0
+    while (active > 0) {
+      const step = jumpStep(Math.PI / 2, 70, active, DT)
+      expect(step.dx).toBeCloseTo(0, 9)
+      moved += step.dy
+      active = Math.max(0, active - DT)
+    }
+    expect(moved).toBeCloseTo(70, 9)
+  })
+
+  it('dashes at a steady pace along the aim, its length the step it moved', () => {
+    const a = dashStep(Math.PI, 130, DT)
+    const b = dashStep(Math.PI, 130, 2 * DT)
+    expect(a.dx).toBeLessThan(0)
+    expect(b.dx).toBeCloseTo(2 * a.dx, 9)
+    expect(Math.hypot(a.dx, a.dy)).toBeCloseTo(a.dist, 9)
   })
 })
 
@@ -159,6 +181,18 @@ describe('Power Herb', () => {
     const late = { ...createSpecialState(), cooldown: 1, total: 8, kills: 2 }
     rechargeSpecial(late, 0.25)
     expect(late.cooldown).toBeCloseTo(0.5)
+  })
+
+  it('holds the floor through every later batch of kills, not just the first', () => {
+    const s = { ...createSpecialState(), cooldown: 8.3, total: 8.6, kills: 20 }
+    rechargeSpecial(s, 0.75)
+    expect(s.cooldown).toBeCloseTo(MIN_SPECIAL_COOLDOWN - 0.3)
+    // The next tick's kills: still 3.7 s to go, as 0.3 s went by.
+    triggerSpecial(s, false, DT)
+    s.kills = 20
+    rechargeSpecial(s, 0.75)
+    expect(s.cooldown).toBeCloseTo(MIN_SPECIAL_COOLDOWN - 0.3 - DT)
+    expect(s.total - s.cooldown).toBeCloseTo(0.3 + DT)
   })
 
   it('wastes kills while the special is ready', () => {

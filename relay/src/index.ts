@@ -1,50 +1,45 @@
-import {
-  PROTOCOL,
-  REGIONS,
-  ROOM_CODE_ALPHABET,
-  ROOM_CODE_LENGTH,
-  parseRoomCode,
-  type CreateResponse,
-  type Region,
-} from '../../src/net/protocol'
+import { PROTOCOL, parseRoomCode, type CreateResponse, type Region } from '../../src/net/protocol'
+import { parseCreate } from './codes'
 import type { Env } from './env'
 import { allowedOrigin } from './origins'
+import { HINT_HEADER, log, noSuchRoom, shardStub } from './shell'
+import { SHARD_INDEXES, SHARD_REGIONS, shardName, shardOf, type Shard } from './shards'
+import { EDGE_HEADER, edgeOf } from './telemetry'
 
-export { RoomObject } from './roomObject'
+export { Matchmaker } from './matchmakerObject'
+export { ShardObject } from './shardObject'
 export { Vault } from './vault'
 
 /**
- * The relay's Worker: creates rooms, routes each room's sockets to its Durable
- * Object (`idFromName(code)`), and serves `/health` and the admin dumps.
+ * The relay's Worker: creates rooms in shards (`shards.ts`: many rooms per
+ * Durable Object), routes each room's sockets to the shard its code names, and
+ * serves `/health` and the admin dumps.
  *
- * - `POST /rooms` `{ v, build, region? }` → `{ code, region }`
+ * - `POST /rooms` `{ v, build, region? }` → `{ code, region, claim }`
  * - `GET /rooms/<code>/ws` → WebSocket (first message: `hello`)
+ * - `GET /arena/queue` → WebSocket to the Arena's matchmaker (`matchmakerObject.ts`; first message: `queue`)
  * - `GET /health`
- * - `GET /admin/dumps`, `GET /admin/dumps/<id>` (gzipped JSON), `Authorization: Bearer <ADMIN_TOKEN>`
+ * - `GET /admin/dumps`, `GET /admin/dumps/<id>` (gzipped JSON), `GET /admin/shards/<region>:<index>` (its rooms and
+ *   frame timer lateness), `Authorization: Bearer <ADMIN_TOKEN>`
  */
-
-/** Room codes tried before giving up (a collision in 28.6 million codes is rare already). */
-const CREATE_TRIES = 8
-
-/** A uniformly random room code (rejection sampling over random bytes). */
-export const randomCode = (random: (n: number) => Uint8Array = (n) => crypto.getRandomValues(new Uint8Array(n))) => {
-  const n = ROOM_CODE_ALPHABET.length
-  const limit = 256 - (256 % n)
-  let code = ''
-  while (code.length < ROOM_CODE_LENGTH) for (const b of random(8)) if (b < limit && code.length < ROOM_CODE_LENGTH) code += ROOM_CODE_ALPHABET[b % n]
-  return code
-}
 
 type Hint = Exclude<Region, 'auto'>
 
-/** The location hint nearest a request (its continent, and longitude in North America). */
+/**
+ * The location hint nearest a request (its continent, and longitude in North
+ * America). No Durable Object runs in South America (`sam` lands anywhere from
+ * Miami to Chicago): from São Paulo the US east coast answers first (EWR
+ * 116 ms, MIA 131 ms). Africa gets western Europe's: a room without a hint
+ * shares the `auto` shards, which live wherever their first room was made.
+ */
 export const hintFor = (cf: { continent?: string; longitude?: string } | undefined): Hint | null => {
   switch (cf?.continent) {
     case 'SA':
-      return 'sam'
+      return 'enam'
     case 'NA':
       return Number(cf.longitude) < -100 ? 'wnam' : 'enam'
     case 'EU':
+    case 'AF':
       return 'weur'
     case 'AS':
       return 'apac'
@@ -54,8 +49,6 @@ export const hintFor = (cf: { continent?: string; longitude?: string } | undefin
       return null
   }
 }
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 const json = (body: unknown, status = 200, headers: HeadersInit = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } })
@@ -68,24 +61,21 @@ const ipOf = (request: Request) => request.headers.get('CF-Connecting-IP') ?? 'u
 const createRoom = async (request: Request<unknown, IncomingRequestCfProperties>, env: Env, headers: Record<string, string>): Promise<Response> => {
   const reply = (body: CreateResponse, status = 200) => json(body, status, headers)
   if (!(await env.CREATE_LIMIT.limit({ key: ipOf(request) })).success) return reply({ error: 'rate' }, 429)
-  const text = await request.text()
-  let body: unknown = null
-  try {
-    body = text.length <= 1024 ? JSON.parse(text) : null
-  } catch {
-    body = null
-  }
-  if (!isRecord(body)) return reply({ error: 'invalid' }, 400)
-  if (body.v !== PROTOCOL) return reply({ error: 'version' }, 426)
-  const build = typeof body.build === 'string' && /^[\w.-]{1,40}$/.test(body.build) ? body.build : null
-  const asked = REGIONS.find((r) => r === body.region) ?? 'auto'
-  if (!build) return reply({ error: 'invalid' }, 400)
+  const body = parseCreate(await request.text())
+  if ('error' in body) return reply({ error: body.error }, body.status)
+  const { build, region: asked } = body
   const hint = asked === 'auto' ? hintFor(request.cf) : asked
   const region: Region = hint ?? 'auto'
-  for (let i = 0; i < CREATE_TRIES; i++) {
-    const code = randomCode()
-    const stub = env.ROOMS.get(env.ROOMS.idFromName(code), hint ? { locationHint: hint } : undefined)
-    if (await stub.create({ code, build, region })) return reply({ code, region })
+  // The region's shards fill in order (packing only pays when rooms share an object): a full one says no, the next is asked.
+  for (let index = 0; index < SHARD_INDEXES; index++) {
+    const shard: Shard = { region, index }
+    const made = await shardStub(env, shard)
+      .create({ shard, build })
+      .catch((err: unknown) => {
+        log({ ev: 'shard.createFailed', shard: shardName(shard), error: String(err) })
+        return null
+      })
+    if (made) return reply({ code: made.code, region, claim: made.claim })
   }
   return reply({ error: 'busy' }, 503)
 }
@@ -101,6 +91,13 @@ const isAdmin = async (request: Request, env: Env) => {
 
 const admin = async (request: Request, env: Env, path: string): Promise<Response> => {
   if (!(await isAdmin(request, env))) return new Response('Not found', { status: 404 })
+  const shard = /^\/admin\/shards\/(\w+):(\d{1,2})$/.exec(path)
+  if (shard) {
+    const region = SHARD_REGIONS.find((r) => r === shard[1])
+    const index = Number(shard[2])
+    if (!region || index >= SHARD_INDEXES) return new Response('Not found', { status: 404 })
+    return json(await shardStub(env, { region, index }).stats())
+  }
   const vault = env.VAULT.getByName('dumps')
   if (path === '/admin/dumps') return json(await vault.list(100))
   const id = decodeURIComponent(path.slice('/admin/dumps/'.length))
@@ -127,9 +124,22 @@ export default {
       if (!(await env.CONNECT_LIMIT.limit({ key: ipOf(request) })).success) return new Response('Too many connections', { status: 429 })
       const code = parseRoomCode(ws[1])
       if (!code) return new Response('Bad room code', { status: 400 })
-      return env.ROOMS.getByName(code).fetch(request)
+      // Where this socket meets Cloudflare, for the room's telemetry (set here, so a client can't say it).
+      const headers = new Headers(request.headers)
+      headers.set(EDGE_HEADER, JSON.stringify(edgeOf(request.cf)))
+      const shard = shardOf(code)
+      // A code naming no shard (a VPS relay's, or none of ours) has no room here.
+      return shard ? shardStub(env, shard).fetch(new Request(request, { headers })) : noSuchRoom()
     }
-    if (path.startsWith('/admin/dumps') && request.method === 'GET') return admin(request, env, path)
+    if (path === '/arena/queue' && request.method === 'GET') {
+      if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 })
+      if (!(await env.CONNECT_LIMIT.limit({ key: ipOf(request) })).success) return new Response('Too many connections', { status: 429 })
+      const headers = new Headers(request.headers)
+      headers.set(HINT_HEADER, hintFor(request.cf) ?? '')
+      // One matchmaker for everyone in v1 (a small pool split by region would match nobody), on the US east coast like South America's rooms.
+      return env.MATCHMAKER.getByName('arena', { locationHint: 'enam' }).fetch(new Request(request, { headers }))
+    }
+    if ((path.startsWith('/admin/dumps') || path.startsWith('/admin/shards/')) && request.method === 'GET') return admin(request, env, path)
     return new Response('Not found', { status: 404, headers })
   },
 } satisfies ExportedHandler<Env>

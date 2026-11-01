@@ -1,6 +1,8 @@
 import { en } from './en'
 import { es } from './es'
+import { fr } from './fr'
 import { pt, type Messages } from './pt'
+import { zh } from './zh'
 import { tr } from './tr'
 
 export type { Messages }
@@ -10,6 +12,8 @@ export const LOCALES = {
   pt: { name: 'Português', short: 'PT', tag: 'pt-BR', messages: pt },
   en: { name: 'English', short: 'EN', tag: 'en-US', messages: en },
   es: { name: 'Español', short: 'ES', tag: 'es-419', messages: es },
+  fr: { name: 'Français', short: 'FR', tag: 'fr-FR', messages: fr },
+  zh: { name: '繁體中文', short: '中文', tag: 'zh-TW', messages: zh },
   tr: { name: 'Türkçe', short: 'TR', tag: 'tr-TR', messages: tr },
 } as const satisfies Record<string, { name: string; short: string; tag: string; messages: Messages }>
 
@@ -21,7 +25,7 @@ const KEY = 'ps:lang'
 
 const isLocale = (v: unknown): v is Locale => typeof v === 'string' && v in LOCALES
 
-/** Saved choice first, then the first browser language we support (`pt-PT` → pt, `es-MX` → es), else English. */
+/** Saved choice first, then the first browser language we support (`pt-PT` → pt, `es-MX` → es, any Chinese → zh, Traditional), else English. */
 export const detectLocale = (saved: string | null, languages: readonly string[]): Locale =>
   isLocale(saved) ? saved : (languages.map((l) => l.slice(0, 2).toLowerCase()).find(isLocale) ?? 'en')
 
@@ -33,7 +37,10 @@ const readSaved = () => {
   }
 }
 
-/** A localized page (`/en/` and `/es/` set `data-locale`) beats the browser language: search visitors play in the language they searched in. */
+/**
+ * A localized page (`/es/` sets `data-locale`) beats the browser language: search visitors play in the language they searched in.
+ * `/en/` doesn't set it: it's the x-default page, which search shows a Spanish browser when `/es/` doesn't rank, so the browser decides there.
+ */
 const preferredLanguages = (): readonly string[] => {
   const page = globalThis.document?.documentElement.dataset.locale
   return page ? [page] : (globalThis.navigator?.languages ?? [])
@@ -83,3 +90,7 @@ export const formatDay = (day: string) => {
 }
 
 export const formatPokeDollars = (amount: number) => `₽ ${formatNumber(amount)}`
+
+/** Big ₽ in short (`₽ 41,2M`, `₽ 50k`; below 1,000 in full), for the festival's pot and its milestones. */
+export const formatPokeDollarsShort = (amount: number) =>
+  amount >= 1_000_000 ? `₽ ${formatDecimal(Math.floor(amount / 100_000) / 10)}M` : amount >= 1_000 ? `₽ ${formatDecimal(Math.floor(amount / 100) / 10)}k` : formatPokeDollars(amount)

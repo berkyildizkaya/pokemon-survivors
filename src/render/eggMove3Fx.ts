@@ -1,11 +1,11 @@
-import { blitCentered, blitEllipse, blitRotated, textSprite } from '../engine/pixelart'
+import { blitPacked, blitEllipse, blitRotated, textSprite } from '../engine/pixelart'
 import { hash2 } from '../engine/rng'
 import { TAU } from '../engine/math'
 import { HAMMER_WINDUP, HEAVY_HOP, HEAVY_LIFT, PERISH_TIME } from '../game/eggMove3Rules'
 import { playerDex } from '../game/game'
 import type { Attack, Game } from '../game/types'
 import { EGG3_FX } from './eggMove3Art'
-import { sprites } from './sprites'
+import { bodyOf } from '../data/bodies'
 import { dashedRing } from './strokes'
 import { localPlayer } from '../game/players'
 
@@ -451,7 +451,7 @@ const drawPerish = (ctx: Ctx, a: Attack, t: number) => {
     const beat = (PERISH_TIME - a.age) % 1
     const pop = beat > 0.85 ? 1 : 0
     ctx.globalAlpha = Math.min(1, a.age / 0.25)
-    blitCentered(ctx, textSprite(String(left), left === 1 ? '#f85868' : '#d0c8e8', '#201828'), a.x, head - pop)
+    blitPacked(ctx, textSprite(String(left), left === 1 ? '#f85868' : '#d0c8e8', '#201828'), a.x, head - pop)
     note(ctx, a.x + 4, head - 8 + Math.sin(t * 5 + a.id) * 1.5, '#706080')
     ctx.globalAlpha = 1
     return
@@ -491,7 +491,7 @@ const drawBeam = (ctx: Ctx, a: Attack, t: number) => {
 /** How the player's sprite shows: lifted mid-hop by Heavy Slam, or null. */
 export const egg3PlayerLook = (g: Game) => {
   for (const a of g.attacks) {
-    if (a.visual !== 'heavySlam' || a.age < 0) continue
+    if (a.visual !== 'heavySlam' || a.age < 0 || a.owner !== localPlayer(g).slot) continue
     const k = Math.min(1, a.age / HEAVY_HOP)
     return { lift: Math.round(Math.sin(k * Math.PI) * HEAVY_LIFT), alpha: 1 }
   }
@@ -505,7 +505,7 @@ export const drawEgg3Player = (ctx: Ctx, g: Game, t: number) => {
   const frenzy = p.moves.find((m) => m.id === 'furySwipes')?.stacks ?? 0
   const payback = (p.moves.find((m) => m.id === 'avalanche')?.stacks ?? 0) > 0
   if (!boosted && frenzy < 2 && !payback) return
-  const bodyH = sprites(playerDex(g)).bodyH
+  const bodyH = bodyOf(playerDex(g)).bodyH
   if (boosted) {
     for (let k = 0; k < 3; k++) {
       const phase = (t * 1.6 + k / 3) % 1

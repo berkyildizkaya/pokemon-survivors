@@ -16,7 +16,7 @@ import { createTraitState, isAirborne, traitPace } from './traits'
 import { dungeonNav } from './dungeon'
 import { underground } from './landmarks'
 import { TRAITS } from '../data/traits'
-import { actAs, nearestPlayer, nearestSeen, onAnyScreen, ownerOf, standing } from './players'
+import { actAs, inPlay, nearestPlayer, nearestSeen, onAnyScreen, ownerOf, standing } from './players'
 import { coopScale } from './coop'
 import { COOP } from '../data/coop'
 import type { DamageSource, Enemy, EnemyBehavior, Game } from './types'
@@ -25,7 +25,7 @@ import * as dm from '../engine/dmath'
 const neighbors: number[] = []
 
 /** Body radius derived from the sprite so big Pokémon take up more space. */
-export const radiusFor = (dex: number) => Math.max(5, Math.round(bodyOf(dex).bodyW * 0.32))
+export const radiusFor = (dex: number) => Math.max(5, dm.round(bodyOf(dex).bodyW * 0.32))
 
 /**
  * How much tougher than its base stats a regular enemy spawning now is: the
@@ -46,7 +46,7 @@ export const spawnEnemy = (g: Game, kind: EnemyId, x: number, y: number, behavio
   const mods = runMods(g)
   const scale = boss ? { hp: mods.enemyHp, damage: 1, xp: 1 } : enemyScale(g)
   // Co-op: the whole team hits it (`coopScale`; exactly 1 solo).
-  const hp = Math.round(def.hp * scale.hp * coopScale(g, boss ? COOP.scale.bossHp : COOP.scale.hp))
+  const hp = dm.round(def.hp * scale.hp * coopScale(g, boss ? COOP.scale.bossHp : COOP.scale.hp))
   const enemy: Enemy = {
     id: g.nextId++,
     kind,
@@ -97,6 +97,9 @@ export const rebuildGrid = (g: Game) => {
     if (e.dying < 0) insert(g.grid, i, e.x, e.y)
   })
 }
+
+/** Share of its max HP a Versus camp's wild Pokémon heals per second back home. */
+const CAMP_REST = 0.2
 
 /** Pace of a foe that lost track of the player. */
 const LOST_PACE = 0.55
@@ -168,6 +171,8 @@ export const updateEnemies = (g: Game, dt: number) => {
     for (let i = 0; i < g.players.length; i++) navs[i] = dungeonNav(plan, g.players[i]!.x - cave.x, g.players[i]!.y - cave.y)
   }
   const band = spitBand(g.view)
+  // Knockback fades the same for everyone this tick.
+  const damp = dm.exp(-9 * dt)
 
   for (const e of g.enemies) {
     if (e.dying >= 0) {
@@ -178,6 +183,8 @@ export const updateEnemies = (g: Game, dt: number) => {
       }
       continue
     }
+    // Versus: a Pokémon's avatar stands where its player does (`versusCombat.ts`), never on its own.
+    if (e.behavior.kind === 'avatar') continue
     // A hidden teammate (Dig, a tunnel) is passed over for one the foe can see.
     const p = nearestSeen(g, e.x, e.y)
     const lost = underground(g, p)
@@ -235,6 +242,19 @@ export const updateEnemies = (g: Game, dt: number) => {
       const d = dirTo(e.x, e.y, tx, ty)
       vx = atEgg ? 0 : d.x * pace
       vy = atEgg ? 0 : d.y * pace
+    } else if (e.behavior.kind === 'camp') {
+      // Versus's wild: home until hit, then after whoever hit it within its leash; back home it rests and heals.
+      const b = e.behavior
+      const t = b.target >= 0 ? g.players[b.target] : undefined
+      const chasing = t !== undefined && inPlay(t) && dm.sq(t.x - b.x) + dm.sq(t.y - b.y) < b.leash * b.leash
+      if (!chasing) b.target = -1
+      const tx = chasing ? t.x : b.x
+      const ty = chasing ? t.y : b.y
+      const home = !chasing && dm.sq(b.x - e.x) + dm.sq(b.y - e.y) < 16
+      if (home) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * CAMP_REST * dt)
+      const d = dirTo(e.x, e.y, tx, ty)
+      vx = home || frozen ? 0 : d.x * pace
+      vy = home || frozen ? 0 : d.y * pace
     } else {
       vx = frozen ? 0 : e.behavior.vx
       vy = frozen ? 0 : e.behavior.vy
@@ -244,7 +264,6 @@ export const updateEnemies = (g: Game, dt: number) => {
 
     e.x += (vx + e.kx) * dt
     e.y += (vy + e.ky) * dt
-    const damp = dm.exp(-9 * dt)
     e.kx *= damp
     e.ky *= damp
     if (e.thrown && dm.sq(e.kx) + dm.sq(e.ky) < THROWN_MIN * THROWN_MIN) e.thrown = null
@@ -263,18 +282,23 @@ export const updateEnemies = (g: Game, dt: number) => {
   }
 
   // Separation: overlapping enemies push each other apart so hordes form rings, not blobs.
-  g.enemies.forEach((e, i) => {
-    if (e.dying >= 0 || isAirborne(e)) return
+  // A pass over the horde as it stood (as `forEach` walks it): a foe added meanwhile waits for the next tick.
+  const horde = g.enemies
+  const count = horde.length
+  for (let i = 0; i < count; i++) {
+    const e = horde[i]
+    if (e === undefined || e.dying >= 0 || isAirborne(e) || e.behavior.kind === 'avatar') continue
     for (const j of query(g.grid, e.x, e.y, e.radius * 2, neighbors)) {
       if (j === i) continue
       const o = g.enemies[j]!
-      if (o.dying >= 0 || isAirborne(o)) continue
       const dx = e.x - o.x
       const dy = e.y - o.y
       const min = (e.radius + o.radius) * 0.8
       const d2 = dx * dx + dy * dy
-      if (d2 < min * min && (e.thrown || e.status.confuse.time > 0)) bodyBlow(g, e, o)
-      if (d2 >= min * min || d2 === 0) continue
+      // Most of a crowded cell is out of reach: that's settled before looking any closer.
+      if (d2 >= min * min || o.dying >= 0 || isAirborne(o)) continue
+      if (e.thrown || e.status.confuse.time > 0) bodyBlow(g, e, o)
+      if (d2 === 0) continue
       const d = Math.sqrt(d2)
       const push = ((min - d) / d) * (o.mass / (e.mass + o.mass)) * 0.5
       e.x += dx * push
@@ -293,12 +317,13 @@ export const updateEnemies = (g: Game, dt: number) => {
       e.x = p.x + (dx / d) * reach
       e.y = p.y + (dy / d) * reach
       const attack = statusAttack(e.status)
-      if (attack <= 0) continue
+      // A camp's wild Pokémon bites only the one it turned on.
+      if (attack <= 0 || (e.behavior.kind === 'camp' && e.behavior.target !== p.slot)) continue
       const before = actAs(g, p)
       hurtPlayer(g, e.damage * attack, e)
       actAs(g, before)
     }
-  })
+  }
 
   retain(g.enemies, (e) => e.dying < (e.fled ? FLEE_TIME : FAINT_TIME))
 }

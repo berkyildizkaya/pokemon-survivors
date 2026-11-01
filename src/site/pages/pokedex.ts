@@ -8,7 +8,7 @@ import { HATCHLINGS, isHatchling, PLAYABLE } from '../../data/hatchlings'
 import { REGIONS, type PlayableDef } from '../../data/starters'
 import { POKE_TYPES, TYPE_COLORS, type PokeType } from '../../data/types'
 import { RUN_LENGTH } from '../../data/waves'
-import { isLegend, LEGENDS, type LegendId, type LegendUnlock } from '../../data/legends'
+import { EVENT_LEGENDS, isLegend, LEGENDS, type LegendId, type LegendUnlock } from '../../data/legends'
 import { BRANCHES, branchesAt, branchStage, familyDex } from '../../data/branches'
 import { ABILITIES, isHidden, type AbilitySet } from '../../data/abilities'
 import { abilitySet } from '../../game/abilities'
@@ -24,11 +24,11 @@ import { SITE_MESSAGES, type SiteMessages } from '../../i18n/site'
 import { STAT_BARS, statRatio } from '../../ui/statBars'
 import { html, type Html } from '../html'
 import { layout } from '../layout'
-import { appearances, clock, nightBossOf, pokedex, ROLES, slugOf, spritesOf, type Appearance, type DexEntry, type Role, type SpriteSet } from '../pokedex'
-import { absolute, ROUTES } from '../routes'
+import { appearances, clock, nightBossOf, pageOf, pokedex, ROLES, slugOf, spritesOf, type Appearance, type DexEntry, type Role, type SpriteSet } from '../pokedex'
+import { absolute, dexPaths, ROUTES } from '../routes'
 import { createSpriteCss, spriteScale } from '../spriteCss'
 
-type SpriteCss = ReturnType<typeof createSpriteCss>
+export type SpriteCss = ReturnType<typeof createSpriteCss>
 
 const asset = (dex: number, file: string, shiny = false) => `/assets/pokemon/${dex}/${shiny ? 'shiny/' : ''}${file}`
 
@@ -145,7 +145,7 @@ const starterBody = (entry: DexEntry & { source: { kind: 'starter' } }, locale: 
     ${wild && html`<h3>${m.pokedex.appears}</h3><ul class="list">${appearances(wild).map((a) => html`<li>${appearance(a, m)}</li>`)}</ul>`}`
 }
 
-const appearance = (a: Appearance, m: SiteMessages) => {
+export const appearance = (a: Appearance, m: SiteMessages) => {
   switch (a.kind) {
     case 'horde':
       return a.until >= RUN_LENGTH ? m.pokedex.hordeEnd(clock(a.from)) : m.pokedex.horde(clock(a.from), clock(a.until))
@@ -161,6 +161,8 @@ const appearance = (a: Appearance, m: SiteMessages) => {
       return m.pokedex.night(clock(a.at), a.chance * 100)
     case 'rift':
       return m.pokedex.rift(clock(a.from))
+    case 'eventRift':
+      return m.pokedex.eventRift(clock(a.from))
     case 'reaper':
       return m.pokedex.reaper(clock(a.at))
     case 'place':
@@ -270,7 +272,7 @@ const legendSection = (id: LegendId, m: SiteMessages) => {
   const opener = MOVES[def.learnset[0][0]!]
   return html`<h3>${m.pokedex.legendMode}</h3>
     <ul class="list">
-      <li>${unlock.last ? m.pokedex.captureLast : m.pokedex.capture(unlock.wins)}</li>
+      <li>${unlock.event ? m.pokedex.captureEvent(unlock.wins) : unlock.last ? m.pokedex.captureLast : m.pokedex.capture(unlock.wins)}</li>
       <li>${m.pokedex.innate(ABILITIES[def.innate.ability].name)}</li>
       <li>${m.pokedex.opens(opener.name)} ${typeBadge(opener.type, m)}</li>
     </ul>
@@ -303,7 +305,7 @@ const wildBody = (entry: DexEntry & { source: { kind: 'wild' } }, m: SiteMessage
 
 /** How a wild card's shiny shows up: a rift legendary by the rift's odds, the map's bosses never, the horde at the wild odds. */
 const shinyNote = (id: EnemyId, boss: boolean, m: SiteMessages) =>
-  (RIFT_LEGENDS as readonly EnemyId[]).includes(id) ? m.pokedex.riftShinyNote(Math.round(1 / RIFT.shinyOdds)) : boss ? null : m.pokedex.shinyNote
+  ([...RIFT_LEGENDS, ...EVENT_LEGENDS] as readonly EnemyId[]).includes(id) ? m.pokedex.riftShinyNote(Math.round(1 / RIFT.shinyOdds)) : boss ? null : m.pokedex.shinyNote
 
 /** Horde tier of a wild card, for the tier filter. */
 const tierOf = (entry: DexEntry) => {
@@ -312,7 +314,8 @@ const tierOf = (entry: DexEntry) => {
   return def.tier
 }
 
-const card = (entry: DexEntry, locale: Locale, css: SpriteCss) => {
+/** One species' card. `page` links its name to the Pokémon's own page: the Pokédex's cards do, that page's own cards don't. */
+export const card = (entry: DexEntry, locale: Locale, css: SpriteCss, page?: string) => {
   const m = SITE_MESSAGES[locale]
   const { dex, name, slug, sprites, types, role, region } = entry
   const tier = tierOf(entry)
@@ -328,9 +331,9 @@ const card = (entry: DexEntry, locale: Locale, css: SpriteCss) => {
     ${sprites.portrait && html`<img class="portrait" src="${asset(dex, 'portrait.png')}"${sprites.shinyPortrait ? html` data-shiny-src="${asset(dex, 'portrait.png', true)}"` : ''} width="80" height="80" loading="lazy" alt="${m.pokedex.portrait(name)}" />`}
     ${sprites.shiny && html`<button class="shiny-btn" type="button" aria-pressed="false" aria-label="${m.pokedex.shinyToggle(name)}" title="${m.pokedex.shinyToggle(name)}">★</button>`}
   </div>
-  <h2>${name}</h2>
+  <h2>${page ? html`<a href="${page}" title="${m.dexPage.page(name)}">${name}</a>` : name}</h2>
   <div class="types">${types.map((t) => typeBadge(t, m))}</div>
-  ${entry.source.kind === 'starter' ? starterBody({ ...entry, source: entry.source }, locale) : entry.source.kind === 'wild' ? wildBody({ ...entry, source: entry.source }, m) : html`<p class="note">${entry.source.kind === 'companion' ? m.pokedex.companionNote : m.pokedex.eventNote}</p>`}
+  ${entry.source.kind === 'starter' ? starterBody({ ...entry, source: entry.source }, locale) : entry.source.kind === 'wild' ? wildBody({ ...entry, source: entry.source }, m) : html`<p class="note">${entry.source.kind === 'companion' ? m.pokedex.companionNote : entry.source.kind === 'cameo' ? m.pokedex.cameoNote : m.pokedex.eventNote}</p>`}
 </article>`
 }
 
@@ -362,11 +365,16 @@ export const pokedexPage = (locale: Locale) => {
   const m = SITE_MESSAGES[locale]
   const entries = pokedex()
   const css = createSpriteCss()
-  const cards = entries.map((e) => card(e, locale, css))
+  const pageUrl = (e: DexEntry) => {
+    const page = pageOf(e)
+    return page && dexPaths(page.slug)[locale]
+  }
+  const cards = entries.map((e) => card(e, locale, css, pageUrl(e)))
   const url = absolute(ROUTES.pokedex[locale])
   const main: Html = html`<div class="page-head">
     <h1>${m.pokedex.h1}</h1>
     <p class="lead">${m.pokedex.intro(entries.length)}</p>
+    <p class="lead-link"><a href="${ROUTES.tierList[locale]}">★ ${m.pokedex.tierLink} →</a></p>
   </div>
   ${filters(entries, m)}
   <div class="dex-grid">${cards}</div>`
@@ -383,7 +391,7 @@ export const pokedexPage = (locale: Locale) => {
           '@id': `${url}#list`,
           name: m.pokedex.h1,
           numberOfItems: entries.length,
-          itemListElement: entries.map((e, i) => ({ '@type': 'ListItem', position: i + 1, name: e.name, url: `${url}#${e.slug}` })),
+          itemListElement: entries.map((e, i) => ({ '@type': 'ListItem', position: i + 1, name: e.name, url: absolute(`${pageUrl(e) ?? ROUTES.pokedex[locale]}#${e.slug}`) })),
         },
       ],
     },

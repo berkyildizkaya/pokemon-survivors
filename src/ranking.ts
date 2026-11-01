@@ -4,14 +4,15 @@ import type { EnemyId } from './data/enemies'
 import type { PlayableId } from './data/hatchlings'
 import type { Difficulty } from './game/difficulty'
 import { isRecord } from './game/parse'
-import type { DayKey } from './game/day'
+import { isDayKey, type DayKey } from './game/day'
 import { isOutbreakSpecies } from './game/outbreak'
-import { parseChallengePlace, parseRunResult, type Board, type BoardPeriod, type ChallengeBoard, type ChallengePlace, type PublicProfile, type RunMode, type RunRanks, type RunResult } from './game/ranking'
+import { isPlayable, parseChallengePlace, parseRunResult, rankable, type Board, type BoardPeriod, type ChallengeBoard, type ChallengePlace, type ProfileRun, type PublicProfile, type RunMode, type RunRanks, type RunResult } from './game/ranking'
 import { firstTouch, landingRef, parseInvites, REF_PARAM } from './game/referral'
 import { RULES_VERSION, type Recorder, type Replay } from './game/replay'
 import { cutReplay, STREAM, STREAM_START, type ReplayChunk } from './game/replayStream'
 import { ROUTES, SITE_URL } from './site/routes'
 import { locale } from './i18n'
+import { timeoutSignal } from './net/timeout'
 
 /**
  * Ranked runs and the public side of accounts (boards, profiles, follows),
@@ -32,7 +33,7 @@ const call = (path: string, token: string | null, init: RequestInit = {}) =>
   fetch(`${API_URL}${path}`, {
     ...init,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: timeoutSignal(TIMEOUT_MS),
   })
 
 /** A JSON body, or null when the call failed or answered an error; for an error, the API's `{ error }` when it said one. */
@@ -65,32 +66,51 @@ const MAX_PENDING = 10
 /**
  * A run result waiting for the API, under the start token of the player who
  * played it, with its replay for the server to re-simulate (checked there).
+ * `day` is the Desafio do dia it played (null: a regular run) and `streamed`
+ * whether the API took a chunk of its stream; an entry an older build queued
+ * says neither (`replaceable` then assumes the worst).
  */
-type Pending = { userId: string; token: string; result: RunResult; replay: unknown }
+type Pending = { userId: string; token: string; result: RunResult; replay: unknown; day?: DayKey | null; streamed?: boolean }
 
 const readQueue = (): Pending[] => {
   try {
     const data: unknown = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? '[]')
     if (!Array.isArray(data)) return []
-    return data.flatMap((p: unknown) => {
+    return data.flatMap((p: unknown): Pending[] => {
       const result = isRecord(p) ? parseRunResult(p.result) : null
-      return isRecord(p) && result && typeof p.userId === 'string' && typeof p.token === 'string' ? [{ userId: p.userId, token: p.token, result, replay: p.replay }] : []
+      if (!isRecord(p) || !result || typeof p.userId !== 'string' || typeof p.token !== 'string') return []
+      const day = p.day === null || isDayKey(p.day) ? p.day : undefined
+      return [{ userId: p.userId, token: p.token, result, replay: p.replay, day, streamed: p.streamed === true }]
     })
   } catch {
     return []
   }
 }
 
-/** Keeps the newest results: when storage is full (long endless replays), the oldest give way until the rest fit. */
-const writeQueue = (queue: Pending[]) => {
+/**
+ * Whether a new ticket for `day` would replace the token of the queued result
+ * `p` on the API (`startRun` there), so its result could no longer report:
+ * every unfinished challenge token is, a regular one only while none of its
+ * stream reached the API.
+ */
+const replaceable = (p: Pending, day: DayKey | null) => (p.day === undefined ? true : day ? p.day !== null : p.day === null && !p.streamed)
+
+/** Stores the newest results: when storage is full (long endless replays), the oldest give way until the rest fit. False when none fit (storage left as it was). */
+const storeQueue = (queue: Pending[]) => {
   for (let kept = queue.slice(-MAX_PENDING); kept.length > 0; kept = kept.slice(1)) {
     try {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(kept))
-      return
+      return true
     } catch {
       // Full: try again without the oldest.
     }
   }
+  return false
+}
+
+/** Keeps the newest results (`storeQueue`), or none when not even the newest fits. */
+const writeQueue = (queue: Pending[]) => {
+  if (storeQueue(queue)) return
   try {
     localStorage.removeItem(QUEUE_KEY)
   } catch {
@@ -134,6 +154,8 @@ type Stream = {
   cut: (rec: Recorder) => void
   /** Sends the chunks cut so far. Whether none is left waiting (false: no connection, they wait). */
   flush: () => Promise<boolean>
+  /** Whether the API took a chunk: a new ticket no longer replaces the run's token (`replaceable`). */
+  streamed: () => boolean
 }
 
 const createStream = (token: string, live: Promise<boolean>): Stream => {
@@ -144,6 +166,7 @@ const createStream = (token: string, live: Promise<boolean>): Stream => {
   let sending: Promise<boolean> = Promise.resolve(true)
   let retry: ReturnType<typeof setTimeout> | null = null
   let backoff = RETRY_MS
+  let taken = false
 
   const stop = () => {
     stopped = true
@@ -161,6 +184,7 @@ const createStream = (token: string, live: Promise<boolean>): Stream => {
       if (status === 0 || status === 401) return false
       waiting.shift()
       if (status >= 300) stop()
+      else taken = true
     }
     backoff = RETRY_MS
     return true
@@ -192,6 +216,7 @@ const createStream = (token: string, live: Promise<boolean>): Stream => {
       void flush()
     },
     flush,
+    streamed: () => taken,
   }
 }
 
@@ -275,14 +300,21 @@ type TicketKind = 'regular' | 'challenge'
 
 const kindOf = (day: DayKey | null): TicketKind => (day ? 'challenge' : 'regular')
 
-/** The tickets in hand, one per kind: the API keeps only the newest of each kind live. */
+/** The tickets in hand, one per kind: the API keeps only the newest of each kind live (besides runs already streaming). */
 const held: Record<TicketKind, Ticket | null> = { regular: null, challenge: null }
 
 /** Asks in flight, one per kind. */
 const asking: Record<TicketKind, Promise<Ticket | null> | null> = { regular: null, challenge: null }
 
-/** Settles once every result reported so far reached the API or the queue, so no new token replaces a run that's still reporting. */
-let reporting: Promise<unknown> = Promise.resolve()
+/**
+ * Per kind, settles once every result reported so far that a new ticket of the
+ * kind could replace (`replaceable`) reached the API or the queue: a challenge
+ * run, or a regular one the API took no chunk of. Others don't hold tickets up.
+ */
+const reporting: Record<TicketKind, Promise<unknown>> = { regular: Promise.resolve(), challenge: Promise.resolve() }
+
+/** Called whenever a ticket comes or an ask ends, for the Play that waits on one (`settled`). */
+const changed = new Set<() => void>()
 
 /** Whether `t` can start a run of `day` for the player signed in now. */
 const fits = (t: Ticket | null, day: DayKey | null): t is Ticket => t !== null && t.userId === accountUserId() && t.day === day
@@ -301,28 +333,97 @@ const requestTicket = async (userId: string, day: DayKey | null): Promise<Ticket
   return { userId, day, token: body.token, seed, outbreak, halloween, dealt: { wall: Date.now(), mono: performance.now() } }
 }
 
+/** The first wait before asking again for a ticket that didn't come, doubled on each miss up to `ASK_RETRY_MAX_MS`. */
+const ASK_RETRY_MS = 2000
+const ASK_RETRY_MAX_MS = 60_000
+
+/**
+ * The tickets the menus want (the day each is for) and the retry pending for
+ * each: an ask that brings none (Clerk slow to load, a dropped connection)
+ * is tried again until one is in hand, so Play finds it. A run's start stops
+ * them all (`stopAsking`): a regular token dealt in its first seconds,
+ * before its stream reaches the API, would replace the run's.
+ */
+const wanted: Record<TicketKind, { day: DayKey | null; wait: number; retry: ReturnType<typeof setTimeout> | null } | null> = { regular: null, challenge: null }
+
+const stopAsking = () => {
+  for (const kind of ['regular', 'challenge'] as const) {
+    const want = wanted[kind]
+    if (want?.retry) clearTimeout(want.retry)
+    wanted[kind] = null
+  }
+}
+
+/**
+ * Asks the API for a ticket of `day`'s kind, or joins the ask in flight. The
+ * ticket in hand stays until a new one comes, so a failed ask still leaves
+ * Play one to start on. Queued results the new token would replace
+ * (`replaceable`) go first; the rest don't hold it up. A miss is tried again
+ * later while the menus still want the kind (`wanted`).
+ */
+const ask = (userId: string, day: DayKey | null): Promise<Ticket | null> => {
+  const kind = kindOf(day)
+  asking[kind] ??= reporting[kind]
+    .then(() => (readQueue().some((p) => p.userId === userId && replaceable(p, day)) ? flushRuns() : null))
+    .then(() => requestTicket(userId, day))
+    .then((t) => (t && accountUserId() === userId ? (held[kind] = t) : null))
+    .finally(() => {
+      asking[kind] = null
+      if (!fits(held[kind], day)) askLater(day)
+      for (const fn of changed) fn()
+    })
+  return asking[kind]
+}
+
+/** Schedules the next try for a ticket the menus still want, backing off. */
+const askLater = (day: DayKey | null) => {
+  const want = wanted[kindOf(day)]
+  if (!want || want.day !== day || want.retry) return
+  want.retry = setTimeout(() => {
+    want.retry = null
+    const userId = accountUserId()
+    if (wanted[kindOf(day)] === want && userId) void ask(userId, day)
+  }, want.wait)
+  want.wait = Math.min(want.wait * 2, ASK_RETRY_MAX_MS)
+}
+
+/** Asks again at once for each wanted ticket not in hand: the connection came back, or the tab did (a sleeping tab's retries lag). */
+const askNow = () => {
+  const userId = accountUserId()
+  if (!userId) return
+  for (const want of Object.values(wanted)) {
+    if (!want || fits(held[kindOf(want.day)], want.day)) continue
+    if (want.retry) clearTimeout(want.retry)
+    want.retry = null
+    want.wait = ASK_RETRY_MS
+    void ask(userId, want.day)
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', askNow)
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && askNow())
+}
+
 /**
  * Gets a ticket for the player's next run of this kind (`day`: a Desafio do
- * dia's) in the background, unless one is in hand, so pressing Play never
- * waits on the network. Results still queued go first: the new token replaces
- * the player's unfinished one, which may be a run that just ended. Call it
- * only between runs (menus, results), never while a ranked run plays.
- * Resolves to what the ticket tells its run (`TicketPlan`), null without one.
+ * dia's) in the background, unless a fresh one is in hand, so pressing Play
+ * never waits on the network; until one comes it keeps asking (`wanted`).
+ * Call it only between runs (menus, results), never while a ranked run plays
+ * its first seconds. Resolves to what the ticket tells its run
+ * (`TicketPlan`), null without one.
  */
 export const prefetchRanked = async (day: DayKey | null = null): Promise<TicketPlan | null> => {
   const userId = accountUserId()
   const kind = kindOf(day)
   if (!rankingEnabled || !userId) return null
+  if (wanted[kind]?.day !== day) {
+    if (wanted[kind]?.retry) clearTimeout(wanted[kind].retry)
+    wanted[kind] = { day, wait: ASK_RETRY_MS, retry: null }
+  }
   const have = held[kind]
   if (fits(have, day) && heldFor(have) < FRESH_MS) return planOf(have)
-  // A stale ticket gives way now: the new one replaces its token, so no run may start on it meanwhile.
-  if (have && !asking[kind]) held[kind] = null
-  asking[kind] ??= reporting
-    .then(flushRuns)
-    .then(() => requestTicket(userId, day))
-    .then((t) => (t && accountUserId() === userId ? (held[kind] = t) : null))
-    .finally(() => (asking[kind] = null))
-  const got = await asking[kind]
+  const got = await ask(userId, day)
   return fits(got, day) ? planOf(got) : null
 }
 
@@ -334,32 +435,85 @@ export const prefetchRanked = async (day: DayKey | null = null): Promise<TicketP
  * sends a longer run (a victory that went on into endless mode), else it
  * answers what it did last.
  */
-export type RankedRun = { stream: (rec: Recorder) => void; submit: (result: RunResult, replay: Replay) => Promise<RankOutcome> }
+export type RankedRun = {
+  stream: (rec: Recorder) => void
+  submit: (result: RunResult, replay: Replay) => Promise<RankOutcome>
+  checkpoint: (time: number, result: () => RunResult, replay: Replay) => void
+}
 
 /** A run that starts signed in: the seed, outbreak and haunting it must play (null: the game's own) and its ranking. */
 export type RankedStart = TicketPlan & { ranked: RankedRun }
 
-const unranked: RankedRun = { stream: () => {}, submit: () => Promise.resolve({ kind: 'unranked' }) }
+const unranked: RankedRun = { stream: () => {}, submit: () => Promise.resolve({ kind: 'unranked' }), checkpoint: () => {} }
+
+/** Seconds of play between two checkpoints of a run going on past its report (endless mode). */
+const CHECKPOINT_S = 60
+
+/** Whether a run at `time` is due a checkpoint: it reported at `sent` (-1: not yet) and was last kept at `kept`. */
+const checkpointDue = (time: number, sent: number, kept: number) => sent >= 0 && time >= Math.max(sent, kept) + CHECKPOINT_S
 
 /**
- * Takes the ticket in hand for a run that begins now (`challenge`: the day of
- * the Desafio do dia it plays) and restarts its clock on the API. Without one
- * (offline, rate limited, Play pressed before it came) the run is unranked
- * and plays a seed and day of the game's own. Null for guests.
+ * How long Play waits on the loading screen, unseen, for a ticket not in hand
+ * yet (or for the ask in flight, whose token replaces the one in hand): right
+ * after the page loads, the ask waits for Clerk. Past it the screen says so
+ * and offers to play without the ranking (`slow`), up to `TICKET_MAX_MS`.
  */
-export const startRanked = (challenge: DayKey | null = null): RankedStart | null => {
+const TICKET_WAIT_MS = 4000
+const TICKET_MAX_MS = 20_000
+
+/** Whether a run of `day` can start on the ticket in hand now: one fits, and no ask in flight is about to replace its token. */
+const ready = (day: DayKey | null) => fits(held[kindOf(day)], day) && asking[kindOf(day)] === null
+
+/** Resolves once a run of `day` is `ready`, `ms` went by or `skip` settled, whichever is first. */
+const settled = (day: DayKey | null, ms: number, skip: Promise<void> = new Promise(() => {})) =>
+  new Promise<void>((done) => {
+    const finish = () => {
+      clearTimeout(timer)
+      changed.delete(check)
+      done()
+    }
+    const check = () => ready(day) && finish()
+    const timer = setTimeout(finish, ms)
+    changed.add(check)
+    void skip.then(finish)
+    check()
+  })
+
+/**
+ * Takes the ticket for a run that begins now (`challenge`: the day of the
+ * Desafio do dia it plays) and restarts its clock on the API. Without one
+ * ready it asks (or joins the ask in flight) and waits `TICKET_WAIT_MS`, then
+ * calls `slow` with a way to skip the wait and keeps waiting up to
+ * `TICKET_MAX_MS` (not at all offline). Still without one, the run is
+ * unranked and plays a seed and day of the game's own. Null for guests.
+ */
+export const startRanked = async (challenge: DayKey | null = null, slow: (skip: () => void) => void = () => {}): Promise<RankedStart | null> => {
   const userId = accountUserId()
   if (!rankingEnabled || !userId) return null
   const kind = kindOf(challenge)
+  if (!ready(challenge)) {
+    void prefetchRanked(challenge)
+    await settled(challenge, TICKET_WAIT_MS)
+    if (!ready(challenge) && navigator.onLine) {
+      let skip = () => {}
+      const skipped = new Promise<void>((done) => (skip = done))
+      slow(skip)
+      await settled(challenge, TICKET_MAX_MS - TICKET_WAIT_MS, skipped)
+    }
+  }
+  stopAsking()
   const ticket = held[kind]
   if (!fits(ticket, challenge)) return { seed: null, outbreak: null, halloween: null, ranked: unranked }
   held[kind] = null
   const { token } = ticket
   // 409: another tab or device got a newer token since, so this one can't report.
   const live = sessionToken().then(async (session) => (session ? (await read(`/runs/${token}/start`, session, { method: 'POST' })).status !== 409 : true))
+  let alive = true
+  void live.then((ok) => (alive = ok))
   const stream = createStream(token, live)
   streaming = stream
   let sent = -1
+  let kept = -1
   let last: Promise<RankOutcome> = Promise.resolve({ kind: 'unranked' })
   return {
     ...planOf(ticket),
@@ -372,11 +526,22 @@ export const startRanked = (challenge: DayKey | null = null): RankedStart | null
         const recorded: unknown = JSON.parse(JSON.stringify(replay))
         last = live.then(async (ok): Promise<RankOutcome> => {
           if (!ok) return { kind: 'unranked' }
-          writeQueue([...readQueue().filter((q) => q.token !== token), { userId, token, result, replay: recorded }])
+          writeQueue([...readQueue().filter((q) => q.token !== token), { userId, token, result, replay: recorded, day: challenge, streamed: stream.streamed() }])
           return (await flushRuns()).get(token) ?? { kind: 'queued' }
         })
-        reporting = Promise.all([reporting, last])
+        // A run the API took no chunk of yet holds up the next ticket of its kind until its result is in.
+        if (challenge || !stream.streamed()) reporting[kind] = Promise.all([reporting[kind], last])
         return last
+      },
+      // Past its report (endless mode), the run's latest result waits in the queue unsent: if the page dies
+      // (a crash, a closed tab), the next boot sends it, and the end's own report replaces it otherwise.
+      checkpoint: (time, report, replay) => {
+        if (!alive || !checkpointDue(time, sent, kept)) return
+        const result = report()
+        if (!rankable(result)) return
+        kept = result.time
+        // Storage too full even for this one leaves the queue as it was (its last checkpoint).
+        storeQueue([...readQueue().filter((q) => q.token !== token), { userId, token, result, replay, day: challenge, streamed: stream.streamed() }])
       },
     },
   }
@@ -387,25 +552,46 @@ export const startRanked = (challenge: DayKey | null = null): RankedStart | null
 /** Which board to show (see `BoardQuery` on the server): the regular runs' or the Legend mode's (`mode`), by difficulty. */
 export type BoardFilter = { mode: RunMode; difficulty: Difficulty; period: BoardPeriod; starter: PlayableId | null; friends: boolean }
 
+/**
+ * Whether this build knows a run's Pokémon. The API may already rank one a
+ * newer build added (a tab left open across a deploy), and the screens draw
+ * every run from `PLAYABLE`: such runs are left out until the page reloads.
+ */
+const knownRun = (run: { starter: unknown }) => isPlayable(run.starter)
+
+/** A board (or the challenge's) without the runs this build can't draw (`knownRun`). */
+const knownBoard = <B extends Board>(board: B): B => ({ ...board, entries: board.entries.filter(knownRun), me: board.me && knownRun(board.me) ? board.me : null })
+
+const knownRecords = (records: Partial<Record<Difficulty, ProfileRun>>): Partial<Record<Difficulty, ProfileRun>> =>
+  Object.fromEntries(Object.entries(records).filter(([, run]) => run !== undefined && knownRun(run)))
+
+/** A profile without the runs this build can't draw (`knownRun`). */
+const knownProfile = (p: PublicProfile): PublicProfile => ({
+  ...p,
+  records: knownRecords(p.records ?? {}),
+  ...(p.legendRecords ? { legendRecords: knownRecords(p.legendRecords) } : {}),
+  recent: p.recent.filter(knownRun),
+})
+
 /** A board, or null when the API can't be reached. Friends boards need an account. */
 export const fetchBoard = async (f: BoardFilter): Promise<Board | null> => {
   const params = new URLSearchParams({ period: f.period, ...(f.mode === 'legend' ? { mode: f.mode } : {}), ...(f.starter ? { starter: f.starter } : {}), ...(f.friends ? { friends: '1' } : {}) })
   const { body } = await read(`/boards/${f.difficulty}?${params}`, await sessionToken())
-  // Our own API: a quick look at the shape is enough, the screens only show text.
-  return isRecord(body) && Array.isArray(body.entries) ? (body as Board) : null
+  // Our own API: a quick look at the shape is enough, past the Pokémon the screens draw.
+  return isRecord(body) && Array.isArray(body.entries) ? knownBoard(body as Board) : null
 }
 
 /** A day's challenge board (friends only: who the player follows), or null when the API can't be reached. */
 export const fetchChallengeBoard = async (day: DayKey, friends = false): Promise<ChallengeBoard | null> => {
   const { body } = await read(`/challenge/${day}${friends ? '?friends=1' : ''}`, await sessionToken())
-  return isRecord(body) && Array.isArray(body.entries) && typeof body.total === 'number' ? (body as ChallengeBoard) : null
+  return isRecord(body) && Array.isArray(body.entries) && typeof body.total === 'number' ? knownBoard(body as ChallengeBoard) : null
 }
 
 /** A public profile, `missing` when nobody has that handle, null when the API can't be reached. */
 export const fetchProfile = async (handle: string): Promise<PublicProfile | 'missing' | null> => {
   const { status, body } = await read(`/profiles/${encodeURIComponent(handle)}`, await sessionToken())
   if (status === 404 || status === 400) return 'missing'
-  return isRecord(body) && typeof body.handle === 'string' && Array.isArray(body.recent) ? (body as PublicProfile) : null
+  return isRecord(body) && typeof body.handle === 'string' && Array.isArray(body.recent) ? knownProfile(body as PublicProfile) : null
 }
 
 /** Follows or unfollows `handle`. Their follower count after it, or null when it didn't go through. */

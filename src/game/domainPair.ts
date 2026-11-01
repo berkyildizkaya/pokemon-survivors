@@ -3,9 +3,10 @@ import type { LegendDomain } from '../data/domains'
 import { park } from './bosses'
 import { createFight, phasesOf } from './bossFight'
 import { killEnemy } from './combat'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { spawnEnemy } from './enemies'
 import type { Enemy, Game } from './types'
+import * as dm from '../engine/dmath'
 
 /**
  * Two legendaries fighting as one in a domain (`LegendDomain.partner`, Latias
@@ -39,7 +40,7 @@ export const revealPartner = (g: Game, def: LegendDomain, lead: Enemy, x: number
   const partner = def.partner
   if (!partner) return null
   const e = spawnEnemy(g, partner.id, x, y)
-  e.hp = e.maxHp = Math.round(ENEMIES[partner.id].hp * (lead.maxHp / ENEMIES[lead.kind].hp))
+  e.hp = e.maxHp = dm.round(ENEMIES[partner.id].hp * (lead.maxHp / ENEMIES[lead.kind].hp))
   e.damage = ENEMIES[partner.id].damage * (lead.damage / ENEMIES[lead.kind].damage)
   e.speed = lead.speed
   e.shiny = lead.shiny
@@ -67,7 +68,7 @@ const knockOut = (g: Game, pair: PairState, e: Enemy, other: Enemy) => {
   park(e, f)
   other.fight!.enraged = true
   burst(g, pair.x, pair.y - 10, { colors: ['#ffffff', '#f86078', '#58a0f8'], count: 60, speed: 180, ttl: 0.6, size: 2 })
-  g.shake = Math.max(g.shake, 8)
+  shakeScreen(g, 8, 'team')
   g.flash = Math.max(g.flash, 0.4)
   g.events.push({ kind: 'pairDown', enemy: e.kind, partner: other.kind })
 }
@@ -79,7 +80,7 @@ const revive = (g: Game, pair: PairState, def: LegendDomain, downed: Enemy, surv
   f.down = false
   downed.x = pair.x
   downed.y = pair.y
-  downed.hp = Math.max(downed.hp, Math.round(downed.maxHp * rule.hp))
+  downed.hp = Math.max(downed.hp, dm.round(downed.maxHp * rule.hp))
   // One phase back, so it steps into the survivor's own with its opening.
   f.phase = survivor.fight!.phase - 1
   survivor.fight!.enraged = false

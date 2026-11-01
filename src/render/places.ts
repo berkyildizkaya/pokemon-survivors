@@ -10,7 +10,7 @@ import type { Game } from '../game/types'
 import { art, toIconUrl } from './art'
 import { PLACE_PIECES } from './placePieces'
 import { dashedRing } from './strokes'
-import { sprites } from './sprites'
+import { bodyOf } from '../data/bodies'
 import { ENEMIES, type EnemyDef } from '../data/enemies'
 
 type Ctx = CanvasRenderingContext2D
@@ -85,11 +85,25 @@ const paint = (w: number, h: number, color: (px: number, py: number) => string |
 
 const CAVE_FACE = ['#7a6654', '#6a5848', '#5a4a3e', '#4c3e34', '#40342c', '#362c25', '#2e251f', '#271f1a', '#211a16'] as const
 const FACE = CAVE_FACE.length
+/**
+ * How far a south wall's top reaches over the floor, in px: the walls stand
+ * up toward the camera, so the floor's last px before one are hidden behind
+ * its top. It matches where a body's feet stop (its radius, 6 to 8 px for most),
+ * so walking into a south wall reads as touching it.
+ */
+const SOUTH_LIP = 6
+
+/** The rock of a wall's top at (x, y). */
+const wallTop = (x: number, y: number) => {
+  const n = hash2(Math.floor(x / 6), Math.floor(y / 5), 3) * 0.6 + hash2(x, y, 4) * 0.4
+  return n > 0.62 ? '#241c1a' : n < 0.25 ? '#140f0f' : '#1c1515'
+}
 
 /**
  * A dungeon floor: rock all around, its wall's face showing above each north
- * edge (strata and cracks, lit at the top), and the floor itself, dirt with
- * pebbles and a few pits.
+ * edge (strata and cracks, lit at the top), each south wall's top over the
+ * floor's last px (`SOUTH_LIP`), and the floor itself, dirt with pebbles and a
+ * few pits.
  */
 const bakeCave = (floor: readonly ArenaShape[]): Baked => {
   const r = rasterize(floor, 40)
@@ -99,9 +113,16 @@ const bakeCave = (floor: readonly ArenaShape[]): Baked => {
     if (!r.at(px, py)) {
       // The wall's top, with a lit lip where it drops to the floor.
       if (r.at(px, py + 1)) return '#3a302a'
-      const n = hash2(Math.floor(x / 6), Math.floor(y / 5), 3) * 0.6 + hash2(x, y, 4) * 0.4
-      return n > 0.62 ? '#241c1a' : n < 0.25 ? '#140f0f' : '#1c1515'
+      return wallTop(x, y)
     }
+    // A south wall's top over the floor, lit along its edge, and the floor darkening up to it.
+    let south = 0
+    for (let d = 1; d <= SOUTH_LIP + 2 && !south; d++) if (!r.at(px, py + d)) south = d
+    if (south && south < SOUTH_LIP - 1) return wallTop(x, y)
+    if (south === SOUTH_LIP - 1) return '#3a302a'
+    if (south === SOUTH_LIP) return '#5a4a3e'
+    if (south === SOUTH_LIP + 1) return '#2a221c'
+    if (south === SOUTH_LIP + 2) return '#352c26'
     let k = 0
     for (let d = 1; d <= FACE && !k; d++) if (!r.at(px, py - d)) k = d
     if (k) {
@@ -180,7 +201,10 @@ const bakeGraveyard = (floor: readonly ArenaShape[], graves: readonly Pt[], keys
 
 /** The floor of the place the player is in, baked once per floor (a dungeon's next floor is a new layout). */
 let baked: { layout: FloorPlan; floor: Baked; fence: Baked | null } | null = null
-onCanvasReset(() => (baked = null))
+onCanvasReset(
+  () => (baked = null),
+  () => [baked?.floor, baked?.fence],
+)
 
 /** Frees the last place's baked floor (a few MB) once the player is back outside (`warmScenery`). */
 export const dropPlaceFloor = () => {
@@ -230,7 +254,10 @@ const cloud = (seed: number, size: number): PixelSprite => {
 }
 
 let gradient: { w: number; h: number; canvas: HTMLCanvasElement } | null = null
-onCanvasReset(() => (gradient = null))
+onCanvasReset(
+  () => (gradient = null),
+  () => gradient,
+)
 
 /** The sky behind the clouds: deep blue on top to pale at the bottom, in bands dithered into each other. */
 const skyGradient = (w: number, h: number) => {
@@ -419,32 +446,56 @@ export const drawWings = (ctx: Ctx, g: Game, t: number) => {
 /* ---------------- The dark (cave) and the night (graveyard) ---------------- */
 
 const lights = canvasCache<number, PixelSprite>()
+/**
+ * Light discs kept, the least recently drawn going first: a light easing between
+ * two sizes (Darkrai's dark between phases, its capture) passes through every
+ * radius on the way, and would otherwise keep a canvas for each.
+ */
+const LIGHTS_KEPT = 40
+
+/** The radius a light is drawn at: whole px up close, even px past 96 and every 4 px past 160, so an easing light makes fewer discs. */
+const lightRadius = (r: number) => {
+  const step = r > 160 ? 4 : r > 96 ? 2 : 1
+  return Math.max(4, Math.round(r / step) * step)
+}
 
 /**
  * A light's cut-out: a solid core, then dithered rings that let less and
- * less through, so the dark ends in a hard-edged pixel falloff.
+ * less through, so the dark ends in a hard-edged pixel falloff. Painted as
+ * one image (a big one is tens of thousands of pixels: one `fillRect` each
+ * hitched weak phones every time a light took a new size).
  */
-const lightDisc = (r: number) => {
+export const lightDisc = (radius: number) => {
+  const r = lightRadius(radius)
   let c = lights.get(r)
-  if (c) return c
-  c = createCanvas(r * 2 + 1, r * 2 + 1)
+  if (c) {
+    lights.delete(r)
+    lights.set(r, c)
+    return c
+  }
+  const size = r * 2 + 1
+  c = createCanvas(size, size)
   const ctx = context2d(c)
-  ctx.fillStyle = '#000'
+  const img = ctx.createImageData(size, size)
   for (let y = -r; y <= r; y++) {
     for (let x = -r; x <= r; x++) {
       const d = Math.sqrt(x * x + y * y) / r
       if (d > 1) continue
       const keep = d < 0.62 ? 1 : d < 0.76 ? 0.75 : d < 0.88 ? 0.45 : 0.18
-      if (bayer(x + r, y + r) < keep) ctx.fillRect(x + r, y + r, 1, 1)
+      // Opaque black: what `destination-out` cuts away.
+      if (bayer(x + r, y + r) < keep) img.data[((y + r) * size + x + r) * 4 + 3] = 255
     }
   }
+  ctx.putImageData(img, 0, 0)
+  if (lights.size >= LIGHTS_KEPT) lights.delete(lights.keys().next().value!)
   lights.set(r, c)
   return c
 }
 
 let dark: { canvas: HTMLCanvasElement; ctx: Ctx } | null = null
 
-const darkLayer = (w: number, h: number) => {
+/** A screen-sized layer to paint a dark on and cut its lights out of (the cave's, Darkrai's nightmare). */
+export const darkLayer = (w: number, h: number) => {
   if (!dark || dark.canvas.width !== w || dark.canvas.height !== h) {
     const canvas = createCanvas(w, h)
     dark = { canvas, ctx: context2d(canvas) }
@@ -511,7 +562,7 @@ export const drawPlaceDark = (ctx: Ctx, g: Game, camX: number, camY: number, t: 
     // A blink now and then.
     if (hash2(e.id, Math.floor(t * 2.5), 5) < 0.12) continue
     const def: EnemyDef = ENEMIES[e.kind]
-    const top = Math.round(e.y - sprites(def.dex).bodyH * 0.62)
+    const top = Math.round(e.y - bodyOf(def.dex).bodyH * 0.62)
     const facing = e.dir === 2 || e.dir === 1 || e.dir === 3 ? 1 : e.dir === 6 || e.dir === 5 || e.dir === 7 ? -1 : 0
     if (e.dir === 4) continue
     ctx.fillStyle = EYES

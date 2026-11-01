@@ -152,7 +152,8 @@ export const drawConsumable = (ctx: Ctx, id: ConsumableId, x: number, y: number,
 
 /* ---------------- Effects ---------------- */
 
-const ZZZ = lazy(() => [
+/** A big and a small "Z", floated over whoever sleeps. */
+export const ZZZ = lazy(() => [
   art(['1111', '..1.', '.1..', '1111'], { 1: '#ffffff' }, '#283868'),
   art(['111', '.1.', '111'], { 1: '#c8d8ff' }, '#283868'),
 ])
@@ -172,7 +173,7 @@ export const drawSleep = (ctx: Ctx, g: Game, t: number) => {
 }
 
 /** Full-screen white flash (Explosion). Drawn in screen space. */
-export const drawFlash = (ctx: Ctx, g: Game) => {
+export const drawFlash = (ctx: Ctx, g: Pick<Game, 'flash' | 'view'>) => {
   if (g.flash <= 0) return
   ctx.fillStyle = `rgba(255,255,255,${Math.min(1, g.flash).toFixed(2)})`
   ctx.fillRect(0, 0, g.view.w, g.view.h)

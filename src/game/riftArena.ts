@@ -5,7 +5,7 @@ import { partnerOf } from '../data/domains'
 import { floorAt, holesAt, onFloor, stepsAt } from './arenaFloor'
 import { healPlayer, hurtPlayer } from './combat'
 import { dropItem } from './consumables'
-import { burst, floatText } from './effects'
+import { burst, floatText, setScreenShake, shakeScreen } from './effects'
 import { spawnEnemy } from './enemies'
 import { dropMegaStones, heldMega } from './mega'
 import { dropCoins, dropPickup } from './pickups'
@@ -13,11 +13,12 @@ import { dropLegendaryTm } from './tms'
 import { riftLoot, riftScale, type RiftArena } from './rift'
 import { bringBack, keepOnFloor, setAside } from './room'
 import { rollShiny } from './shiny'
-import { groundAt, playerTypes } from './terrain'
+import { footOf, groundAt, playerTypes } from './terrain'
 import { updateDomain } from './domain'
 import { centerScreen, eachPlayer, placeTeam } from './players'
 import { dropForEach } from './coop'
 import type { Game } from './types'
+import * as dm from '../engine/dmath'
 
 /**
  * The arena behind a rift: a room (`room.ts`) with its own shape, scenery and
@@ -40,7 +41,7 @@ export const enterArena = (g: Game, legend: RiftLegend, x: number, y: number) =>
   const spawn = at(layout.boss)
   const boss = spawnEnemy(g, legend, spawn.x, spawn.y)
   const scale = riftScale(g.time)
-  boss.hp = boss.maxHp = Math.round(boss.maxHp * scale.hp)
+  boss.hp = boss.maxHp = dm.round(boss.maxHp * scale.hp)
   boss.damage *= scale.damage
   boss.xp = riftLoot(g.time, shiny).xp
   boss.shiny = shiny
@@ -49,7 +50,7 @@ export const enterArena = (g: Game, legend: RiftLegend, x: number, y: number) =>
   const start = at(layout.player)
   placeTeam(g, start.x, start.y)
   g.flash = 0.9
-  g.shake = 9
+  setScreenShake(g, 9, 'team')
   const terrain = {
     lake: null,
     solids: layout.solids.map((s, i) => {
@@ -91,7 +92,7 @@ export const fallInArena = (g: Game) => {
   if (!arena || arena.fall !== null) return
   arena.fall = RIFT.fallTime
   g.player.hp = 0
-  g.shake = Math.max(g.shake, 8)
+  shakeScreen(g, 8)
   g.events.push({ kind: 'riftFall', enemy: arena.legend })
 }
 
@@ -108,7 +109,7 @@ export const updateArenaFall = (g: Game, dt: number) => {
   for (const p of g.players) {
     // Solo the one player is the one who fell.
     if (g.players.length > 1 && (p.hp > 0 || p.gone)) continue
-    p.hp = Math.max(1, Math.round(p.stats.maxHp * RIFT.fallHp))
+    p.hp = Math.max(1, dm.round(p.stats.maxHp * RIFT.fallHp))
     p.revive = 0
     p.hurt = 0
   }
@@ -140,7 +141,7 @@ export const riftWin = (g: Game, arena: RiftArena, x: number, y: number) => {
   dropForEach(g, () => dropLegendaryTm(g, arena.legend, x + 14, y - 6))
   for (const p of g.players) {
     g.player = p
-    const heal = Math.round(healPlayer(g, p.stats.maxHp * loot.heal))
+    const heal = dm.round(healPlayer(g, p.stats.maxHp * loot.heal))
     floatText(g, p.x, p.y - 30, `+${heal}`, '#58e858')
   }
   g.player = before
@@ -173,13 +174,13 @@ export const updateArena = (g: Game, dt: number) => {
   const before = stepsAt(layout.tide, arena.age) + stepsAt(layout.crumble, arena.age)
   arena.age += dt
   if (stepsAt(layout.tide, arena.age) + stepsAt(layout.crumble, arena.age) > before) {
-    g.shake = Math.max(g.shake, 5)
+    shakeScreen(g, 5, 'team')
     g.events.push({ kind: 'quake' })
   }
   const floor = floorAt(layout, stepsAt(layout.crumble, arena.age))
   const holes = holesAt(layout, stepsAt(layout.tide, arena.age))
   // The players keep to what's left of the floor; the legendary flies or swims over the rest.
-  for (const p of g.players) keepOnFloor(p, arena, floor, holes, p.radius)
+  for (const p of g.players) keepOnFloor(p, arena, floor, holes, footOf(p))
   const whole = floorAt(layout, 0)
   for (const e of g.enemies) keepOnFloor(e, arena, whole, [], e.radius)
   // Shots break on the edge.

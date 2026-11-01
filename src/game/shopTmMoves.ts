@@ -141,23 +141,32 @@ const thiefHit = (g: Game, _a: Attack, e: Enemy) => {
 /**
  * A bubble closes around you for `duration` s: nothing gets through (every
  * hit is negated, `onGuard` reopens the guard until the bubble pops), and it
- * shoves what touches it.
+ * shoves what touches it. It fails while another move's protection stands
+ * or just fell (`wardOpens`).
  */
 const protect = (g: Game, s: CastStats) => {
   const p = g.player
+  // Another move's protection stands or just fell: it fails, as Protect used twice in a row does.
+  if (!guard(g, 'protect', s.duration)) return
   spawnAttack(g, {
     ...look('protect', 'normal', 'protect'), x: p.x, y: p.y - 8,
     shape: { kind: 'circle', r: PROTECT.r * s.area }, motion: { kind: 'follow', ox: 0, oy: -8 },
     damage: s.damage, knockback: s.knockback, hitInterval: PROTECT.hitInterval, ttl: s.duration,
   })
-  guard(g, 'protect', s.duration)
   cast(g, 'protect')
 }
 
-/** The bubble took a hit: it holds, the guard stays up for what's left of it. */
+/**
+ * The bubble took a hit: it holds, the guard stays up for what's left of it.
+ * Bubbles may overlap (the echo fork, a recast): the guard follows the one
+ * that lasts longest, so no drawn bubble ever stands unguarded.
+ */
 const protectHolds = (g: Game) => {
-  const bubble = g.attacks.find((a) => ownAttack(g, a) && a.move === 'protect' && a.visual === 'protect' && a.age < a.ttl)
-  if (bubble) guard(g, 'protect', bubble.ttl - bubble.age)
+  let left = 0
+  for (const a of g.attacks) {
+    if (a.move === 'protect' && a.visual === 'protect' && ownAttack(g, a)) left = Math.max(left, a.ttl - a.age)
+  }
+  if (left > 0) guard(g, 'protect', left)
 }
 
 /**
@@ -175,7 +184,7 @@ const hyperBeam = (g: Game, s: CastStats) => {
   })
   for (const a of fan(angle, s.amount, HYPER_BEAM.spread)) {
     const from = g.attacks.length
-    sweep(g, s, l, { from: a, arc: 0, time: s.duration, length: HYPER_BEAM.length * s.area, segments: HYPER_BEAM.segments, r: HYPER_BEAM.r * s.area, hitInterval: HYPER_BEAM.hitInterval })
+    sweep(g, s, l, { from: a, arc: 0, time: s.duration, length: HYPER_BEAM.length * s.area, segments: HYPER_BEAM.segments, r: HYPER_BEAM.r, hitInterval: HYPER_BEAM.hitInterval })
     for (let i = from; i < g.attacks.length; i++) g.attacks[i]!.age = -HYPER_BEAM.charge
     // The beam's tip carries the impact flare.
     g.attacks[g.attacks.length - 1]!.flip = true

@@ -2,7 +2,7 @@ import { dirTo, fromAngle, TAU } from '../engine/math'
 import { chance, range } from '../engine/rng'
 import * as dm from '../engine/dmath'
 import { damageEnemy, healPlayer } from './combat'
-import { burst, floatText } from './effects'
+import { burst, floatText, shakeScreen } from './effects'
 import type { DamageBonus } from './kitRules'
 import { returnShot, stacksOf, strike, sweep, throwFoe, took, trailer } from './moveKit'
 import { LUNGE_OVERSHOOT, LUNGE_SEEK, lungeLength } from './moveRules'
@@ -94,7 +94,7 @@ export const solarBeam: Cast = (g, s) => {
       })
     }
     const first = g.attacks.length
-    sweep(g, s, look, { from, arc: SOLAR.arc, time: s.duration, length: SOLAR.length * s.area, segments: SOLAR.segments, r: SOLAR.r * s.area })
+    sweep(g, s, look, { from, arc: SOLAR.arc, time: s.duration, length: SOLAR.length * s.area, segments: SOLAR.segments, r: SOLAR.r })
     // The beam waits out the charge; its tip is flagged so the art can flare it.
     for (let k = first; k < g.attacks.length; k++) g.attacks[k]!.age = -charge
     g.attacks[g.attacks.length - 1]!.flip = true
@@ -186,7 +186,7 @@ export const selfDestruct: Cast = (g, s) => {
     damage: s.damage, knockback: s.knockback, ttl: 0.55, activeUntil: SELF_DESTRUCT.open, grow: (r - 8) / SELF_DESTRUCT.open,
   })
   burst(g, p.x, p.y - 8, { colors: ['#ffffff', '#fff0a0', '#f8a030', '#d84020', '#584848'], count: 46, speed: 230, ttl: 0.7, gravity: 160, size: 2 })
-  g.shake = Math.max(g.shake, 10)
+  shakeScreen(g, 10)
   g.flash = Math.max(g.flash, 0.55)
   g.hitstop = Math.max(g.hitstop, 0.06)
   sound(g, 'explosion')
@@ -223,7 +223,7 @@ export const roost: Cast = (g, s, owned) => {
     g.particles.push({ x: p.x + range(g.rng, -9, 9), y: p.y - range(g.rng, 2, 14), vx: 0, vy: -18, life: 0, ttl: 0.6, color: chance(g.rng, 0.5) ? '#78f878' : '#d8f8c8', size: 1, gravity: -10, drag: 1 })
   }
   // One "+N" a second while it heals.
-  if (Math.floor(p.still) > Math.floor(p.still - s.cooldown)) floatText(g, p.x, p.y - 30, `+${Math.max(1, Math.round(perSecond))}`, '#78f878')
+  if (Math.floor(p.still) > Math.floor(p.still - s.cooldown)) floatText(g, p.x, p.y - 30, `+${Math.max(1, dm.round(perSecond))}`, '#78f878')
 }
 
 /* ---------------- Focus Punch ---------------- */
@@ -267,10 +267,10 @@ export const focusPunch: Cast = (g, s, owned) => {
     grow: (FOCUS.shock * s.area - 6) / 0.16,
   })
   burst(g, at.x, at.y, { colors: ['#ffffff', '#f8d030', '#f87040', '#c03028'], count: 22, speed: 180, ttl: 0.4, size: 2 })
-  // The follow-through: a breath of safety while the shockwave clears the crowd.
+  // The follow-through: a breath of safety while the shockwave clears the crowd. No hitstop: charged
+  // again in a second or so, it would freeze the world on a loop, which plays as being stunned.
   p.iframes = Math.max(p.iframes, FOCUS.iframes)
-  g.shake = Math.max(g.shake, 6)
-  g.hitstop = Math.max(g.hitstop, 0.07)
+  shakeScreen(g, 6)
   sound(g, 'focusPunch')
 }
 
@@ -461,7 +461,7 @@ export const dragonTail: Cast = (g, s) => {
   })
   for (const e of inArc(g.enemies, { x: p.x, y: p.y - 8 }, back, TAIL.half, reach)) {
     damageEnemy(g, e, swing)
-    if (e.dying < 0 && !e.boss) throwFoe(e, dm.atan2(e.y - p.y, e.x - p.x), TAIL.force, s.damage * TAIL.crash, 'dragonTail', p.slot)
+    if (e.dying < 0 && !e.boss) throwFoe(g, e, dm.atan2(e.y - p.y, e.x - p.x), TAIL.force, s.damage * TAIL.crash, 'dragonTail')
   }
   sound(g, 'dragonTail')
 }

@@ -7,22 +7,28 @@ import { TYPE_COLORS } from '../data/types'
 import { megasOf } from '../data/megas'
 import { bodyOf } from '../data/bodies'
 import { DIFFICULTY_IDS, type Difficulty } from '../game/difficulty'
-import { EGGS, isReady } from '../game/eggs'
-import { isLegend, LEGEND_IDS, LEGENDS, type LegendId } from '../data/legends'
+import { incubatorSlots, isReady } from '../game/eggs'
+import { isLegend, legendEvent, legendFestival, LEGENDS, REGULAR_LEGENDS, type LegendId } from '../data/legends'
+import { HALLOWEEN } from '../data/halloween'
+import { brasiliaDay } from '../game/day'
+import { claimOpen, festivalById, festivalEnd, shownLegends } from '../game/festival'
+import { halloweenStanding } from '../game/halloween'
+import { festivalIcon } from './festival'
+import { eventLegendIcon } from '../render/halloweenArt'
 import { ABILITIES } from '../data/abilities'
-import { canPlay, capturedCount, isCaptured, legendSource, winsNeeded } from '../game/capture'
+import { canPlay, capturedCount, isCaptured, legendSource, stillMissing, winsNeeded } from '../game/capture'
 import { armBlock, armedItems, armItem, BAG_ITEM_IDS, bagCount, type BagItem } from '../game/bag'
 import { SHOP_LEVELS } from '../data/shop'
 import { capLevel } from '../game/evoItems'
 import { MOVES } from '../game/moves'
 import { armedTms, armTm, tmLimit, type ShelfTm } from '../game/tmShelf'
 import { ownsShiny, pickShinyForm, playsShiny } from '../game/shinyPicks'
-import { eggIcon, moveIcon, PICKUPS, sparkleIcon, trophyIcon } from '../render/art'
+import { dieIcon, eggIcon, moveIcon, PICKUPS, sparkleIcon, trophyIcon } from '../render/art'
 import { capPips, shopIcon } from './shopIcons'
 import { cryUrl, drawPokemon, loadedSprites, loadSpecies, portraitUrl, walkSheet } from '../render/sprites'
-import { t } from '../i18n'
+import { formatDay, formatPokeDollarsShort, t } from '../i18n'
 import { h, later, rich } from './dom'
-import { loadSave, updateSave } from './save'
+import { loadSave, today, updateSave } from './save'
 import { typeBadge, type Screen } from './screens'
 import { actionBar, backButton, gearButton, segmented, shellScreen, topBar, walletChip } from './shell'
 import { detailsSheet, evoLine, shinyPicker, statBars } from './partnerDetails'
@@ -72,16 +78,22 @@ type SelectActions = {
  * (Bag, difficulty, Start, colored by the difficulty).
  *
  * Keyboard: arrows move in the grid (↓ past the starters' last row reaches the eggs, then the legends), Tab/E and Q switch tabs,
- * 1-9 jump to a region, I opens the details, Z flips Normal/Shiny, X cycles the difficulty, C and V arm a
- * Lure and an Incense, O opens the incubator, L the Poké Mart, Enter starts, Esc/Backspace go back.
- * Pointer: a tap selects, a tap on the selected cell (or Start) starts.
+ * 1-9 jump to a region, R picks a random unlocked Pokémon from the shown tab, I opens the details, Z flips Normal/Shiny,
+ * X cycles the difficulty, C and V arm a Lure and an Incense, O opens the incubator, L the Poké Mart, Enter starts,
+ * Esc/Backspace go back.
+ * Pointer: a tap selects; only Start starts (a second tap on the selected cell started runs players only meant to pick).
+ * Selecting an unlocked Pokémon makes it the lobby's partner (`save.partner`) right away, so Back shows it there.
  * `selected` reads the selected Pokémon, so a rebuilt screen (language switch, back from a sub-screen) keeps it.
  * `coop`: picking the Pokémon for a co-op room, which plays the normal mode (`COOP_LOCKS`): no
  * Lendários tab, no Bag, TMs or Bottle Caps, no Poké Mart, and the host sets the difficulty, so the
- * bar is just "Escolher".
+ * bar is just "Escolher". `dojo`: picking who trains at the Dojo, the same plain bar ("Treinar"),
+ * the captured legends included (they train with their awakenings).
  */
-export const starterSelect = (root: HTMLElement, input: Input, actions: SelectActions, initial: PlayableId = 'charmander', opts: { coop?: boolean } = {}): Screen & { selected: () => PlayableId } => {
+export const starterSelect = (root: HTMLElement, input: Input, actions: SelectActions, initial: PlayableId = 'charmander', opts: { coop?: boolean; dojo?: boolean } = {}): Screen & { selected: () => PlayableId } => {
   const m = t()
+  /** Co-op and the Dojo only pick a Pokémon: no Legend mode, Bag, difficulty or Poké Mart, and the partner stays. */
+  const plain = opts.coop === true || opts.dojo === true
+  const pickLabel = opts.dojo ? m.training.pickGo : m.coop.lobby.pick
   const save = loadSave()
   const unlocked = (id: PlayableId) => canPlay(save, id)
   /** The save with the Normal/Shiny picks made on this screen; any shiny owned (rolled once, a ticket, a shiny hatch) can be picked. */
@@ -94,7 +106,9 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
   let tab: Tab = tabs.includes(tabOf(initial)) ? tabOf(initial) : 'starters'
   /** Each tab remembers its own cursor, so switching back lands where it was. */
   const firstHatched = HATCHLING_IDS.find((id) => save.hatched[id]) ?? HATCHLING_IDS[0]!
-  const firstCaptured = LEGEND_IDS.find((id) => isCaptured(save.legends, id)) ?? LEGEND_IDS[0]
+  // A festival legend stays out of the tab until its festival is announced (`legendShown`).
+  const legendIds = shownLegends(brasiliaDay(today()))
+  const firstCaptured = legendIds.find((id) => isCaptured(save.legends, id)) ?? REGULAR_LEGENDS[0]
   const cursor: { starters: StarterId; eggs: HatchlingId; legends: LegendId } = {
     starters: isStarter(initial) ? initial : 'charmander',
     eggs: isHatchling(initial) ? initial : firstHatched,
@@ -110,8 +124,6 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
 
   /* ---------- Roster ---------- */
 
-  /** Taps a cell: selects it, or starts if it was already selected. */
-  const tapCell = (id: PlayableId) => (id === current() ? confirm() : select(id))
 
   const cellPortrait = (id: PlayableId) => h('img', { class: 'partner-cell-portrait', src: portraitUrl(PLAYABLE[id].line[0].dex, shinyOf(id)), alt: '' })
   /** A family still in its egg (a legend not captured yet): its first stage's silhouette at 2× (a big legend's at 1×), centered on the body (`bodyOf`) and cropped by the cell like a portrait. */
@@ -129,6 +141,43 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     )
   }
   const shinyTag = () => h('img', { class: 'partner-cell-shiny', src: sparkleIcon(), alt: 'Shiny' })
+  /** A legend's event badge: Darkrai's Noite das Bruxas 2026, Cresselia's Festival das Lanternas 2026; null for a regular one. */
+  const legendBadge = (id: LegendId) => {
+    const f = festivalById(legendFestival(id) ?? '')
+    if (f) return { src: festivalIcon(f.id), text: `${m.festival.names[f.id]} ${f.start.slice(0, 4)}` }
+    return legendEvent(id) ? { src: eventLegendIcon(), text: m.legend.event.badge } : null
+  }
+  const eventTag = (id: LegendId) => {
+    const badge = legendBadge(id)
+    return badge && h('img', { class: 'partner-cell-event', src: badge.src, alt: badge.text, title: badge.text })
+  }
+  /**
+   * Where a legend's event stands today: coming, on (until its last day), or
+   * over. A festival legend's is on until its milestone gifts can no longer be opened.
+   */
+  const eventStanding = (id: LegendId) => {
+    const day = brasiliaDay(today())
+    const f = festivalById(legendFestival(id) ?? '')
+    if (f) return day < f.start ? 'before' : claimOpen(f, day) ? 'on' : 'after'
+    return legendEvent(id) ? halloweenStanding(day) : null
+  }
+  /** What the locked card says of the legend's event: Darkrai's dates, or the festival pot that brings Cresselia. */
+  const eventText = (id: LegendId, standing: 'before' | 'on' | 'after') => {
+    const f = festivalById(legendFestival(id) ?? '')
+    const milestone = f?.milestones.find((ms) => ms.reward.kind === 'legend' && ms.reward.legend === id)
+    if (f && milestone) {
+      const name = m.festival.names[f.id]
+      return standing === 'after' ? m.legend.festival.gone(name) : m.legend.festival.prize(name, formatPokeDollarsShort(milestone.pot), formatDay(f.start), formatDay(festivalEnd(f)))
+    }
+    const ev = m.legend.event
+    return standing === 'before' ? ev.soon(formatDay(HALLOWEEN.from), formatDay(HALLOWEEN.to)) : standing === 'on' ? ev.live(formatDay(HALLOWEEN.to)) : ev.gone
+  }
+  const eventLine = (id: LegendId, withText: boolean) => {
+    const badge = legendBadge(id)
+    const standing = eventStanding(id)
+    if (!badge || !standing) return null
+    return h('p', { class: 'partner-legend-event' }, h('img', { src: badge.src, alt: '' }), h('b', {}, badge.text), ...(withText ? [' · ', rich(eventText(id, standing))] : []))
+  }
   /** What a family's clear says (`game/clears.ts`): the hardest difficulty it beat Mewtwo on. */
   const clearText = (id: PlayableId) => {
     const level = save.clears[id]
@@ -140,14 +189,14 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     return level ? h('img', { class: 'partner-cell-clear', src: trophyIcon(level), alt: clearText(id) ?? '' }) : null
   }
   /** A Pokémon's Bottle Caps (`game/evoItems.ts`) as pips at the cell's foot, when it has any. */
-  const capTag = (id: PlayableId) => (!opts.coop && capLevel(save.caps, id) > 0 ? capPips(capLevel(save.caps, id)) : null)
+  const capTag = (id: PlayableId) => (!plain && capLevel(save.caps, id) > 0 ? capPips(capLevel(save.caps, id)) : null)
   const cellTitle = (id: PlayableId, name: string) => [name, clearText(id)].filter((s) => s !== null).join(' · ')
 
   const cells = new Map<PlayableId, HTMLElement>()
   const starterCell = (id: StarterId) => {
     const el = h(
       'button',
-      { class: 'partner-cell', type: 'button', title: cellTitle(id, PLAYABLE[id].name), style: `--t:${PLAYABLE[id].color}`, onclick: () => tapCell(id) },
+      { class: 'partner-cell', type: 'button', title: cellTitle(id, PLAYABLE[id].name), style: `--t:${PLAYABLE[id].color}`, onclick: () => select(id) },
       cellPortrait(id),
       h('span', { class: 'partner-cell-name' }, PLAYABLE[id].name),
       shinyOf(id) && shinyTag(),
@@ -166,7 +215,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
         type: 'button',
         title: cellTitle(id, open ? PLAYABLE[id].name : m.eggs.locked),
         style: `--t:${open ? PLAYABLE[id].color : '#8890b0'}`,
-        onclick: () => tapCell(id),
+        onclick: () => select(id),
       },
       open ? cellPortrait(id) : cellSilhouette(id),
       shinyOf(id) && shinyTag(),
@@ -187,12 +236,13 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
       {
         class: open ? 'partner-cell legend' : 'partner-cell legend locked',
         type: 'button',
-        title: open ? cellTitle(id, name) : `${name} · ${m.legend.wins(wins)}`,
+        title: open ? cellTitle(id, name) : legendFestival(id) ? name : `${name} · ${m.legend.wins(wins)}`,
         style: `--t:${open ? PLAYABLE[id].color : '#8890b0'}`,
-        onclick: () => tapCell(id),
+        onclick: () => select(id),
       },
       open ? cellPortrait(id) : cellSilhouette(id),
-      !open && h('b', { class: 'partner-cell-count' }, wins),
+      !open && !legendFestival(id) && h('b', { class: 'partner-cell-count' }, wins),
+      eventTag(id),
       shinyOf(id) && shinyTag(),
       clearTag(id),
       capTag(id),
@@ -205,7 +255,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
   const tabButtons = {
     starters: h('button', { class: 'partner-tab', type: 'button', role: 'tab', onclick: () => setTab('starters') }, m.partner.starters, h('small', {}, `${STARTER_IDS.length}`)),
     eggs: h('button', { class: 'partner-tab', type: 'button', role: 'tab', onclick: () => setTab('eggs') }, m.eggs.tab, h('small', {}, `${owned.length}/${HATCHLING_IDS.length}`)),
-    legends: h('button', { class: 'partner-tab', type: 'button', role: 'tab', onclick: () => setTab('legends') }, m.legend.tab, h('small', {}, `${capturedCount(save.legends)}/${LEGEND_IDS.length}`)),
+    legends: h('button', { class: 'partner-tab', type: 'button', role: 'tab', onclick: () => setTab('legends') }, m.legend.tab, h('small', {}, `${capturedCount(save.legends, legendIds)}/${legendIds.length}`)),
   } satisfies Record<Tab, HTMLElement>
 
   const starterGrid = h(
@@ -248,20 +298,28 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
       'button',
       { class: 'incubator-entry box', type: 'button', onclick: openIncubator },
       h('img', { src: eggIcon('common'), alt: '' }),
-      h('span', {}, m.eggs.incubator(save.eggs.length, EGGS.slots)),
+      h('span', {}, m.eggs.incubator(save.eggs.length, incubatorSlots(save))),
       ready > 0 && h('b', { class: 'blink' }, m.eggs.readyBadge(ready)),
       h('span', { class: 'key-hint' }, 'O'),
     ),
   )
 
   /** Lendários: every legend, captured or not, and what the mode is about. ↑ ↓ read the column count from the grid. */
-  const legendGrid = h('div', { class: 'partner-egg-grid partner-legend-grid' }, ...LEGEND_IDS.map(legendCell))
-  const legendsPane = h('div', { class: 'partner-legends' }, legendGrid, h('p', { class: 'partner-legend-note' }, rich(m.legend.selectNote)))
+  const legendGrid = h('div', { class: 'partner-egg-grid partner-legend-grid' }, ...legendIds.map(legendCell))
+  const legendsPane = h('div', { class: 'partner-legends' }, legendGrid, h('p', { class: 'partner-legend-note' }, rich(opts.dojo ? m.training.legendNote : m.legend.selectNote)))
+
+  const randomButton = h(
+    'button',
+    { class: 'partner-random', type: 'button', title: m.partner.randomHint, 'aria-label': m.partner.randomHint, onclick: () => pickRandom() },
+    h('img', { src: dieIcon(), alt: '' }),
+    h('span', { class: 'partner-random-label' }, m.partner.random),
+    h('span', { class: 'key-hint' }, 'R'),
+  )
 
   const roster = h(
     'section',
     { class: 'partner-roster box' },
-    h('div', { class: 'partner-tabs', role: 'tablist' }, ...tabs.map((k) => tabButtons[k]), h('span', { class: 'key-hint' }, 'TAB')),
+    h('div', { class: 'partner-tabs', role: 'tablist' }, ...tabs.map((k) => tabButtons[k]), h('span', { class: 'key-hint' }, 'TAB'), randomButton),
     h('div', { class: 'partner-pane starters' }, starterGrid, teaser),
     eggsPane,
     !opts.coop && legendsPane,
@@ -282,6 +340,12 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     const pedestal = h('div', { class: 'partner-pedestal' }, sprite)
     if (isLegend(id) && !open) {
       const need = winsNeeded(id)
+      // Once its event is over, an event legend can't be caught: only the line saying it's gone stays.
+      const over = eventStanding(id) === 'after'
+      // A festival legend is never fought: no wins to count, only its festival's line.
+      const gift = legendFestival(id) !== null
+      // The last legend (Arceus) names the regular ones it still waits for.
+      const missing = legendSource(id) === 'endless' ? stillMissing(save.legends, id) : []
       hero.replaceChildren(
         h(
           'div',
@@ -292,11 +356,13 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
             { class: 'partner-id' },
             h('small', { class: 'partner-dex' }, `#${String(form.dex).padStart(3, '0')}`),
             h('h3', { class: 'partner-name' }, form.name),
-            h('p', { class: 'partner-legend-wins' }, m.legend.wins(`${Math.min(save.legends[id] ?? 0, need)}/${need}`)),
-            h('p', { class: 'partner-blurb locked-blurb' }, rich(m.legend.where[legendSource(id)])),
+            !gift && h('p', { class: 'partner-legend-wins' }, m.legend.wins(`${Math.min(save.legends[id] ?? 0, need)}/${need}`)),
+            !over && !gift && h('p', { class: 'partner-blurb locked-blurb' }, rich(m.legend.where[legendSource(id)])),
+            missing.length > 0 && h('p', { class: 'partner-blurb locked-blurb' }, m.legend.stillMissing(missing.map((other) => LEGENDS[other].line[0].name))),
+            eventLine(id, true),
           ),
         ),
-        h('p', { class: 'partner-blurb partner-intro' }, m.legend.rule(need), ' ', m.legend.shinyRule),
+        ...(over || gift ? [] : [h('p', { class: 'partner-blurb partner-intro' }, m.legend.rule(need), ' ', m.legend.shinyRule)]),
       )
       return
     }
@@ -346,6 +412,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
           h('div', { class: 'types' }, ...form.types.map(typeBadge)),
           level && h('p', { class: 'partner-clear' }, h('img', { src: trophyIcon(level), alt: '' }), m.dex.clearedOn(m.difficulty.names[level])),
           isLegend(id) && h('p', { class: 'partner-legend-mode' }, m.legend.mode, ' · ', `${m.legend.innate}: ${ABILITIES[LEGENDS[id].innate.ability].name}`),
+          isLegend(id) && eventLine(id, false),
           h('p', { class: 'partner-blurb' }, m.blurbs[id]),
           h('div', { class: 'partner-hero-actions' }, canPick(id) && shinyPicker(shinyOf(id), setShiny), more(true)),
         ),
@@ -467,7 +534,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
   renderTms()
   }
 
-  const bar = opts.coop
+  const bar = plain
     ? actionBar(go)
     : actionBar(
         h('div', { class: 'partner-bag' }, bagLabel, ...slots, tmSlots),
@@ -475,13 +542,13 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
         go,
       )
   bar.classList.add('partner-bar')
-  if (opts.coop) bar.classList.add('coop')
+  if (plain) bar.classList.add('coop')
 
   /* ---------- State ---------- */
 
   const renderGo = () => {
     const id = current()
-    go.querySelector('.partner-go-label')!.textContent = unlocked(id) ? `${opts.coop ? m.coop.lobby.pick : m.partner.start} ▶` : isLegend(id) ? m.legend.lockedButton : m.eggs.lockedButton
+    go.querySelector('.partner-go-label')!.textContent = unlocked(id) ? `${plain ? pickLabel : m.partner.start} ▶` : isLegend(id) ? m.legend.lockedButton : m.eggs.lockedButton
     paintGo()
   }
 
@@ -493,6 +560,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     roster.classList.toggle('eggs', tab === 'eggs')
     roster.classList.toggle('legends', tab === 'legends')
     cells.forEach((c, id) => c.classList.toggle('selected', id === current()))
+    randomButton.disabled = randomPool().length === 0
     renderHero()
     renderGo()
   }
@@ -508,12 +576,26 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     else cursor.starters = id
     tab = tabOf(id)
     stage = 0
+    if (!plain && unlocked(id)) updateSave((s) => ({ ...s, partner: id }))
     render()
     reveal()
     playSfx('move')
     clearTimeout(cryTimer)
     if (!unlocked(id)) return
     cryTimer = window.setTimeout(() => playCry(cryUrl(PLAYABLE[id].line[0].dex), 0.25), 260)
+  }
+
+  /** The unlocked Pokémon of the shown tab, but the selected one: what Random draws from. */
+  const randomPool = (): readonly PlayableId[] => {
+    const shown: readonly PlayableId[] = tab === 'eggs' ? HATCHLING_IDS : tab === 'legends' ? legendIds : STARTER_IDS
+    return shown.filter((id) => id !== current() && unlocked(id))
+  }
+
+  /** Random: selects one of the tab's unlocked Pokémon (never the one already selected); it doesn't start the run. */
+  const pickRandom = () => {
+    const pool = randomPool()
+    if (pool.length === 0) return playSfx('denied')
+    select(pool[Math.floor(Math.random() * pool.length)]!)
   }
 
   const setTab = (next: Tab) => {
@@ -549,9 +631,9 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     }
     if (tab === 'legends') {
       const cols = getComputedStyle(legendGrid).gridTemplateColumns.split(' ').length || 1
-      const next = stepGrid(LEGEND_IDS.indexOf(cursor.legends), dir, cols, LEGEND_IDS.length)
+      const next = stepGrid(legendIds.indexOf(cursor.legends), dir, cols, legendIds.length)
       if (next === 'above') return setTab('eggs')
-      if (next !== 'below') select(LEGEND_IDS[next]!)
+      if (next !== 'below') select(legendIds[next]!)
       return
     }
     const i = STARTER_IDS.indexOf(cursor.starters)
@@ -589,7 +671,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
       id,
       stage,
       shiny: shinyOf(id),
-      go: h('button', { class: 'partner-go', type: 'button', onclick: () => confirm() }, opts.coop ? m.coop.lobby.pick : m.partner.startWith(PLAYABLE[id].name)),
+      go: h('button', { class: 'partner-go', type: 'button', onclick: () => confirm() }, plain ? pickLabel : m.partner.startWith(PLAYABLE[id].name)),
       onStage: (i) => ((stage = i), renderHero()),
       onClose: closeDetails,
     })
@@ -599,14 +681,14 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
 
   /** Leaves for another screen after this press is done. */
   const leave = (fn: () => void) => (playSfx('select'), later(fn))
-  const mart = opts.coop ? undefined : actions.mart
+  const mart = plain ? undefined : actions.mart
   const back = () => (playSfx('move'), later(actions.back))
 
   const off = input.onKey((key) => {
     if (sheet?.onKey(key)) return
-    if (key === 'KeyX' && !opts.coop) return setDifficulty(DIFFICULTY_IDS[(DIFFICULTY_IDS.indexOf(difficulty) + 1) % DIFFICULTY_IDS.length]!)
+    if (key === 'KeyX' && !plain) return setDifficulty(DIFFICULTY_IDS[(DIFFICULTY_IDS.indexOf(difficulty) + 1) % DIFFICULTY_IDS.length]!)
     if (key === 'KeyZ') return setShiny(!shinyOf(current()))
-    const item = opts.coop ? undefined : BAG_ITEM_IDS.find((i) => BAG_KEYS[i] === key)
+    const item = plain ? undefined : BAG_ITEM_IDS.find((i) => BAG_KEYS[i] === key)
     if (item) return toggleBag(item)
     if (sheet) return
     if (key === 'ArrowLeft' || key === 'KeyA') step('left')
@@ -616,6 +698,7 @@ export const starterSelect = (root: HTMLElement, input: Input, actions: SelectAc
     else if (key === 'Tab' || key === 'KeyE' || key === 'PageDown') setTab(tabs[(tabs.indexOf(tab) + 1) % tabs.length]!)
     else if (key === 'KeyQ' || key === 'PageUp') setTab(tabs[(tabs.indexOf(tab) + tabs.length - 1) % tabs.length]!)
     else if (/^Digit[1-9]$/.test(key)) select(STARTER_IDS[(Number(key.slice(5)) - 1) * 3 + (STARTER_IDS.indexOf(cursor.starters) % 3)]!)
+    else if (key === 'KeyR') pickRandom()
     else if (key === 'KeyI') openDetails()
     else if (key === 'KeyO') openIncubator()
     else if (key === 'KeyL' && mart) leave(mart)

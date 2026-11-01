@@ -7,11 +7,11 @@ import type { PlayableId } from '../data/hatchlings'
 import { POKE_TYPES, type PokeType } from '../data/types'
 import { playerForm } from './branch'
 import { healPlayer, killEnemy } from './combat'
-import { burst, damageText, floatText } from './effects'
+import { burst, damageText, floatText, shakeScreen } from './effects'
 import { dropCoins, dropPickup, dropXp } from './pickups'
 import { isAlive } from './queries'
 import type { StatDelta } from './stats'
-import { applyStatus } from './status'
+import { applyStatus, isAsleep } from './status'
 import type { Enemy, Game } from './types'
 import { setWeather, weatherHere } from './weather'
 import { roomOf } from './room'
@@ -195,9 +195,9 @@ export const abilityLit = (g: Game) =>
 /* ---------------- Hits taken ---------------- */
 
 /** Hits that count as a boss's: its strikes and shots, and the bodies of bosses and elites. */
-const bossHit = (hit: HitKind, from?: Enemy) => hit === 'hazard' || hit === 'shot' || (hit === 'body' && from !== undefined && (from.boss || from.elite))
+const bossHit = (hit: HitKind, from?: Enemy) => hit === 'hazard' || hit === 'zone' || hit === 'shot' || (hit === 'body' && from !== undefined && (from.boss || from.elite))
 
-const IMMUNE_TO: Partial<Record<HitKind, Immunity>> = { lava: 'lava', trap: 'trap', blast: 'blast' }
+const IMMUNE_TO: Partial<Record<HitKind, Immunity>> = { lava: 'lava', trap: 'trap', blast: 'blast', zone: 'zone' }
 
 /** Whether the ability spares the player a kind of harm (the weather's wear, slow terrain, wards…). */
 export const abilityImmune = (g: Game, what: Immunity) => effectsOf(g).some((e) => e.kind === 'immune' && e.to.includes(what))
@@ -207,7 +207,7 @@ export const contactPower = (g: Game) => ABILITY.contactPower * g.player.stats.m
 
 /** Ability damage on a foe: a number, the results' "ability" row, and the kill. */
 const strike = (g: Game, e: Enemy, amount: number) => {
-  const dmg = Math.max(1, Math.round(amount))
+  const dmg = Math.max(1, dm.round(amount))
   e.hp -= dmg
   e.flash = 0.12
   g.player.damageByMove.ability = (g.player.damageByMove.ability ?? 0) + dmg
@@ -234,7 +234,7 @@ export const abilityTakes = (g: Game, amount: number, types: readonly PokeType[]
         continue
       }
       const healed = healPlayer(g, amount * ABILITY.absorbHeal)
-      if (healed >= 1) floatText(g, p.x, p.y - 28, `+${Math.round(healed)}`, '#58d878')
+      if (healed >= 1) floatText(g, p.x, p.y - 28, `+${dm.round(healed)}`, '#58d878')
       p.iframes = Math.max(p.iframes, ABILITY.guardIframes)
       return null
     }
@@ -267,7 +267,7 @@ export const abilityHolds = (g: Game) => {
   p.hp = 1
   p.iframes = Math.max(p.iframes, ABILITY.sturdyIframes)
   burst(g, p.x, p.y - 12, { colors: ['#f8d030', '#ffffff', '#b89848'], count: 40, speed: 140, ttl: 0.6, size: 2 })
-  g.shake = Math.max(g.shake, 6)
+  shakeScreen(g, 6)
   proc(g, sturdy)
   return true
 }
@@ -327,6 +327,21 @@ const auraPulse = (g: Game, e: Extract<AbilityEffect, { kind: 'aura' }>) => {
   }
 }
 
+/** Sleeping foes in reach suffer their bad dreams: ability damage, which never wakes them (Bad Dreams). */
+const nightmarePulse = (g: Game, e: Extract<AbilityEffect, { kind: 'nightmare' }>) => {
+  const p = g.player
+  const reach = e.radius * e.radius
+  const power = contactPower(g) * e.damage
+  for (const foe of g.enemies) {
+    if (!isAlive(foe) || !isAsleep(foe.status) || dm.sq(foe.x - p.x) + dm.sq(foe.y - p.y) >= reach) continue
+    burst(g, foe.x, foe.y - foe.radius, { colors: ['#281838', '#5838a0', '#c83858'], count: 3, speed: 30, ttl: 0.45, gravity: -40 })
+    strike(g, foe, power)
+  }
+}
+
+/** Whether a beat of `every` s on the never-paused clock fell in this tick: a pulse without a timer of its own. */
+const beat = (g: Game, dt: number, every: number) => Math.floor(g.now / every) !== Math.floor((g.now - dt) / every)
+
 /**
  * Ticks the ability: pulses, timers, stacks wearing off, a summoned weather.
  * True when its conditions changed, so the caller rebuilds the stats.
@@ -357,6 +372,9 @@ export const updateAbility = (g: Game, dt: number) => {
           auraPulse(g, e)
         }
         break
+      case 'nightmare':
+        if (beat(g, dt, e.every)) nightmarePulse(g, e)
+        break
       case 'timer':
         if (s.stacks >= e.max) break
         s.clock += dt
@@ -371,7 +389,7 @@ export const updateAbility = (g: Game, dt: number) => {
         if (s.clock >= e.every) {
           s.clock -= e.every
           const healed = healPlayer(g, g.player.stats.maxHp * e.heal)
-          if (healed >= 1) floatText(g, g.player.x, g.player.y - 28, `+${Math.round(healed)}`, '#58d878')
+          if (healed >= 1) floatText(g, g.player.x, g.player.y - 28, `+${dm.round(healed)}`, '#58d878')
         }
         break
       case 'onHurt':

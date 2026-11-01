@@ -1,3 +1,5 @@
+import { AIM_ASSISTS, type AimAssist } from './arenaAim'
+import { PRIORITIES, type Priority } from '../game/versusKit'
 import type { TitleId } from '../data/achievements'
 import type { EnemyId } from '../data/enemies'
 import { mergeAttempts, parseAttempt, type Attempt } from '../game/attempt'
@@ -9,10 +11,13 @@ import { isHalloweenDay } from '../game/halloween'
 import { depositEggs, type Egg } from '../game/eggs'
 import { parseSave, recordHatch, recordRun, type Save } from '../game/meta'
 import type { RunSummary } from '../game/tally'
-import { STICK_MODES, type StickMode } from '../engine/input'
+import { BUTTON_SIDES, STICK_EDGES, STICK_HEIGHTS, STICK_MODES, type ButtonSide, type StickEdge, type StickHeight, type StickMode } from '../engine/input'
 import { DAMAGE_NUMBERS, type DamageNumbers } from '../render/damageNumbers'
 import { FLASH_MODES, type Flashes } from '../render/flashes'
+import { FOG_MODES, type FogMode } from '../render/weather'
+import { RUN_TOASTS, type RunToasts } from './toastQueue'
 import { DEFAULT_BINDINGS, parseBindings, type Bindings } from '../engine/bindings'
+import { THEMES, type Theme } from './theme'
 import { UI_SCALES, type UiScale } from './uiScale'
 
 const KEY = 'ps:save'
@@ -161,6 +166,10 @@ const SETTINGS_KEY = 'ps:settings'
 /** Mute flag from before the settings screen existed. */
 const LEGACY_MUTE_KEY = 'ps:muted'
 
+/** The HUD's mini map (`render/minimap.ts`): its shape, or off. */
+export const MINIMAP_MODES = ['square', 'round', 'off'] as const
+export type MinimapMode = (typeof MINIMAP_MODES)[number]
+
 /** Player preferences. Language lives in `i18n` (`ps:lang`). Volumes go from 0 to 1. */
 export type Settings = {
   musicVolume: number
@@ -171,12 +180,34 @@ export type Settings = {
   screenShake: boolean
   /** `reduced` drops white screen flashes, white hit flashes and fast flicker (`render/flashes.ts`). */
   flashes: Flashes
+  /** How thick the fog weather draws (`render/weather.ts`): as designed, light (a wider clear circle, a thinner veil) or off (just a haze). */
+  fog: FogMode
+  /** How opaque your moves draw, 0.1 to 1 (`render/attackLayers.ts`): lower to see the foes and their attacks through a full build. */
+  attackOpacity: number
+  /** The same for teammates' moves in co-op. */
+  teamAttackOpacity: number
+  /** Which toasts a run shows (`toastQueue.ts`): all, the important ones, or none. Per device: a phone may want fewer than the PC. */
+  runToasts: RunToasts
   /** Remapped keys and gamepad buttons. Per device, so they stay out of the synced save. */
   controls: Bindings
   /** Touch joystick: follows the thumb (the default) or waits in the bottom-left corner. */
   joystick: StickMode
+  /** Touch: the side of the action buttons (special, lunge, Mega); the fixed stick and the status box take the other one. */
+  buttonSide: ButtonSide
+  /** Touch: where the fixed stick sits, in a few steps up from the bottom and in from the side edge. */
+  stickHeight: StickHeight
+  stickEdge: StickEdge
   /** Menus and HUD size (`ui/uiScale.ts`). Per device, like the controls. */
   uiScale: UiScale
+  /** The HUD's mini map (`render/minimap.ts`): square, round or off. */
+  minimap: MinimapMode
+  /** The Arena's quick chat (`ui/versusTalk.ts`): off hides the other players' lines; pings still show. */
+  quickChat: boolean
+  /** Menus and HUD colors (`ui/theme.ts`). Per device: a phone may follow its own dark mode. */
+  theme: Theme
+  /** The Arena: how a cast aims (`ui/arenaAim.ts`), and how the basic attack and the assist rank the rivals in reach (`game/versusKit.ts`). */
+  aimAssist: AimAssist
+  targetPriority: Priority
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -186,12 +217,27 @@ export const DEFAULT_SETTINGS: Settings = {
   damageNumbers: 'reduced',
   screenShake: true,
   flashes: 'normal',
+  fog: 'light',
+  attackOpacity: 1,
+  teamAttackOpacity: 0.6,
+  runToasts: 'all',
   controls: DEFAULT_BINDINGS,
   joystick: 'floating',
+  buttonSide: 'right',
+  stickHeight: 'low',
+  stickEdge: 'near',
   uiScale: 'auto',
+  minimap: 'square',
+  quickChat: true,
+  theme: 'system',
+  aimAssist: 'assist',
+  targetPriority: 'closest',
 }
 
 const volume = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback)
+/** The lowest move opacity: a move never vanishes outright, or a player could lose track of their own build. */
+export const MIN_ATTACK_OPACITY = 0.1
+const opacity = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(MIN_ATTACK_OPACITY, v)) : fallback)
 const flag = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback)
 /** The old on/off flag maps to `reduced` (on was the default, never a choice) or `off`. */
 const damageMode = (v: unknown, fallback: DamageNumbers): DamageNumbers =>
@@ -213,9 +259,21 @@ export const parseSettings = (raw: string | null, defaults = DEFAULT_SETTINGS): 
     damageNumbers: damageMode(data.damageNumbers, defaults.damageNumbers),
     screenShake: flag(data.screenShake, defaults.screenShake),
     flashes: FLASH_MODES.find((m) => m === data.flashes) ?? defaults.flashes,
+    fog: FOG_MODES.find((m) => m === data.fog) ?? defaults.fog,
+    attackOpacity: opacity(data.attackOpacity, defaults.attackOpacity),
+    teamAttackOpacity: opacity(data.teamAttackOpacity, defaults.teamAttackOpacity),
+    runToasts: RUN_TOASTS.find((m) => m === data.runToasts) ?? defaults.runToasts,
     controls: parseBindings(data.controls),
     joystick: STICK_MODES.find((m) => m === data.joystick) ?? defaults.joystick,
+    buttonSide: BUTTON_SIDES.find((m) => m === data.buttonSide) ?? defaults.buttonSide,
+    stickHeight: STICK_HEIGHTS.find((m) => m === data.stickHeight) ?? defaults.stickHeight,
+    stickEdge: STICK_EDGES.find((m) => m === data.stickEdge) ?? defaults.stickEdge,
     uiScale: UI_SCALES.find((s) => s === data.uiScale) ?? defaults.uiScale,
+    minimap: MINIMAP_MODES.find((m) => m === data.minimap) ?? defaults.minimap,
+    quickChat: flag(data.quickChat, defaults.quickChat),
+    theme: THEMES.find((m) => m === data.theme) ?? defaults.theme,
+    aimAssist: AIM_ASSISTS.find((m) => m === data.aimAssist) ?? defaults.aimAssist,
+    targetPriority: PRIORITIES.find((m) => m === data.targetPriority) ?? defaults.targetPriority,
   }
 }
 

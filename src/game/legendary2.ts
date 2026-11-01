@@ -1,6 +1,6 @@
 import * as dm from '../engine/dmath'
 import { ownAttack } from './players'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { AQUA, erupt, HEAT, LIFT, SNOW, TERRAIN } from './legendaryMoves2'
 import { throwFoe } from './moveKit'
 import { inheritMods } from './mods'
@@ -92,7 +92,7 @@ const hurl = (g: Game, a: Attack) => {
   if (!isAlive(e)) return
   const p = g.player
   const angle = dm.atan2(e.y - p.y, e.x - p.x)
-  if (!e.boss) throwFoe(e, angle, LIFT.force * e.mass, a.memo * LIFT.crash, 'telekinesis', p.slot)
+  if (!e.boss) throwFoe(g, e, angle, LIFT.force * e.mass, a.memo * LIFT.crash, 'telekinesis')
   const slam = spawnAttack(g, {
     move: a.move, type: a.type, visual: 'psySlam', x: e.x, y: e.y - e.radius,
     shape: { kind: 'circle', r: Math.max(LIFT.slam, e.radius + 6) }, motion: { kind: 'static' },
@@ -141,7 +141,7 @@ export const updateLegendary2 = (g: Game) => {
         }
         break
       case 'boulderImpact':
-        if (a.tier === 0) g.shake = Math.max(g.shake, 3)
+        if (a.tier === 0) shakeScreen(g, 3)
         a.tier = 1
         break
     }

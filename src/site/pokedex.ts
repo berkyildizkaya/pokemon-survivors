@@ -1,8 +1,8 @@
 import manifest from '../data/sprites.generated.json'
 import { ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies'
 import { BRANCHES, branchesOf, branchStage, type BranchId } from '../data/branches'
-import { HATCHLING_IDS, PLAYABLE, type PlayableId } from '../data/hatchlings'
-import { REGIONS, STARTER_IDS, type Region } from '../data/starters'
+import { HATCHLING_IDS, PLAYABLE, type HatchlingId, type PlayableId } from '../data/hatchlings'
+import { REGIONS, STARTER_IDS, type Region, type StarterId } from '../data/starters'
 import type { PokeType } from '../data/types'
 import { isRiftLegend, RIFT, type RiftLegend } from '../data/rifts'
 import { DOMAINS } from '../data/domains'
@@ -13,6 +13,7 @@ import { NIGHT_BOSSES } from '../data/halloween'
 import { ENDLESS, REAPER } from '../game/endless'
 import { MEOWTH_DEX } from '../game/mapEventRules'
 import { SPECIAL_COMPANION_IDS, SPECIAL_COMPANIONS, type SpecialCompanionId } from '../data/companions'
+import { EVENT_LEGENDS, LEGEND_IDS, legendFestival, type LegendId } from '../data/legends'
 
 /**
  * The site's Pokédex model: every species the game uses, derived from
@@ -55,6 +56,8 @@ export type DexEntry = {
     | { kind: 'wild'; id: EnemyId }
     | { kind: 'event' }
     | { kind: 'companion'; id: SpecialCompanionId }
+    /** `cameo`: seen only in a domain's scene (Cresselia breaking Darkrai's nightmare, `LegendDomain.cameo`), never fought. */
+    | { kind: 'cameo'; by: RiftLegend }
 }
 
 /** Last national dex number of each generation, in `REGIONS` order. */
@@ -132,6 +135,13 @@ const companionEntry = (id: SpecialCompanionId): DexEntry => {
   return { ...base(c.dex, c.name, c.types), role: 'event', source: { kind: 'companion', id } }
 }
 
+/** The domains' cameos (`LegendDomain.cameo`), listed as event Pokémon. */
+const cameoEntries = (): DexEntry[] =>
+  (Object.keys(DOMAINS) as RiftLegend[]).flatMap((by) => {
+    const c = DOMAINS[by]?.cameo
+    return c ? [{ ...base(c.dex, c.name, c.types), role: 'event' as const, source: { kind: 'cameo' as const, by } }] : []
+  })
+
 const byDex = (a: DexEntry, b: DexEntry) => a.dex - b.dex
 
 /**
@@ -148,8 +158,8 @@ export const gameDex = (): DexEntry[] => {
   return [...playable, ...wild, eventEntry()].sort(byDex)
 }
 
-/** The site's Pokédex: every species the game loads, `gameDex()` plus the gift-only companions (never seen in a run, so never counted in game). */
-export const pokedex = (): DexEntry[] => [...gameDex(), ...SPECIAL_COMPANION_IDS.map(companionEntry)].sort(byDex)
+/** The site's Pokédex: every species the game loads, `gameDex()` plus the gift-only companions and the domains' cameos (never met in a run, so never counted in game). */
+export const pokedex = (): DexEntry[] => [...gameDex(), ...SPECIAL_COMPANION_IDS.map(companionEntry), ...cameoEntries()].sort(byDex)
 
 /* ---------------- When a wild Pokémon shows up ---------------- */
 
@@ -167,6 +177,8 @@ export type Appearance =
   | { kind: 'trio'; at: number; trio: TrioId }
   /** Waits behind a legendary rift, which first opens at `from`. */
   | { kind: 'rift'; from: number }
+  /** An event legend (`EVENT_LEGENDS`): its event's rift may take a rift's place in a haunted run, from `from`. */
+  | { kind: 'eventRift'; from: number }
   /** Hunts the player in endless mode from `at`. */
   | { kind: 'reaper'; at: number }
   /** Lives in a place (`data/places.ts`), coming out from `from`; `boss` for the place's own boss. */
@@ -206,7 +218,8 @@ export const appearances = (id: EnemyId): Appearance[] => {
     if (e.tier !== def.tier || (e.kind === 'swarm' && !def.types.includes('flying'))) return []
     return [{ kind: e.kind, at: e.at, count: e.count }]
   })
-  const rift: Appearance[] = isRiftLegend(id) ? [{ kind: 'rift', from: RIFT.slots[0] }] : []
+  const event = EVENT_LEGENDS.some((l) => l === id)
+  const rift: Appearance[] = event ? [{ kind: 'eventRift', from: RIFT.slots[0] }] : isRiftLegend(id) ? [{ kind: 'rift', from: RIFT.slots[0] }] : []
   const reaper: Appearance[] = id === REAPER ? [{ kind: 'reaper', at: ENDLESS.reaperAt }] : []
   // A place's dwellers come out once the run's stage has their tier (never before the first entrance).
   const placed = PLACE_IDS.flatMap((place): Appearance[] => {
@@ -234,8 +247,44 @@ const domainCast = (legend: RiftLegend): readonly EnemyId[] => {
   return [
     ...d.crossing.retinue.members.map((m) => m.id),
     ...patterns.flatMap((p) => (p.kind === 'summon' || p.kind === 'guard' ? p.enemies : [])),
+    ...(d.cast ?? []),
   ]
 }
 
 /** `m:ss` run clock, as shown on the HUD. */
 export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`
+
+/* ---------------- Pokémon pages ---------------- */
+
+/**
+ * A Pokémon with a page of its own (`/pokedex/<slug>/`): each playable family,
+ * its stages and branches together, and each legend. One big Pokédex can't rank
+ * for one Pokémon ("garchomp pokemon survivors") or be quoted by an AI chat; these can.
+ */
+export type DexPage =
+  | { kind: 'family'; id: StarterId | HatchlingId; slug: string; entries: readonly DexEntry[] }
+  | { kind: 'legend'; id: LegendId; slug: string; entries: readonly DexEntry[] }
+
+let pages: readonly DexPage[] | null = null
+
+/** Every Pokémon page: the starters, then the egg families, then the legends, in the game's order. */
+export const dexPages = (): readonly DexPage[] => {
+  if (pages) return pages
+  const entries = pokedex()
+  const families = [...STARTER_IDS, ...HATCHLING_IDS].map((id): DexPage => {
+    const own = entries.filter((e) => e.source.kind === 'starter' && e.source.id === id)
+    const stage = (e: DexEntry) => (e.source.kind === 'starter' ? e.source.stage : 0)
+    return { kind: 'family', id, slug: slugOf(PLAYABLE[id].line[0].name), entries: own.sort((a, b) => stage(a) - stage(b) || a.dex - b.dex) }
+  })
+  // A festival legend (Cresselia) is a surprise for now: its page comes with its festival's announcement.
+  const legends = LEGEND_IDS.filter((id) => !legendFestival(id)).map((id): DexPage => {
+    const entry = entries.find((e) => e.source.kind === 'wild' && e.source.id === id)
+    if (!entry) throw new Error(`No Pokédex entry for legend ${id}`)
+    return { kind: 'legend', id, slug: entry.slug, entries: [entry] }
+  })
+  return (pages = [...families, ...legends])
+}
+
+/** The page a Pokédex entry belongs to, by species: its family's or its own (a legend). */
+export const pageOf = (entry: DexEntry): DexPage | undefined =>
+  dexPages().find((p) => p.entries.some((e) => e.dex === entry.dex))

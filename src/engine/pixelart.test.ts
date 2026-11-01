@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canvasCache, lazy, resetCanvases } from './pixelart'
+import { canvasCache, canvasLosses, canvasRestored, canvasWatch, heldCanvases, lazy, onCanvasReset, resetCanvases, sweepArt, weighCanvases, type Probe } from './pixelart'
 
 describe('resetCanvases', () => {
   it('drops cached art so it is drawn again after a GPU reset', () => {
@@ -14,5 +14,96 @@ describe('resetCanvases', () => {
 
     expect(cache.size).toBe(0)
     expect(art()).toBe(2)
+  })
+
+  it('drops the caches once for a burst of canvases restored by the same reset', async () => {
+    let drops = 0
+    onCanvasReset(() => drops++)
+    canvasRestored()
+    canvasRestored()
+    canvasRestored()
+    expect(drops).toBe(0)
+    await Promise.resolve()
+    expect(drops).toBe(1)
+  })
+})
+
+/** A stand-in for the watched canvas: keeps its one pixel's alpha, which `wipe` clears as iOS does. */
+const pixel = () => {
+  const data = [0, 0, 0, 0]
+  const probe: Probe = { fillStyle: '', fillRect: () => (data[3] = 255), getImageData: () => ({ data }) }
+  return { probe, wipe: () => (data[3] = 0) }
+}
+
+describe('canvasWatch', () => {
+  it('drops the caches when the browser wipes the canvases without a word, on a new probe', async () => {
+    const made: ReturnType<typeof pixel>[] = []
+    const check = canvasWatch(() => made[made.push(pixel()) - 1]!.probe)
+    let drops = 0
+    onCanvasReset(() => drops++)
+    const wiped = canvasLosses.wiped
+
+    expect(check()).toBe(false)
+    expect(check()).toBe(false)
+    made[0]!.wipe()
+    expect(check()).toBe(true)
+    await Promise.resolve()
+    expect(drops).toBe(1)
+    expect(canvasLosses.wiped).toBe(wiped + 1)
+    expect(made).toHaveLength(2)
+    // The new probe is painted: no more drops until it's wiped too.
+    expect(check()).toBe(false)
+  })
+})
+
+describe('sweepArt', () => {
+  it('lets go of lazy art not asked for in the last sweeps, and keeps what is in use', () => {
+    let idleBuilds = 0
+    let busyBuilds = 0
+    const idle = lazy(() => ++idleBuilds)
+    const busy = lazy(() => ++busyBuilds)
+    idle()
+    busy()
+    sweepArt(3)
+    sweepArt(3)
+    // Asked for within the last 3 sweeps: still there.
+    expect(idle()).toBe(1)
+    for (let i = 0; i < 4; i++) {
+      busy()
+      sweepArt(3)
+    }
+    expect(idle()).toBe(2)
+    expect(busy()).toBe(1)
+  })
+})
+
+/** A stand-in canvas: `weighCanvases` knows one by its size and `getContext`. */
+const canvas = (width: number, height: number) => ({ width, height, getContext: () => null })
+
+describe('weighCanvases', () => {
+  it('counts each canvas once, through Maps, arrays, plain objects and 2D contexts', () => {
+    const a = canvas(10, 10)
+    const b = canvas(4, 2)
+    const ctx = { canvas: b, drawImage: () => {} }
+    const nested = new Map([['x', new Map([['y', [a, { sprite: a }]]])]])
+    expect(weighCanvases([nested, ctx, [b], a])).toEqual({ canvases: 2, bytes: 10 * 10 * 4 + 4 * 2 * 4 })
+  })
+
+  it('skips canvases freed to 0×0, images and cycles', () => {
+    const loop: { self?: unknown; art: unknown } = { art: canvas(2, 2) }
+    loop.self = loop
+    const image = { width: 64, height: 64, naturalWidth: 64 }
+    expect(weighCanvases([loop, canvas(0, 0), image, null, 3])).toEqual({ canvases: 1, bytes: 16 })
+  })
+})
+
+describe('heldCanvases', () => {
+  it('weighs what the caches hold now, not what they once made', () => {
+    const before = heldCanvases()
+    const cache = canvasCache<string, ReturnType<typeof canvas>>()
+    cache.set('chunk', canvas(8, 8))
+    expect(heldCanvases()).toEqual({ canvases: before.canvases + 1, bytes: before.bytes + 256 })
+    cache.clear()
+    expect(heldCanvases()).toEqual(before)
   })
 })

@@ -6,13 +6,13 @@ import { stageIndexAt } from '../data/waves'
 import { healPlayer } from './combat'
 import { dropItem } from './consumables'
 import { spawnEnemy } from './enemies'
-import { burst, floatText } from './effects'
+import { burst, floatText, shakeScreen } from './effects'
 import {
   BALLS, ballSpots, clearOfBosses, defenseProgress, ESCORT, FIELD, FIELD_TUNING, followStep, freshKinds,
   FIELD_MISSION_KINDS, missionCoins, NEST, nextMissionAt, type FieldMissionKind, type FieldTuning,
 } from './fieldMissionRules'
 import { makeElite } from './horde'
-import { openPrizeLevelUp } from './leveling'
+import { openTeamPrize } from './leveling'
 import { DIRECTOR, spawnSpot } from './mapEventRules'
 import type { MapEvent, MapEventDef, MapEventNotice, MapEventOf } from './mapEvents'
 import { COIN_VALUES } from './meta'
@@ -109,19 +109,10 @@ const reward = (g: Game, ev: MapEventOf<FieldMissionKind>, x: number, y: number,
   if (egg && chance(g.rng, Math.min(1, r.egg * g.eggs.boost))) awardEgg(g, 'mission', x, y)
   const hatched = g.eggs.found.length > before
   burst(g, x, y - 10, { colors: ['#f8d030', '#fff8c0', '#ffffff', '#78c0f8'], count: 46, speed: 130, ttl: 0.8, gravity: 50 })
-  g.shake = Math.max(g.shake, 3)
+  shakeScreen(g, 3, { x, y })
   notify(g, { kind: 'missionDone', mission: ev.kind, coins: coins.reduce((a, b) => a + b, 0), egg: hatched })
   ev.gone = 0
-  // The whole team earned it: everyone gets the prize level-up. In co-op a
-  // player on a screen of their own takes it as a regular level-up once free
-  // (`openPendingPicks`), so their screen isn't replaced; one who left gets none.
-  const actor = g.player
-  for (const p of g.players) {
-    g.player = p
-    if (g.coop !== null && p.phase !== 'playing') p.pendingLevelUps += p.gone ? 0 : 1
-    else if (!p.gone) openPrizeLevelUp(g, 'mission', r.shinyCard)
-  }
-  g.player = actor
+  openTeamPrize(g, 'mission', r.shinyCard)
 }
 
 const fail = (g: Game, ev: MapEventOf<FieldMissionKind>) => {
@@ -295,5 +286,5 @@ export const directMissions = (g: Game, place: (g: Game, kind: FieldMissionKind,
   const open = clearSpot(g, spot, 20)
   s.done.push(kind)
   s.next = nextMissionAt(g.time, g.rng())
-  place(g, kind, Math.round(open.x), Math.round(open.y))
+  place(g, kind, dm.round(open.x), dm.round(open.y))
 }

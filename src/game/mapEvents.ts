@@ -7,7 +7,7 @@ import { addBuff } from './buffs'
 import { healPlayer, hurtPlayer, killEnemy } from './combat'
 import { dropItem } from './consumables'
 import { logDefeat } from './dex'
-import { burst, damageText, floatText } from './effects'
+import { burst, damageText, floatText, shakeScreen } from './effects'
 import { enemyScale, spawnEnemy } from './enemies'
 import { recomputeStats } from './leveling'
 import {
@@ -145,7 +145,7 @@ const trapHit = (g: Game, x: number, y: number, r: number, damage: number, bossS
   for (const i of query(g.grid, x, y, r + 16, neighbors)) {
     const e = g.enemies[i]
     if (!e || !isAlive(e) || dm.sq(e.x - x) + dm.sq(e.y - y) > dm.sq(r + e.radius)) continue
-    const dmg = Math.max(1, Math.round(e.boss ? e.maxHp * bossShare : damage))
+    const dmg = Math.max(1, dm.round(e.boss ? e.maxHp * bossShare : damage))
     e.hp -= dmg
     e.flash = 0.2
     const away = dirTo(x, y, e.x, e.y)
@@ -207,7 +207,7 @@ export const MAP_EVENTS: { [K in MapEventKind]: MapEventDef<K> } = {
       const s = ev.state
       if (!fountainSip(s, dm.sq(p.x - ev.x) + dm.sq(p.y - ev.y) < dm.sq(FOUNTAIN.radius + p.radius), p.hp < p.stats.maxHp - 0.5, dt)) return
       const before = actAs(g, p)
-      const heal = Math.round(healPlayer(g, p.stats.maxHp * FOUNTAIN.heal))
+      const heal = dm.round(healPlayer(g, p.stats.maxHp * FOUNTAIN.heal))
       actAs(g, before)
       floatText(g, p.x, p.y - 30, `+${heal}`, '#58e858')
       burst(g, ev.x, ev.y - 8, { colors: ['#a8d8f8', '#ffffff', '#58a8f0'], count: 10, speed: 50, ttl: 0.6, gravity: -50 })
@@ -244,7 +244,7 @@ export const MAP_EVENTS: { [K in MapEventKind]: MapEventDef<K> } = {
       dropItem(g, ev.x - 8, ev.y, rollDrop(DROP_TABLES.itemBall, g.time, g.rng))
       awardEgg(g, 'chest', ev.x, ev.y)
       burst(g, ev.x, ev.y - 8, { colors: ['#f8d030', '#fff8c0', '#ffffff', '#c08800'], count: 50, speed: 140, ttl: 0.8, gravity: 60 })
-      g.shake = Math.max(g.shake, 3)
+      shakeScreen(g, 3, ev)
       notify(g, { kind: 'chestOpen', coins: coins.reduce((a, b) => a + b, 0) })
       spend(ev)
       // Sometimes there's a cursed item at the bottom: take it or leave it (whoever opened it).
@@ -289,7 +289,7 @@ export const MAP_EVENTS: { [K in MapEventKind]: MapEventDef<K> } = {
       if (s.fuse < BOMB.fuse) return
       trapHit(g, ev.x, ev.y, BOMB.radius, BOMB.damage * enemyScale(g).hp, BOMB.bossDamage, BOMB.playerDamage)
       burst(g, ev.x, ev.y - 6, { colors: ['#ffffff', '#f8e858', '#f87830', '#e83030', '#484848'], count: 50, speed: 180, ttl: 0.6 })
-      g.shake = Math.max(g.shake, 6)
+      shakeScreen(g, 6, ev)
       notify(g, { kind: 'boom' })
       spend(ev)
     },
@@ -363,6 +363,20 @@ export const MAP_EVENTS: { [K in MapEventKind]: MapEventDef<K> } = {
   ...FIELD_MISSIONS,
 }
 
+/**
+ * Whether `p` stands in a ring that fills while they stay (a chest's lock, the
+ * Move Tutor's tent): a lunge stops there (`attacks.ts`), like at a doorway,
+ * so a move that keeps carrying the player (Aqua Step's dance) can't hop them out every time.
+ */
+export const inStandRing = (g: Pick<Game, 'mapEvents'>, p: Pick<Player, 'x' | 'y' | 'radius'>) => {
+  for (const ev of g.mapEvents.list) {
+    if (ev.gone >= 0 || (ev.kind !== 'chest' && ev.kind !== 'tutor')) continue
+    const r = ev.kind === 'chest' ? CHEST.radius : TUTOR.radius + p.radius
+    if (dm.sq(p.x - ev.x) + dm.sq(p.y - ev.y) < r * r) return true
+  }
+  return false
+}
+
 export const MAP_EVENT_KINDS = Object.keys(MAP_EVENTS) as MapEventKind[]
 
 /** Places an event of `kind` at (x, y). The director calls it; so does `ps.event()` in dev builds. */
@@ -407,7 +421,7 @@ const direct = (g: Game) => {
   if (!spot) return
   // Events stand on open ground, never in a lake or against a rock.
   const open = clearSpot(g, spot, 18)
-  spawnMapEvent(g, kind, Math.round(open.x), Math.round(open.y))
+  spawnMapEvent(g, kind, dm.round(open.x), dm.round(open.y))
 }
 
 /** Whether some player is within `DIRECTOR.despawn` px (Manhattan) of (x, y). */

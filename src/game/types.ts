@@ -28,6 +28,9 @@ import type { EggTier, RunEggs } from './eggs'
 import type { EndlessState } from './endless'
 import type { MoveId } from './moves'
 import type { MapEventNotice, MapEventsState } from './mapEvents'
+import type { Team } from '../data/versus'
+import type { VersusSeat, VersusState } from './versus'
+import type { PingKind, QuickChat } from './versusSocial'
 import type { MegaState } from './mega'
 import type { Prop } from './props'
 import type { TerrainState } from './terrain'
@@ -45,7 +48,7 @@ import type { WeatherState } from './weather'
 import type { TraitState } from './traits'
 import type { BossFight } from './bossFight'
 import type { ModState } from './mods'
-import type { DamageBonus } from './kitRules'
+import type { DamageBonus, Ward } from './kitRules'
 import type { MoveSound } from './moveVerbs'
 import type { TmSource } from './tmRules'
 import type { TmState } from './tms'
@@ -58,6 +61,8 @@ import type { AlphaClock, AlphaState } from './alphas'
 import type { LegendForm, LegendId } from '../data/legends'
 import type { LegendState } from './legend'
 import type { CoopState } from './coop'
+import type { Training } from './training'
+import type { Harm, HarmBy } from './harm'
 
 export type OwnedMove = {
   id: MoveId
@@ -133,10 +138,18 @@ export type Player = {
   guard: MoveWindow | null
   /** Burrowed or out of sight (Dig, Fly): invulnerable, foes lose track; the move's `emerge` runs when it ends. */
   hidden: MoveWindow | null
+  /** The last immunity window (guard or burrow) and when it last stood: another move's window waits `WARD_GAP` after it (`wardOpens`). */
+  ward: Ward | null
   /** Drain heal budget (`drainRefill`) and the game time it was last spent. */
   drain: { left: number; at: number }
   /** Seconds the player can't walk (Giga Impact's recharge); moves still carry them. */
   rooted: number
+  /**
+   * Dark Void's sleep (`game/playerSleep.ts`): seconds left asleep (> 0: no
+   * walking, moves, special or Mega), or of the drowsy spell after waking (< 0),
+   * when nothing puts them back to sleep; 0 awake.
+   */
+  asleep: number
   /** Moves' timed stat effects on the player (`signatures.ts`). */
   moveBuffs: MoveBuff[]
   special: SpecialState
@@ -208,6 +221,10 @@ export type Player = {
   revive: number
   /** What this player did this run, for the end screen and their missions (`coop.ts`). */
   record: PlayerRecord
+  /** The last hits this player took, oldest first (`noteHit`): the end screen's cause of the faint. Bookkeeping: the simulation never reads it. */
+  hits: Harm[]
+  /** Versus (`versus.ts`): their team, Energy, respawn and match stats. Absent outside Versus. */
+  versus?: VersusSeat
 }
 
 /** One player's run stats (damage dealt is `damageByMove`). `tally` counts their own faints only in co-op. */
@@ -228,6 +245,14 @@ export type EnemyBehavior =
   | { kind: 'flyby'; vx: number; vy: number; ttl: number }
   /** Walks to a field mission's nest at (x, y) and bites the egg there, turning on the player within `aggro` px (`fieldMissions.ts`). */
   | { kind: 'raid'; mission: number; x: number; y: number; aggro: number }
+  /**
+   * Versus: the body of the player at `slot` that the rival team's moves hit
+   * (`versusCombat.ts`). It never moves or bites on its own: it stands where
+   * its player stands, and what hits it hurts them.
+   */
+  | { kind: 'avatar'; slot: number; team: Team }
+  /** Versus: a wild Pokémon of camp `camp` standing at (x, y); it turns on the player at `target` (a slot, -1 none) who hit it, and walks home past `leash` px. */
+  | { kind: 'camp'; camp: number; x: number; y: number; leash: number; target: number }
 
 export type Enemy = {
   id: number
@@ -480,6 +505,8 @@ export type Attack = {
   ignoreWards: boolean
   /** A number the move keeps on its hitbox (Thrash's bite timer, Snipe Shot's base damage…), read by `signatures.ts` and the renderer. */
   memo: number
+  /** Arena only: a lasting effect (an aura, a trail: a hitbox with no end) that its casts hold `VERSUS_KIT.persist` s at a time (`holdLasting`). */
+  lasting?: true
 }
 
 /** Enemy-owned hitbox that hurts the player (boss attacks). */
@@ -519,6 +546,10 @@ export type Hazard = {
   cover: number
   /** A phantom (`swoop`): the dex of the Pokémon whose see-through copy rides this shot, or 0. */
   phantom: number
+  /** Dark Void: seconds of sleep a hit puts the player into (`sleepPlayer`), or 0. */
+  sleep: number
+  /** Who threw it, for the end screen's cause of a faint (`Harm`); null for the world's own (`world`). */
+  by: HarmBy | null
 }
 
 export type Pickup = {
@@ -629,6 +660,11 @@ export type GameEvent =
   | { kind: 'caught'; enemy: EnemyId }
   | { kind: 'thunder' }
   | { kind: 'quake' }
+  /**
+   * Co-op only (`shakeScreen`): the screen shook `amount` px, the acting player's own doing (`own`), a whole
+   * team's moment (`team`) or at a spot in the world (`spot`, at `x`, `y`; 0 otherwise). Each screen shakes its own.
+   */
+  | { kind: 'shake'; amount: number; from: 'own' | 'team' | 'spot'; x: number; y: number }
   /** The special attack started charging or was unleashed. */
   | { kind: 'special'; phase: 'charge' | 'release'; name: string }
   /** Aegislash swapped formes (Stance Change). */
@@ -738,6 +774,8 @@ export type GameEvent =
   | { kind: 'riftCapture'; enemy: RiftLegend; shiny: boolean }
   /** A moment of a domain's own mechanics the shell calls out (Dialga's time skips): `rifts.domains[enemy].cues[cue]` in `src/i18n`. */
   | { kind: 'domainCue'; enemy: RiftLegend; cue: string }
+  /** The acting player fell asleep (Dark Void, `game/playerSleep.ts`). */
+  | { kind: 'playerSleep' }
   /** A boss raised its barrier (`guard`), or its last keeper broke (`up: false`). */
   | { kind: 'bossGuard'; enemy: EnemyId; up: boolean }
   /** A linked pair (`game/domainPair.ts`): `enemy` was knocked out and `partner` fights on enraged, or `enemy` revived `partner`. */
@@ -754,6 +792,20 @@ export type GameEvent =
   /** Co-op: a vote for the endless mode was cast, or the vote ended (`outcome`). */
   | { kind: 'vote'; slot: number; endless: boolean }
   | { kind: 'voted'; outcome: 'endless' | 'over' }
+  /** Versus (`versus.ts`): `slot` scored `points` for `team`; a goal broke; `slot` was knocked out (by `by`, -1 the wild) or came back; the last stretch began; an objective arrived or fell (to `team`, -1 none); the match ended (`winner` null on a draw; `surrender`: the team that gave up, else null). */
+  | { kind: 'versusScore'; slot: number; team: Team; points: number }
+  | { kind: 'versusGoal'; team: Team; goal: number }
+  | { kind: 'versusKo'; slot: number; by: number }
+  | { kind: 'versusBack'; slot: number }
+  | { kind: 'versusStretch' }
+  /** The acting player cast Move 1 (0) or Move 2 (1) of their Arena kit (`versusKit.ts`). */
+  | { kind: 'versusCast'; skill: 0 | 1 | 2 }
+  | { kind: 'versusObjective'; enemy: EnemyId; team: Team | -1 }
+  | { kind: 'versusEnd'; winner: Team | null; surrender: Team | null }
+  /** Versus (`versusSocial.ts`): a quick chat line, a ping on the map, and a team's surrender vote opening, passing or failing. */
+  | { kind: 'versusTalk'; slot: number; msg: QuickChat }
+  | { kind: 'versusPing'; slot: number; ping: PingKind; x: number; y: number }
+  | { kind: 'versusSurrender'; team: Team; slot: number; state: 'open' | 'passed' | 'failed' }
 
 /** A timed player buff (X Attack, X Speed, Max Repel). `left` counts down in seconds. */
 export type Buff = { id: BuffId; left: number; total: number }
@@ -785,9 +837,12 @@ export type Game = {
   view: { w: number; h: number }
   /** Where the screen drawn sits: the first player's (`followPlayers`); a co-op shell aims it at its own player. */
   camera: { x: number; y: number }
+  /** The screen shake (px), fading (`updateEffects`); raised with `shakeScreen`. */
   shake: number
-  /** Seconds the simulation stays frozen for impact (hit-stop). */
+  /** Seconds the simulation stays frozen for impact (hit-stop). Solo only: in co-op it counts down without freezing. */
   hitstop: number
+  /** World seconds left in which a new hitstop is dropped (`HITSTOP_REST`): back-to-back impacts freeze once. */
+  hitstopRest: number
   kills: number
   /** Poké Dollars collected this run (already multiplied by greed). */
   coins: number
@@ -852,6 +907,10 @@ export type Game = {
   legendScene: LegendScene | null
   /** Co-op rules state (`coop.ts`): held sticks, the endless vote, pause time. Null solo. */
   coop: CoopState | null
+  /** A Versus match (`versus.ts`): the map, score, goals, camps and clock. Absent in every other run (its rules never touch them). */
+  versus?: VersusState
+  /** The Dojo (`training.ts`): the run is a training session, with dummies instead of a horde. Null in every other run. */
+  training: Training | null
 }
 
 /** Where a prize level-up came from: an Alpha's gem or a field mission. */

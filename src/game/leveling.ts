@@ -16,7 +16,7 @@ import { legendSignature } from '../data/legends'
 import { blocksNewMoves } from './curses'
 import { readyDuos } from './duoRules'
 import { healPlayer } from './combat'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { rankDeltas } from './meta'
 import { learnable } from './kitRules'
 import { forkAt, isManual, maxMoveLevel, MOVES, withBranch, type MoveId } from './moves'
@@ -24,6 +24,8 @@ import { stanceStats } from './stance'
 import { awakeningDeltas } from './legend'
 import { applyDeltas, BASE_STATS, boostStats, type StatDelta } from './stats'
 import { bagDeltas } from './bag'
+import { rulesOf, versusStats } from './versusRules'
+import type { VersusState } from './versus'
 import { BAG_ITEMS } from '../data/shop'
 import { ownAttack, setPhase } from './players'
 import type { Game, Offer, OwnedItem, OwnedMove, PrizeSource, Rarity } from './types'
@@ -66,6 +68,8 @@ export type Loadout = {
   fresh?: boolean
   banished?: ReadonlySet<MoveId | ItemId>
   curses?: readonly CurseId[]
+  /** The Arena's kit (`versusPacing.ts`): it learns new moves on its own screens, so the level-up offers none, nor duo fusions. */
+  kit?: boolean
 }
 
 export const loadout = (g: Game): Loadout => ({
@@ -77,10 +81,11 @@ export const loadout = (g: Game): Loadout => ({
   fresh: g.player.freshMoves > 0,
   banished: g.player.banished,
   curses: g.player.curses.held,
+  kit: g.player.versus !== undefined,
 })
 
 /** Every upgrade the player could pick right now, with selection weights. */
-export const offerPool = ({ starter, moves, items, stage, branch = null, fresh, banished, curses }: Loadout): Array<readonly [Offer, number]> => {
+export const offerPool = ({ starter, moves, items, stage, branch = null, fresh, banished, curses, kit }: Loadout): Array<readonly [Offer, number]> => {
   const ownedMoves = new Map(moves.map((m) => [m.id, m.level]))
   const ownedItems = new Map(items.map((i) => [i.id, i.level]))
   const learnset = runLearnset(starter, branch, stage)
@@ -95,7 +100,7 @@ export const offerPool = ({ starter, moves, items, stage, branch = null, fresh, 
     if (banished?.has(id)) return []
     const level = ownedMoves.get(id)
     if (level === undefined)
-      return moves.length < MAX_MOVES && !blocksNewMoves(curses) && !evolvedBases.has(id) && learnable(ownedIds, id, isManual)
+      return !kit && moves.length < MAX_MOVES && !blocksNewMoves(curses) && !evolvedBases.has(id) && learnable(ownedIds, id, isManual)
         ? [[{ kind: 'move', id, level: 1 }, unlocked.includes(id) ? FRESH_WEIGHT : 1]]
         : []
     return level < maxMoveLevel(id) ? [[{ kind: 'move', id, level: level + 1 }, UPGRADE_WEIGHT]] : []
@@ -172,6 +177,22 @@ export const openPrizeLevelUp = (g: Game, source: PrizeSource, shinyFirst = fals
 }
 
 /**
+ * A prize the whole team earned (a field mission, an Alpha's gem): everyone
+ * gets the prize level-up. In co-op a player on a screen of their own takes it
+ * as a regular level-up once free (`openPendingPicks`), so their screen isn't
+ * replaced; one who left gets none.
+ */
+export const openTeamPrize = (g: Game, source: PrizeSource, shinyFirst = false) => {
+  const actor = g.player
+  for (const p of g.players) {
+    g.player = p
+    if (g.coop !== null && p.phase !== 'playing') p.pendingLevelUps += p.gone ? 0 : 1
+    else if (!p.gone) openPrizeLevelUp(g, source, shinyFirst)
+  }
+  g.player = actor
+}
+
+/**
  * Ready move evolutions come first, then ready duo fusions, then weighted sampling without replacement,
  * then each card's rarity (one roll per card, in order, so replays agree).
  * Falls back to a healing berry when maxed out.
@@ -179,7 +200,7 @@ export const openPrizeLevelUp = (g: Game, source: PrizeSource, shinyFirst = fals
 export const rollOffers = (loadout: Loadout, rng: Rng, count = 3, opts: RollOptions = {}): Offer[] => {
   const shown = opts.shown ?? []
   const taken = new Set(shown.map((o) => (o.kind === 'evolution' ? o.to : offerSubject(o))))
-  const duos: Offer[] = opts.duos === false ? [] : readyDuos(loadout.moves, legendSignature(loadout.starter)).filter(({ to }) => !taken.has(to)).map(({ from, to }) => ({ kind: 'duo', from, to }))
+  const duos: Offer[] = opts.duos === false || loadout.kit ? [] : readyDuos(loadout.moves, legendSignature(loadout.starter), loadout.banished).filter(({ to }) => !taken.has(to)).map(({ from, to }) => ({ kind: 'duo', from, to }))
   const pool = offerPool(loadout).filter(([o]) => !taken.has(offerSubject(o)) && (opts.forks !== false || o.kind !== 'move' || !forkAt(o.id, o.level)))
   const evolutions: Offer[] = readyEvolutions(loadout)
     .filter(({ to }) => !taken.has(to))
@@ -252,7 +273,9 @@ export const recomputeStats = (g: Game) => {
     ...bagDeltas(p.bag),
   ])
   // A held evolution (no item for any branch yet) is as strong as with an Everstone.
-  p.stats = boostStats(stanceStats(deltas, p.special.stance), p.boost + (p.evoHeld ? BAG_ITEMS.everstone.effect.everstone : 0))
+  const stats = boostStats(stanceStats(deltas, p.special.stance), p.boost + (p.evoHeld ? BAG_ITEMS.everstone.effect.everstone : 0))
+  // Versus plays with more HP (`versusStats`), so a rival's moves take a moment.
+  p.stats = p.versus ? versusStats(stats) : stats
   if (p.stats.maxHp > before) p.hp += p.stats.maxHp - before
   p.hp = Math.min(p.hp, p.stats.maxHp)
 }
@@ -262,7 +285,11 @@ export const applyOffer = (g: Game, offer: Offer) => {
   switch (offer.kind) {
     case 'move': {
       const owned = p.moves.find((m) => m.id === offer.id)
+      const slot = p.versus?.learn ?? 0
+      if (p.versus) p.versus.learn = 0
       if (owned) owned.level = offer.level
+      // The Arena kit's upgrade: the new move takes the slot's place, its level and the forks it took (`versusPacing.ts`).
+      else if (slot > 0 && p.moves[slot]) replaceMove(g, p.moves[slot], offer.id, offer.level)
       else p.moves.push({ id: offer.id, level: offer.level, cooldown: 0.2, path: 0 })
       break
     }
@@ -293,6 +320,15 @@ export const applyOffer = (g: Game, offer: Offer) => {
   }
 }
 
+/** A move slot of the acting player's takes `to` at `level`, keeping its forks' path; the old move's lingering hitboxes go. */
+const replaceMove = (g: Game, owned: OwnedMove, to: MoveId, level: number) => {
+  const from = owned.id
+  Object.assign(owned, { id: to, level: Math.min(level, maxMoveLevel(to)), cooldown: 0.3, echo: 0, stacks: 0 })
+  retain(g.attacks, (a) => !ownAttack(g, a) || a.move !== from)
+  const p = g.player
+  burst(g, p.x, p.y - 10, { colors: [TYPE_COLORS[MOVES[to].type], '#ffffff'], count: 40, speed: 140, ttl: 0.7, size: 2, drag: 3 })
+}
+
 /** Swaps a move for its evolved form in the same slot, with a celebratory burst. */
 const evolveMove = (g: Game, from: MoveId, to: MoveId) => {
   const p = g.player
@@ -309,7 +345,7 @@ const evolveMove = (g: Game, from: MoveId, to: MoveId) => {
   const colors = [TYPE_COLORS[MOVES[to].type], '#ffffff', '#ffd830']
   burst(g, p.x, p.y - 10, { colors, count: 70, speed: 170, ttl: 0.9, size: 2, drag: 3 })
   burst(g, p.x, p.y - 10, { colors: ['#ffffff', '#fff8c0'], count: 30, speed: 60, ttl: 1.2, gravity: -50 })
-  g.shake = Math.max(g.shake, 5)
+  shakeScreen(g, 5)
   g.events.push({ kind: 'moveEvolved', from, to })
 }
 
@@ -338,10 +374,13 @@ const fuseMoves = (g: Game, from: readonly [MoveId, MoveId], to: MoveId) => {
   burst(g, p.x - 6, p.y - 10, { colors: [a!, '#ffffff'], count: 50, speed: 160, ttl: 0.9, size: 2, drag: 3 })
   burst(g, p.x + 6, p.y - 10, { colors: [b!, '#ffffff'], count: 50, speed: 160, ttl: 0.9, size: 2, drag: 3 })
   burst(g, p.x, p.y - 10, { colors: ['#ffffff', '#fff8c0', '#ffd830'], count: 40, speed: 70, ttl: 1.3, gravity: -50 })
-  g.shake = Math.max(g.shake, 6)
+  shakeScreen(g, 6)
   g.flash = Math.max(g.flash, 0.5)
   g.events.push({ kind: 'duoFused', from, to })
 }
+
+/** The level a Pokémon at `stage` evolves at in Arena match `s` (its format's, none past its last). */
+export const versusEvolveAt = (s: Pick<VersusState, 'format'>, stage: number): number | undefined => rulesOf(s).evolveAt[stage]
 
 /** The next evolution, if the player's level has reached it (into the branch picked, for a branching one; `advancePhase` asks where, or holds it without items). */
 export const pendingEvolution = (g: Game) => {
@@ -350,5 +389,7 @@ export const pendingEvolution = (g: Game) => {
   if (p.everstone || p.stage + 1 >= PLAYABLE[p.starter].line.length) return null
   const stage = formAt(p.starter, p.branch, p.stage)
   const next = formAt(p.starter, p.branch, p.stage + 1)
-  return stage.evolveAt !== undefined && p.level >= stage.evolveAt ? { from: stage.dex, to: next.dex } : null
+  // The Arena evolves at its format's own levels (`FormatRules.evolveAt`).
+  const at = p.versus && g.versus ? versusEvolveAt(g.versus, p.stage) : stage.evolveAt
+  return at !== undefined && p.level >= at ? { from: stage.dex, to: next.dex } : null
 }

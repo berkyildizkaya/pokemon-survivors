@@ -3,12 +3,13 @@ import { chance, range } from '../engine/rng'
 import { effectiveness, TYPE_COLORS, type PokeType } from '../data/types'
 import { ENEMY_BERRY_CHANCE } from '../data/consumables'
 import { ENEMIES, type EnemyDef } from '../data/enemies'
+import { harmBy, NO_ONE, noteHit, type HarmBy } from './harm'
 import type { HitKind } from '../data/abilities'
 import { abilityHolds, abilityHurt, abilityImmune, abilityKill, abilityTakes, strikeBonus } from './abilities'
 import { enemyDrop, isRepelled, tryMaxRevive, tryRevive } from './consumables'
 import { logDefeat } from './dex'
 import { runMods } from './legend'
-import { burst, damageText, floatText } from './effects'
+import { burst, damageText, floatText, setScreenShake, shakeScreen } from './effects'
 import { bossEggSource } from './eggs'
 import { dropBossTm } from './tms'
 import { dropEvoItem } from './evoGate'
@@ -29,20 +30,24 @@ import { alphaDown } from './alphas'
 import { disguiseTakes, holdsOn, phaseTaken } from './bossFight'
 import { legendFell } from './legendScene'
 import { hordeGrit } from './horde'
-import type { Attack, DamageSource, Enemy, Game } from './types'
+import type { Attack, DamageSource, Enemy, Game, Player } from './types'
 import { playerWeatherBoost, weatherHere, weatherPower } from './weather'
 import { dropForEach, faint, winRun } from './coop'
 import { inPlay } from './players'
+import { knockOut, strikeAvatar, tickAvatar, wildDown } from './versusCombat'
 import * as dm from '../engine/dmath'
 
 const TEXT_COLORS = { super: '#ffd830', normal: '#ffffff', weak: '#a8a8b8', warded: '#88b8f8' } as const
 
 export const damageEnemy = (g: Game, e: Enemy, attack: Attack) => {
+  // Versus: a rival's body passes the hit on to its player; a camp's wild Pokémon turns on whoever hit it.
+  if (e.behavior.kind === 'avatar') return strikeAvatar(g, e, attack)
+  if (e.behavior.kind === 'camp' && e.behavior.target < 0) e.behavior.target = g.player.slot
   // A sure hit (Sacred Sword) lands resisted matchups as neutral and cuts through wards.
   const eff = attack.sure ? Math.max(1, effectiveness(attack.type, e.types)) : effectiveness(attack.type, e.types)
   // Conditional bonuses (Hex), a mark and a freeze multiply the hit; without them it's exactly ×1.
   const base = attack.damage * (bonusMult(attack.bonus, e) * hitTakenMult(e.status) * phaseTaken(e))
-  const raw = Math.max(1, Math.round(base * eff * playerWeatherBoost(g, attack.type) * strikeBonus(g, e) * range(g.rng, 0.9, 1.1)))
+  const raw = Math.max(1, dm.round(base * eff * playerWeatherBoost(g, attack.type) * strikeBonus(g, e) * range(g.rng, 0.9, 1.1)))
   // A Bronzong ward soaks the hit first, unless the move or the ability (Infiltrator) goes through wards.
   const dmg = attack.sure || attack.ignoreWards || abilityImmune(g, 'wards') ? raw : absorb(e.trait, raw)
   // Mimikyu's Disguise takes the first big hit whole.
@@ -113,7 +118,8 @@ export const drainHeal = (g: Game, damage: number, fraction: number) => {
  * one bumping a neighbor): flash, white number, a hit sound, kill credit to `move`.
  */
 export const bumpDamage = (g: Game, e: Enemy, amount: number, move: DamageSource | null) => {
-  const dmg = Math.max(1, Math.round(amount))
+  if (e.behavior.kind === 'avatar') return tickAvatar(g, e, amount, move, TEXT_COLORS.normal)
+  const dmg = Math.max(1, dm.round(amount))
   e.hp -= dmg
   e.flash = 0.16
   if (move) g.player.damageByMove[move] = (g.player.damageByMove[move] ?? 0) + dmg
@@ -139,7 +145,8 @@ const spreadSeed = (g: Game, e: Enemy) => {
 
 /** Damage-over-time tick: no knockback or hit sound, number in the status color. */
 export const dotDamage = (g: Game, e: Enemy, amount: number, move: DamageSource | null, kind: StatusKind) => {
-  const dmg = Math.max(1, Math.round(amount))
+  if (e.behavior.kind === 'avatar') return tickAvatar(g, e, amount, move, STATUS_RULES[kind].color)
+  const dmg = Math.max(1, dm.round(amount))
   e.hp -= dmg
   if (move) g.player.damageByMove[move] = (g.player.damageByMove[move] ?? 0) + dmg
   damageText(g, e, dmg, STATUS_RULES[kind].color)
@@ -153,6 +160,8 @@ export const killEnemy = (g: Game, e: Enemy, source?: DamageSource | null) => {
     e.hp = 1
     return
   }
+  // A Versus match rewards with Energy and EXP for the team, nothing else (`wildDown`).
+  if (g.versus) return wildDown(g, e)
   if (e.status.seed.time > 0) spreadSeed(g, e)
   e.dying = 0
   e.hp = 0
@@ -177,7 +186,7 @@ export const killEnemy = (g: Game, e: Enemy, source?: DamageSource | null) => {
   // Under tension a regular's faint gives a share of its loot (`tension.ts`); a boss's never shrinks.
   const share = e.boss ? 1 : g.tension.share
   if (e.xp > 0) dropXp(g, e.x, e.y, e.xp * share)
-  dropCoins(g, e.x, e.y, coinDrops(g.rng, e))
+  dropCoins(g, e.x, e.y, coinDrops(g.rng, e, g.endless !== null))
   faintCandies(g, e, share)
   if (e.shiny) dropPickup(g, e.x + 6, e.y, 'pokeball')
   if (e.alpha) {
@@ -198,7 +207,7 @@ export const killEnemy = (g: Game, e: Enemy, source?: DamageSource | null) => {
     dropForEach(g, () => dropBossTm(g, e))
     dropForEach(g, () => dropEvoItem(g, e.x + 10, e.y + 2))
     if (g.bossId === e.id) g.bossId = null
-    g.shake = 6
+    setScreenShake(g, 6, e)
     // A wave legendary's capture plays where it fell; Mewtwo's victory waits for it.
     const captured = legendFell(g, e)
     // A faint earlier in the tick stands: the run is over, not won.
@@ -217,16 +226,25 @@ export const killEnemy = (g: Game, e: Enemy, source?: DamageSource | null) => {
 export const ARMOR_CAP = 0.5
 
 /** A `raw` hit on the player after `armor`: each point takes 1 off (a negative one adds 1), up to `ARMOR_CAP` of the hit. At least 1. */
-export const armored = (raw: number, armor: number) => Math.max(1, Math.round(raw - Math.min(armor, raw * ARMOR_CAP)))
+export const armored = (raw: number, armor: number) => Math.max(1, dm.round(raw - Math.min(armor, raw * ARMOR_CAP)))
 
 /**
  * Damages the player. `from` (a body that touched them) gets shoved back; hazards pass none.
  * `types` is the attack's typing for the weather (a body attacks with its own types), and
  * `hit` what kind of harm it is, for the abilities (`abilityTakes`): a body, a boss's strike, lava…
+ * `by` names who dealt it for the end screen (`Player.hits`; a body names itself); it never changes the outcome.
  */
-export const hurtPlayer = (g: Game, amount: number, from?: Enemy, types: readonly PokeType[] = from?.types ?? [], hit: HitKind = from ? 'body' : 'hazard') => {
+export const hurtPlayer = (
+  g: Game,
+  amount: number,
+  from?: Enemy,
+  types: readonly PokeType[] = from?.types ?? [],
+  hit: HitKind = from ? 'body' : 'hazard',
+  by: HarmBy | null = null,
+) => {
   const p = g.player
-  if (p.iframes > 0 || p.hidden || isRepelled(g) || g.phase !== 'playing') return
+  // The Dojo never hurts (`training.ts`).
+  if (p.iframes > 0 || p.hidden || isRepelled(g) || g.phase !== 'playing' || g.training !== null) return
   // Co-op: fainted, away, gone or mid-evolution players can't be hurt.
   if (g.coop !== null && !inPlay(p)) return
   if (p.guard) return guardHit(g, p.guard, from)
@@ -239,10 +257,11 @@ export const hurtPlayer = (g: Game, amount: number, from?: Enemy, types: readonl
   const dmg = armored(taken * mods.enemyDamage * weather * domainHarm(g, from !== undefined) * p.stats.damageTaken, p.stats.armor)
   p.hp -= dmg
   p.record.taken += dmg
+  noteHit(p, by ?? (from ? harmBy(from) : NO_ONE), hit, dmg)
   p.iframes = mods.iframes
   noteHarm(g, dmg)
   p.hurt = 0.3
-  g.shake = Math.max(g.shake, 3)
+  shakeScreen(g, 3)
   floatText(g, p.x, p.y - 28, String(dmg), '#ff5040', true)
   burst(g, p.x, p.y - 10, { colors: ['#ff5040', '#ffffff'], count: 6, speed: 80, ttl: 0.3 })
   g.events.push({ kind: 'hurt' })
@@ -262,6 +281,8 @@ export const hurtPlayer = (g: Game, amount: number, from?: Enemy, types: readonl
   if (g.place.inside && (g.coop === null || !teammateStanding(g))) return fallInPlace(g)
   // Sturdy holds before a Max Revive (the Bag's), which goes before a held Revive.
   if (!abilityHolds(g) && !tryMaxRevive(g) && !tryRevive(g)) {
+    // Versus: knocked out until the respawn, by nobody (the wild, a boss's shot).
+    if (p.versus) return knockOut(g, p, -1)
     if (g.coop !== null) return faint(g, from?.kind ?? null, hit)
     p.hp = 0
     g.phase = 'gameover'
@@ -296,12 +317,15 @@ const BLIND_IFRAMES = 0.4
 /**
  * Heals the player by `amount`, cut or not by the difficulty, up to max HP.
  * Returns the HP actually restored. A fainted co-op player takes no heal: only
- * a teammate gets them back up (`coop.ts`).
+ * a teammate gets them back up (`coop.ts`). In the Arena the heal goes on
+ * `credit`'s scoreboard (`VersusSeat.healed`): the healed player's own by
+ * default, the Supporter's for its aura, nobody's for the map's (null).
  */
-export const healPlayer = (g: Game, amount: number) => {
+export const healPlayer = (g: Game, amount: number, credit: Player | null = g.player) => {
   const p = g.player
   if (g.coop !== null && p.hp <= 0) return 0
   const healed = Math.max(0, Math.min(amount * runMods(g).healing, p.stats.maxHp - p.hp))
   p.hp += healed
+  if (credit?.versus) credit.versus.healed += healed
   return healed
 }

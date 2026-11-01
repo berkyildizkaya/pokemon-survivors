@@ -5,7 +5,7 @@ import { DROP_TABLES, rollDrop } from '../data/consumables'
 import { CAVE, PLACE_FEET, PLACE_LOOT } from '../data/places'
 import { dropItem } from './consumables'
 import { floorShapes, generateFloor, type DungeonFloor } from './dungeon'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { spawnEnemy } from './enemies'
 import { chestCoins } from './mapEventRules'
 import { COIN_VALUES } from './meta'
@@ -14,7 +14,7 @@ import { placePool, type PlaceInteriorOf } from './place'
 import { notifyPlace, solidAt, spawnInPlace, startLoot } from './placeKit'
 import { playerTypes, type Solid } from './terrain'
 import { anchorPlayer, centerScreen, placeTeam } from './players'
-import type { Game } from './types'
+import type { Game, Player } from './types'
 import * as dm from '../engine/dmath'
 
 /**
@@ -59,7 +59,7 @@ const layFloor = (g: Game, x: number, y: number, index: number): Floor => {
   if (index >= CAVE.floors) {
     const lights = Array.from({ length: CHAMBER.crystals }, (_, i): Pt => {
       const a = -Math.PI / 2 + ((i + 0.5) / CHAMBER.crystals) * TAU
-      return [Math.round(dm.cos(a) * (CHAMBER.r - 16)), Math.round(dm.sin(a) * (CHAMBER.r - 16) * 0.9)]
+      return [dm.round(dm.cos(a) * (CHAMBER.r - 16)), dm.round(dm.sin(a) * (CHAMBER.r - 16) * 0.9)]
     }).filter(([lx, ly]) => ly < CHAMBER.r - 40 || Math.abs(lx) > 30)
     const floor: Circle = { kind: 'circle', x: 0, y: 0, r: CHAMBER.r }
     return {
@@ -175,7 +175,7 @@ const springHouse = (g: Game, inside: CaveInside) => {
     const d = range(g.rng, 46, 84)
     spawnEnemy(g, weightedPick(g.rng, pool), inside.x + chest.x + dm.cos(a) * d, inside.y + chest.y + dm.sin(a) * d * 0.8)
   }
-  g.shake = Math.max(g.shake, 5)
+  shakeScreen(g, 5, { x: inside.x + chest.x, y: inside.y + chest.y })
   notifyPlace(g, 'cave', { kind: 'monsterHouse' })
 }
 
@@ -192,9 +192,21 @@ const openChest = (g: Game, inside: CaveInside, chest: NonNullable<CaveState['ch
   PLACE_LOOT.cave.forEach((item, i) => dropItem(g, x - 8 + i * 6, y, item))
   awardEgg(g, 'place', x, y)
   burst(g, x, y - 8, { colors: ['#f8d030', '#fff8c0', '#ffffff', '#c08800'], count: 60, speed: 150, ttl: 0.8, gravity: 60 })
-  g.shake = Math.max(g.shake, 4)
+  shakeScreen(g, 4, { x, y })
   notifyPlace(g, 'cave', { kind: 'treasure', coins: coins.reduce((a, b) => a + b, 0) })
   startLoot(g, inside)
+}
+
+/**
+ * Whether `p` stands where the treasure chamber's chest fills, still shut: a
+ * lunge stops there (`attacks.ts`), like at a doorway, so a move that keeps
+ * carrying the player (Aqua Step's dance) can't hop them off it every time.
+ */
+export const atCaveChest = (g: Pick<Game, 'place'>, p: Pick<Player, 'x' | 'y' | 'radius'>) => {
+  const inside = g.place.inside
+  if (inside?.id !== 'cave') return false
+  const chest = inside.state.chest
+  return chest !== null && !chest.open && dm.sq(p.x - inside.x - chest.x) + dm.sq(p.y - inside.y - chest.y) < dm.sq(CAVE.chestRadius + p.radius)
 }
 
 /** Every tick in the cave: the wind's warnings, the stairs, the Monster House, the chest and the dark's spawns. */

@@ -16,7 +16,8 @@ import { MEGA, MEGA_IDS, MEGA_LINES, MEGAS, megasOf, type MegaDef } from '../../
 import { RIFT, RIFT_LEGENDS, type RiftLegend } from '../../data/rifts'
 import { DOMAINS, partnerOf } from '../../data/domains'
 import { ABILITIES } from '../../data/abilities'
-import { AWAKEN_AT, LEGEND_IDS, LEGENDS } from '../../data/legends'
+import { COOP } from '../../data/coop'
+import { AWAKEN_AT, LEGEND_IDS, legendFestival, LEGENDS, REGULAR_LEGENDS, type LegendId } from '../../data/legends'
 import { legendSource } from '../../game/capture'
 import { legendMods } from '../../game/legend'
 import { CAVE, GRAVEYARD, PLACE, PLACE_IDS, PLACES, SKY, WING_IDS, WINGS } from '../../data/places'
@@ -26,7 +27,8 @@ import { createRng } from '../../engine/rng'
 import { DIFFICULTIES, DIFFICULTY_IDS } from '../../game/difficulty'
 import { ENDLESS, REAPER, reaperHp } from '../../game/endless'
 import { CONSUMABLES } from '../../game/consumables'
-import { EGG_SOURCES, EGG_TIER_IDS, EGG_TIERS, EGGS, hatchPool, type EggSource } from '../../game/eggs'
+import { EGG_SOURCES, EGG_TIER_IDS, EGG_TIERS, EGGS, hatchPool, MAX_SLOTS, type EggSource } from '../../game/eggs'
+import { INCUBATOR } from '../../data/shop'
 import { HATCHLING_IDS, HATCHLINGS, PLAYABLE } from '../../data/hatchlings'
 import { MAP_EVENTS } from '../../game/mapEvents'
 import { TUTOR } from '../../game/tmRules'
@@ -69,6 +71,12 @@ const dexLink = (locale: Locale, name: string) => `${ROUTES.pokedex[locale]}#${s
 
 const bossName = (locale: Locale, enemy: keyof typeof ENEMIES) =>
   html`<a class="with-mini" href="${dexLink(locale, ENEMIES[enemy].name)}">${portrait(ENEMIES[enemy].dex)}${ENEMIES[enemy].name}</a>`
+
+/** A legend's name and portrait, linked to its Pokédex entry. */
+const legendName = (locale: Locale, id: LegendId) => {
+  const { dex, name } = LEGENDS[id].line[0]
+  return html`<a class="with-mini" href="${dexLink(locale, name)}">${portrait(dex)}${name}</a>`
+}
 
 const controls = (m: SiteMessages) => {
   const c = m.guide.controls
@@ -358,8 +366,9 @@ const rifts = (locale: Locale, m: SiteMessages) => {
 /** The Legend mode: how each legend is captured (`game/capture.ts`) and what it plays with. */
 const legends = (locale: Locale, m: SiteMessages) => {
   const g = m.guide.legends
-  const rows = LEGEND_IDS.map((id) => [
-    bossName(locale, id),
+  // A festival legend (Cresselia) is a surprise for now: its row comes with its festival's announcement.
+  const rows = LEGEND_IDS.filter((id) => !legendFestival(id)).map((id) => [
+    legendName(locale, id),
     g.where[legendSource(id)],
     String(LEGENDS[id].unlock.wins),
     ABILITIES[LEGENDS[id].innate.ability].name,
@@ -371,11 +380,23 @@ const legends = (locale: Locale, m: SiteMessages) => {
     const d = legendMods(id)
     return [names[id], times(d.enemyHp), times(d.enemyDamage), times(d.spawnRate), times(d.enemySpeed), times(d.ramp), times(d.healing)]
   })
-  return html`${paragraphs(g.paragraphs({ count: LEGEND_IDS.length, awaken: AWAKEN_AT }))}
+  return html`${paragraphs(g.paragraphs({ count: REGULAR_LEGENDS.length, awaken: AWAKEN_AT }))}
     ${table([g.legendHead, g.whereHead, g.winsHead, g.innateHead, g.opensHead], rows)}
+    <p>${g.eventNote}</p>
     <h3>${g.pressureTitle}</h3>
     <p>${g.pressure}</p>
     ${table(m.guide.run.difficultyHead, pressure)}`
+}
+
+/** The co-op scalings the guide's table lists, in its order (`COOP.scale`; the EXP split is in the prose). */
+const COOP_SCALES = ['spawn', 'cap', 'hp', 'bossHp', 'coins'] as const satisfies readonly (keyof typeof COOP.scale)[]
+
+const coop = (m: SiteMessages) => {
+  const c = m.guide.coop
+  const rows = COOP_SCALES.map((k) => [c.scale[k], `+${Math.round(COOP.scale[k] * 100)}%`])
+  return html`${paragraphs(c.paragraphs({ players: COOP.maxPlayers, revive: COOP.revive.time, reviveHp: Math.round(COOP.revive.hp * 100), pick: COOP.pick.time, vote: COOP.voteTime }))}
+    <h3>${c.scaleTitle}</h3>
+    ${table([c.whatHead, c.perHead], rows)}`
 }
 
 const places = (locale: Locale, m: SiteMessages) => {
@@ -498,7 +519,16 @@ const eggs = (locale: Locale, m: SiteMessages) => {
     const chance = source === 'mission' ? DIFFICULTY_IDS.map((d) => pct(FIELD_TUNING[d].reward.egg)).join(' / ') : pct(EGG_SOURCES[source].chance)
     return [e.sources[source], chance, rarity]
   })
-  return html`${paragraphs(e.paragraphs(STARTER_IDS.length, HATCHLING_IDS.length, EGGS.slots, EGGS.perRun, EGGS.stepPx, Math.round(1 / EGGS.shinyOdds), EGGS.newWeight))}
+  const shop = LOCALES[locale].messages.shop
+  const upgrades = e.incubator({
+    max: MAX_SLOTS,
+    slots: INCUBATOR.slots.map((s, i) => ({ n: EGGS.slots + i + 1, price: `₽${num(s.price)}`, level: shop.level(shop.levels[s.minLevel], s.minLevel) })),
+    quick: `₽${num(INCUBATOR.quick.price)}`,
+    speed: INCUBATOR.quick.speed,
+  })
+  const texts = e.paragraphs(STARTER_IDS.length, HATCHLING_IDS.length, EGGS.slots, EGGS.perRun, EGGS.stepPx, Math.round(1 / EGGS.shinyOdds), EGGS.newWeight, EGGS.pity)
+  // The incubator's upgrades right after the paragraph about its slots.
+  return html`${paragraphs([...texts.slice(0, 2), upgrades, ...texts.slice(2)])}
     ${table([e.sourceHead, e.chanceHead, e.oddsHead], sourceRows)}
     ${table([e.tierHead, e.stepsHead, e.refundHead, e.familiesHead], tierRows)}`
 }
@@ -594,6 +624,7 @@ const SECTIONS: Record<Section, (locale: Locale, m: SiteMessages) => Html> = {
   traits,
   rifts,
   legends,
+  coop: (_, m) => coop(m),
   places,
   landmarks,
   megas,

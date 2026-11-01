@@ -6,12 +6,12 @@ import { CLIFFS, CLUSTER_SLOTS, LAKES, SOLID_FOOT, TERRAIN, type Ellipse, type F
 import type { PlacePiece } from '../data/places'
 import { LANDMARK, LANDMARK_IDS, type LandmarkGround, type LandmarkId, type LandmarkPiece } from '../data/landmarks'
 import { LANDMARK_VARIANTS, landmarkPlan } from './landmarkLayout'
-import { arenaGround } from './arenaFloor'
+import { arenaGround, fits } from './arenaFloor'
 import { burst } from './effects'
 import { roomOf } from './room'
 import { isAirborne } from './traits'
 import { nearestPlayer } from './players'
-import type { Enemy, Game } from './types'
+import type { Enemy, Game, Pickup } from './types'
 import * as dm from '../engine/dmath'
 
 /**
@@ -150,8 +150,8 @@ const scatter = (h: (salt: number) => number, ox: number, oy: number, feet: read
   const out: Solid[] = []
   const count = Math.floor(h(80) * (max + 1))
   for (let i = 0; i < count; i++) {
-    const x = Math.round(ox + edge + h(81 + i * 4) * (C - 2 * edge))
-    const y = Math.round(oy + edge + h(82 + i * 4) * (C - 2 * edge))
+    const x = dm.round(ox + edge + h(81 + i * 4) * (C - 2 * edge))
+    const y = dm.round(oy + edge + h(82 + i * 4) * (C - 2 * edge))
     if (feet.some((e) => depth(e, x, y, clear) < 1) || out.some((s) => dm.sq(s.x - x) + dm.sq(s.y - y) < spacing * spacing)) continue
     const kind = weightedPick(() => h(83 + i * 4), SCATTER_KINDS)
     out.push({ kind, x, y, variant: Math.floor(h(84 + i * 4) * SCATTER_VARIANTS[kind]), foot: [at(SOLID_FOOT[kind], x, y)] })
@@ -182,8 +182,8 @@ export const featureAt = (seed: number, cx: number, cy: number): Feature | null 
   const minY = Math.min(...feet.map((e) => e.y - e.ry))
   const maxY = Math.max(...feet.map((e) => e.y + e.ry))
   const m = TERRAIN.margin
-  const ax = Math.round(ox + m - minX + h(1) * Math.max(0, C - 2 * m - (maxX - minX)))
-  const ay = Math.round(oy + m - minY + h(2) * Math.max(0, C - 2 * m - (maxY - minY)))
+  const ax = dm.round(ox + m - minX + h(1) * Math.max(0, C - 2 * m - (maxX - minX)))
+  const ay = dm.round(oy + m - minY + h(2) * Math.max(0, C - 2 * m - (maxY - minY)))
   const cell = cellKey(cx, cy)
   const shift = (p: Pos) => ({ x: ax + p.x, y: ay + p.y })
   const plan = mark && landmarkPlan(mark.id, mark.variant)
@@ -267,13 +267,108 @@ export const pushOut = (o: Pos, r: number, e: Ellipse) => {
   return true
 }
 
-/** Pushes a circle out of every solid near it. Returns the last ellipse it hit, or null. */
+/**
+ * The widest a player stands against terrain and a room's edges, px. The
+ * narrowest authored ways (a maze's corridors, the cottage's door, the last
+ * chamber of Groudon's tunnel) fit a radius of 10, so with this every playable
+ * walks all of them, however big its sprite; its hitbox (`Player.radius`) stays.
+ */
+export const PLAYER_FOOT = 8
+
+/** The radius a player (or co-op's drawn copy of one) collides with terrain at: its hitbox, capped at `PLAYER_FOOT`. */
+export const footOf = (p: { radius: number }) => Math.min(p.radius, PLAYER_FOOT)
+
+/** Unit vectors around the circle that `nearestOpen` walks out along, built with `dmath` so every engine agrees. */
+const AROUND = Array.from({ length: 24 }, (_, i) => ({ x: dm.cos((i / 24) * Math.PI * 2), y: dm.sin((i / 24) * Math.PI * 2) }))
+
+/** How far, px, `nearestOpen` looks for room, and its step between rings. */
+const UNSTICK = { reach: 72, step: 2 } as const
+
+/**
+ * The nearest spot to (x, y) where `open` holds, searched ring by ring
+ * outward (`UNSTICK`), or null when there's none in reach. Pure and
+ * deterministic: the first open spot of the closest ring, in a fixed order.
+ */
+export const nearestOpen = (x: number, y: number, open: (x: number, y: number) => boolean): Pos | null => {
+  for (let d = UNSTICK.step; d <= UNSTICK.reach; d += UNSTICK.step) {
+    for (const u of AROUND) if (open(x + u.x * d, y + u.y * d)) return { x: x + u.x * d, y: y + u.y * d }
+  }
+  return null
+}
+
+/** Whether a player's foot of radius `r` at (x, y) is clear of solids and, in a room, on its floor and out of its holes. */
+const standable = (g: Game, x: number, y: number, r: number) => {
+  if (inSolid(g, x, y, r)) return false
+  const room = roomOf(g)
+  if (!room) return true
+  const lx = x - room.x
+  const ly = y - room.y
+  return room.layout.floor.some((s) => fits(s, lx, ly, r)) && !(room.layout.holes ?? []).some((h) => dm.sq(lx - h.x) + dm.sq(ly - h.y) < dm.sq(h.r + r))
+}
+
+/**
+ * Keeps a walking player out of the solids; one the pushes can't free (an
+ * evolution grew them into a gap, a dash wedged them between two pieces or
+ * a piece and a room's edge, each push putting them back into the other)
+ * steps to the nearest spot where they stand clear.
+ */
+const settlePlayer = (g: Game, p: Pos & { radius: number }) => {
+  const r = footOf(p)
+  block(g, p, r)
+  // Half a px of slack: a push leaves the circle right on the edge.
+  if (standable(g, p.x, p.y, r - 0.5)) return
+  const spot = nearestOpen(p.x, p.y, (x, y) => standable(g, x, y, r))
+  if (!spot) return
+  p.x = spot.x
+  p.y = spot.y
+}
+
+/**
+ * Each feature's solids' boxes (x0, y0, x1, y1 per solid, in its order: the
+ * union of its feet), worked out once per feature: features never change once
+ * built. A cache beside the state, not in it, like the cells themselves.
+ */
+const solidBoxes = new WeakMap<Feature, Float64Array>()
+
+const boxesOf = (f: Feature) => {
+  let boxes = solidBoxes.get(f)
+  if (boxes) return boxes
+  boxes = new Float64Array(f.solids.length * 4)
+  for (let i = 0; i < f.solids.length; i++) {
+    let x0 = Infinity
+    let y0 = Infinity
+    let x1 = -Infinity
+    let y1 = -Infinity
+    for (const e of f.solids[i]!.foot) {
+      x0 = Math.min(x0, e.x - e.rx)
+      y0 = Math.min(y0, e.y - e.ry)
+      x1 = Math.max(x1, e.x + e.rx)
+      y1 = Math.max(y1, e.y + e.ry)
+    }
+    boxes.set([x0, y0, x1, y1], i * 4)
+  }
+  solidBoxes.set(f, boxes)
+  return boxes
+}
+
+/**
+ * Pushes a circle out of every solid near it. Returns the last ellipse it hit, or null.
+ * A solid whose box the circle is clear of by a pixel can't push it (no ellipse of it
+ * would), so its ellipses go untested: the same pushes, in the same order, for a crowd.
+ */
 const block = (g: Game, o: Pos, r: number) => {
   let hit: Ellipse | null = null
-  // Two passes: leaving one lobe of a mountain can land in the next.
-  for (let pass = 0; pass < 2; pass++) {
+  const reach = r + 1
+  // Two passes: leaving one lobe of a mountain can land in the next. A first pass that
+  // pushed nothing left the circle where it was, so a second would push nothing either.
+  for (let pass = 0; pass < 2 && (pass === 0 || hit !== null); pass++) {
     for (const f of featuresNear(g, o.x, o.y, r)) {
-      for (const s of f.solids) for (const e of s.foot) if (pushOut(o, r, e)) hit = e
+      const boxes = boxesOf(f)
+      for (let i = 0; i < f.solids.length; i++) {
+        const b = i * 4
+        if (o.x < boxes[b]! - reach || o.y < boxes[b + 1]! - reach || o.x > boxes[b + 2]! + reach || o.y > boxes[b + 3]! + reach) continue
+        for (const e of f.solids[i]!.foot) if (pushOut(o, r, e)) hit = e
+      }
     }
   }
   return hit
@@ -366,7 +461,7 @@ export const updateTerrain = (g: Game, dt: number) => {
     }
   }
   // Under a tunnel's ridge (`landmarks.ts`) a player goes through the rock.
-  for (const p of g.players) if (!p.landmark.transit) block(g, p, p.radius)
+  for (const p of g.players) if (!p.landmark.transit) settlePlayer(g, p)
   for (const e of g.enemies) {
     if (e.dying >= 0 || overTerrain(e)) continue
     const wall = block(g, e, e.radius * 0.8)
@@ -378,5 +473,31 @@ export const updateTerrain = (g: Game, dt: number) => {
     burst(g, h.x, h.y, { colors: SHOT_SPARKS, count: 6, speed: 50, ttl: 0.25 })
   }
   // Loot that a flyer dropped over a mountain rolls off to where the players can reach it.
-  for (const k of g.pickups) if (!k.attracted) block(g, k, 3)
+  const room = roomOf(g)?.terrain ?? null
+  const door = g.place.entrance?.terrain ?? null
+  for (const k of g.pickups) if (!k.attracted) settleLoot(g, k, room, door)
+}
+
+/** Where a loose pickup last stood clear of the terrain, and the room and entrance (their terrain) about then. */
+type ClearSpot = { x: number; y: number; room: Feature | null; door: Feature | null }
+
+/**
+ * Loot found clear of every solid (`block` pushed nothing), kept beside the
+ * state like `solidBoxes`. `block` reads only the spot, the seed's cells, the
+ * room and the entrance, so loot that hasn't moved since, with the same room
+ * and entrance about, is still clear: the late game's thousands of candies and
+ * coins left behind skip the push, and every tick ends the same.
+ */
+const clearLoot = new WeakMap<Pickup, ClearSpot>()
+
+const settleLoot = (g: Game, k: Pickup, room: Feature | null, door: Feature | null) => {
+  const spot = clearLoot.get(k)
+  if (spot && spot.x === k.x && spot.y === k.y && spot.room === room && spot.door === door) return
+  if (block(g, k, 3) !== null) return
+  if (spot) {
+    spot.x = k.x
+    spot.y = k.y
+    spot.room = room
+    spot.door = door
+  } else clearLoot.set(k, { x: k.x, y: k.y, room, door })
 }

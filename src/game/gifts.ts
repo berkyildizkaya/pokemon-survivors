@@ -1,11 +1,16 @@
 import { GIFT_TITLES, type GiftTitleId } from '../data/achievements'
+import { TIER_IDS, type TierId } from '../data/arenaRanked'
 import { isSpecialCompanion, type SpecialCompanionId } from '../data/companions'
+import { FESTIVALS, type FestivalId } from '../data/festivals'
+import { isLegend, LEGEND_IDS, legendFestival, type LegendId } from '../data/legends'
 import { parseTitle } from './achievements'
 import { HATCHLING_IDS, HATCHLINGS, type HatchlingId } from '../data/hatchlings'
 import { STYLE_SLOTS, styleIds, stylePrice, type StyleId, type StyleSlot } from '../data/style'
 import { parseHandle } from './ranking'
+import { addToBag, BAG_ITEM_IDS, type BagItem } from './bag'
+import { captureByGift, type Captures } from './capture'
 import { markHatch } from './dex'
-import { EGG_TIER_IDS, EGG_TIERS, EGGS, grantEgg, type EggTier, type Hatch } from './eggs'
+import { EGG_TIER_IDS, EGG_TIERS, grantEgg, incubatorFull, type EggTier, type Hatch } from './eggs'
 import type { Save } from './meta'
 import { isRecord, wholeNumber } from './parse'
 import { mergeRibbons, parseRibbon, type Ribbon } from './ribbons'
@@ -38,6 +43,10 @@ export type GiftContent =
   | { kind: 'shinyPick' }
   /** A gift-only companion (`data/companions.ts`), taken along at once. */
   | { kind: 'companion'; id: SpecialCompanionId }
+  /** `count` of a Bag item (`data/shop.ts`), straight into the Bag. */
+  | { kind: 'bag'; item: BagItem; count: number }
+  /** A legend captured for the Legend mode (a festival's last prize, Cresselia). */
+  | { kind: 'legend'; legend: LegendId }
 
 export type GiftKind = GiftContent['kind']
 
@@ -47,7 +56,9 @@ export type GiftKind = GiftContent['kind']
  * admin (`game/admin.ts`, from their handle), joining the community
  * Discord with the account linked (`DISCORD_GIFT`), the Noite das Bruxas
  * candy jar and Caça aos Fantasmas, supporting the game on the Noite das Bruxas,
- * or the Kecleon Shop's loyalty card and Department Store.
+ * the Kecleon Shop's loyalty card and Department Store, or a Festival da
+ * Praça's pot reaching a milestone or making the player a Mecenas,
+ * being an OG Supporter, or an Arena season's peak tier.
  */
 export type GiftReason =
   | { kind: 'welcome'; from: string | null }
@@ -65,6 +76,14 @@ export type GiftReason =
   | { kind: 'loyalty'; stamps: number }
   /** The Kecleon Shop grown to the Department Store (`game/loyalty.ts`): made by the game too. */
   | { kind: 'tycoon' }
+  /** A Festival da Praça's pot reached the milestone of `pot` ₽ (`game/festival.ts`): made by the game too. */
+  | { kind: 'festival'; festival: FestivalId; pot: number }
+  /** Donating `FESTIVAL.patron` ₽ or more within a festival (`game/festival.ts`): made by the game too. */
+  | { kind: 'patron'; festival: FestivalId }
+  /** Having supported the game before Patreon (`OG_GIFT` in `game/supporters.ts`). */
+  | { kind: 'og' }
+  /** The peak tier `tier` reached in the Arena's ranked season `season` (`game/arenaRewards.ts`). */
+  | { kind: 'arenaSeason'; season: number; tier: TierId }
 
 export type Gift = { id: string; content: GiftContent; reason: GiftReason | null }
 
@@ -78,10 +97,15 @@ export const DISCORD_GIFT = { kind: 'shinyHatch', family: 'noibat' } as const sa
 /** Most coins one gift may bring. */
 const MAX_COINS = 100_000
 
+/** Most items of one kind a Bag gift may bring. */
+const MAX_BAG = 20
+
 /** Gift ids are the API's uuids; anything longer than this isn't one. */
 const MAX_ID = 64
 
 const isOneOf = <T extends string>(v: unknown, ids: readonly T[]): v is T => ids.some((id) => id === v)
+
+const FESTIVAL_IDS: readonly FestivalId[] = FESTIVALS.map((f) => f.id)
 
 const parseStyleRef = (v: unknown): StyleRef | null => {
   if (!isRecord(v)) return null
@@ -118,6 +142,12 @@ export const parseGiftContent = (v: unknown): GiftContent | null => {
       return { kind: 'shinyPick' }
     case 'companion':
       return isSpecialCompanion(v.id) ? { kind: 'companion', id: v.id } : null
+    case 'bag': {
+      const count = wholeNumber(v.count, MAX_BAG)
+      return isOneOf(v.item, BAG_ITEM_IDS) && count > 0 ? { kind: 'bag', item: v.item, count } : null
+    }
+    case 'legend':
+      return isLegend(v.legend) ? { kind: 'legend', legend: v.legend } : null
     default:
       return null
   }
@@ -135,6 +165,10 @@ const parseReason = (v: unknown): GiftReason | null => {
   if (v.kind === 'ghostHunt') return { kind: 'ghostHunt' }
   if (v.kind === 'loyalty') return { kind: 'loyalty', stamps: wholeNumber(v.stamps) }
   if (v.kind === 'tycoon') return { kind: 'tycoon' }
+  if (v.kind === 'festival' && isOneOf(v.festival, FESTIVAL_IDS)) return { kind: 'festival', festival: v.festival, pot: wholeNumber(v.pot) }
+  if (v.kind === 'patron' && isOneOf(v.festival, FESTIVAL_IDS)) return { kind: 'patron', festival: v.festival }
+  if (v.kind === 'og') return { kind: 'og' }
+  if (v.kind === 'arenaSeason' && isOneOf(v.tier, TIER_IDS)) return { kind: 'arenaSeason', season: wholeNumber(v.season), tier: v.tier }
   return null
 }
 
@@ -167,7 +201,7 @@ const shinyHatch = (save: Save, id: HatchlingId): { save: Save; hatch: Hatch } =
       wallet: save.wallet + refund,
       dex: markHatch(save.dex, HATCHLINGS[id].line.map((stage) => stage.dex), true),
     },
-    hatch: { id, tier, shiny: true, duplicate, refund },
+    hatch: { id, tier, shiny: true, duplicate, refund, guaranteed: false },
   }
 }
 
@@ -181,7 +215,7 @@ const wear = (style: StyleSave, ref: StyleRef): StyleSave => {
  * The content on the save, with the hatch to show if it was one. Titles and
  * styles are worn right away; a ribbon joins the day's; a shiny pick leaves
  * its ticket (under the gift's `id`) for the player to spend; a companion
- * walks along from the next run.
+ * walks along from the next run; Bag items wait in the Bag.
  */
 const give = (save: Save, content: GiftContent, id: string): { save: Save; hatch: Hatch | null } => {
   switch (content.kind) {
@@ -204,13 +238,17 @@ const give = (save: Save, content: GiftContent, id: string): { save: Save; hatch
         save: { ...save, companions: save.companions.includes(content.id) ? save.companions : [...save.companions, content.id], companion: { id: content.id, shiny: false } },
         hatch: null,
       }
+    case 'bag':
+      return { save: { ...save, bag: addToBag(save.bag, content.item, content.count) }, hatch: null }
+    case 'legend':
+      return { save: { ...save, legends: captureByGift(save.legends, content.legend) }, hatch: null }
   }
 }
 
 /** Applies a gift once: its id joins the save's `gifts`, so the same gift again is only `claimed`. */
 export const applyGift = (save: Save, gift: Gift): GiftOutcome => {
   if (save.gifts.includes(gift.id)) return { status: 'claimed' }
-  if (gift.content.kind === 'egg' && save.eggs.length >= EGGS.slots) return { status: 'wait' }
+  if (gift.content.kind === 'egg' && incubatorFull(save)) return { status: 'wait' }
   const given = give(save, gift.content, gift.id)
   return { status: 'applied', save: { ...given.save, gifts: [...given.save.gifts, gift.id] }, hatch: given.hatch }
 }
@@ -238,10 +276,11 @@ export const mergeClaimedGifts = (a: readonly string[], b: readonly string[]): s
 /**
  * `save` with only the gift-only rewards the API really sent: `given` is
  * every gift of the player (claimed or not). Gift titles, ribbons, shiny
- * tickets and the styles never sold (a `null` price) can't be earned on the
- * device, so whatever else a save lists came from editing it. The equipped
- * title and styles fall back when they go, and so does the companion with the
- * Supporter title. The API runs it on every push.
+ * tickets, the styles never sold (a `null` price) and the festival legends
+ * (Cresselia) can't be earned on the device, so whatever else a save lists
+ * came from editing it. The equipped title and styles fall back when they go,
+ * and so does the companion with the Supporter title. The API runs it on
+ * every push.
  */
 export const keepGiven = (save: Save, given: readonly Pick<Gift, 'id' | 'content'>[]): Save => {
   const contents = given.map((g) => g.content)
@@ -252,8 +291,11 @@ export const keepGiven = (save: Save, given: readonly Pick<Gift, 'id' | 'content
   const kept = <S extends StyleSlot>(slot: S, ids: readonly StyleId<S>[]) =>
     ids.filter((id) => stylePrice(slot, id) !== null || styles.some((s) => s.slot === slot && s.id === id))
   const owned = { frame: kept('frame', save.style.owned.frame), background: kept('background', save.style.owned.background), wallpaper: kept('wallpaper', save.style.owned.wallpaper) }
+  const vouched = (id: LegendId) => !legendFestival(id) || contents.some((c) => c.kind === 'legend' && c.legend === id)
+  const legends: Captures = Object.fromEntries(LEGEND_IDS.flatMap((id) => (save.legends[id] !== undefined && vouched(id) ? [[id, save.legends[id]]] : [])))
   return {
     ...save,
+    legends,
     titles,
     title: parseTitle(save.title, save.achievements.unlocked, titles),
     ribbons,

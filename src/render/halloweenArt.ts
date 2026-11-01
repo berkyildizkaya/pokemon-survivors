@@ -1,4 +1,4 @@
-import { blitCentered, blitEllipse, context2d, createCanvas, ellipse, onCanvasReset, type PixelSprite } from '../engine/pixelart'
+import { blitCentered, blitEllipse, context2d, createCanvas, glow, onCanvasReset, type PixelSprite } from '../engine/pixelart'
 import { hash2 } from '../engine/rng'
 import type { SupporterTier } from '../game/supporters'
 import type { Game } from '../game/types'
@@ -49,7 +49,22 @@ const PUMPKIN_HEART = ['....5....', '..11511..', '.1221221.', '132424221', '1244
 const PUMPKIN_HEART_COLORS = {
   supporter: { 1: '#b04808', 2: '#f08020', 3: '#ffb860', 4: '#ff5878', 5: '#407028' },
   gold: { 1: '#a86808', 2: '#f0b018', 3: '#fff0a0', 4: '#fffbe0', 5: '#407028' },
+  diamond: { 1: '#2870c0', 2: '#78d0f8', 3: '#e0f8ff', 4: '#ffffff', 5: '#407028' },
 } as const
+
+/** The Noite das Bruxas 2026 badge on an event legend (Darkrai): a jack-o'-lantern under a crescent moon. 1 the ridges, 2 the pumpkin, 4 its glow, 5 the stem, 6 the moon, 7 its shade. */
+const EVENT_BADGE = [
+  '...6667....',
+  '.667.......',
+  '.66........',
+  '667....5...',
+  '667..11511.',
+  '667.1222221',
+  '.66.1242421',
+  '.6671222221',
+  '..661244421',
+  '.....11111.',
+]
 
 export const HALLOWEEN_ART = {
   treats: lazy(() => TREAT_COLORS.map((pal) => art(TREAT, pal, '#181818'))),
@@ -64,9 +79,13 @@ export const treatIcon = () => toIconUrl('halloween:treat', () => HALLOWEEN_ART.
 /** The jack-o'-lantern icon (the lobby's card, the event screen). */
 export const jackIcon = () => toIconUrl('halloween:jack', () => HALLOWEEN_ART.jack()[0])
 
-/** The supporters' jack-o'-lantern badge, golden for the gold tier (`game/halloween.ts`, `pumpkinSupporter`). */
+/** The badge of a legend only the Noite das Bruxas brings (`LegendUnlock.event`), on the partner select. */
+export const eventLegendIcon = () =>
+  toIconUrl('halloween:eventLegend', () => art(EVENT_BADGE, { 1: '#b04808', 2: '#f08020', 4: '#ffe070', 5: '#407028', 6: '#f8f0b8', 7: '#c8b870' }, '#181818'))
+
+/** The supporters' jack-o'-lantern badge, golden for Gold, ice-blue for Diamond (`game/halloween.ts`, `pumpkinSupporter`). */
 export const pumpkinHeartIcon = (tier: SupporterTier) =>
-  toIconUrl(`halloween:heart:${tier}`, () => art(PUMPKIN_HEART, PUMPKIN_HEART_COLORS[tier], tier === 'gold' ? '#4a3008' : '#2a1008'))
+  toIconUrl(`halloween:heart:${tier}`, () => art(PUMPKIN_HEART, PUMPKIN_HEART_COLORS[tier], { supporter: '#2a1008', gold: '#4a3008', diamond: '#0c2448' }[tier]))
 
 /** How long a candy sparkle lasts, in seconds. */
 export const CANDY_SPARK_LIFE = 0.7
@@ -110,17 +129,6 @@ export const drawJack = (ctx: Ctx, x: number, y: number, id: number, t: number) 
 
 /* ---------------- The night ---------------- */
 
-/** A soft round light in hard rings, brightest in the middle (pixel art: no gradients). */
-const glow = (radius: number, color: string, alpha: number) => {
-  const canvas = createCanvas(radius * 2 + 1, radius * 2 + 1)
-  const ctx = context2d(canvas)
-  for (const [k, a] of [[1, 0.35], [0.7, 0.6], [0.42, 1]] as const) {
-    ctx.globalAlpha = alpha * a
-    ctx.drawImage(ellipse(Math.round(radius * k), Math.round(radius * k * 0.75), color), Math.round(radius - radius * k), Math.round(radius - radius * k * 0.75))
-  }
-  return canvas
-}
-
 const GLOWS = lazy(() => ({ jack: glow(28, '#ff8020', 0.3), player: glow(50, '#ffe0b0', 0.12) }))
 
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
@@ -146,7 +154,10 @@ type Dusk = keyof typeof DUSKS
  */
 const duskVeil = (() => {
   const cache = new Map<Dusk, { w: number; h: number; canvas: PixelSprite }>()
-  onCanvasReset(() => cache.clear())
+  onCanvasReset(
+    () => cache.clear(),
+    () => cache,
+  )
   return (kind: Dusk, w: number, h: number) => {
     const hit = cache.get(kind)
     if (hit && hit.w === w && hit.h === h) return hit.canvas

@@ -1,7 +1,7 @@
 import { weightedPick } from '../engine/rng'
 import { ENEMIES } from '../data/enemies'
 import { stageIndexAt } from '../data/waves'
-import { burst } from './effects'
+import { burst, setScreenShake } from './effects'
 import { ENDLESS, endlessEventSize, REAPER, reaperDue, reaperHp, reaperSpeed, startEndless, type EndlessState } from './endless'
 import { runMods } from './legend'
 import { blastHorde, spawnEnemy } from './enemies'
@@ -17,7 +17,7 @@ import { roomOf } from './room'
 import { legendEntrance } from './legendScene'
 
 /** Extra Poké Balls and ₽ dropped by a defeated Arceus, on top of a boss's usual drop. */
-const REAPER_LOOT = { pokeballs: 3, coins: [250, 250, 250, 250, 250, 250, 250, 250] } as const
+const REAPER_LOOT = { pokeballs: 3, coins: [250, 250, 250, 250] } as const
 
 /** Chosen on the victory screen: the run goes on past Mewtwo, with no end but fainting. */
 export const continueEndless = (g: Game) => {
@@ -30,13 +30,13 @@ export const continueEndless = (g: Game) => {
 const summonReaper = (g: Game, s: EndlessState) => {
   const p = anchorPlayer(g)
   const reaper = spawnEnemy(g, REAPER, p.x, p.y - g.view.h / 2 - 24)
-  reaper.hp = reaper.maxHp = Math.round(reaperHp(s.reaperDefeats) * runMods(g).enemyHp * coopScale(g, COOP.scale.bossHp))
+  reaper.hp = reaper.maxHp = dm.round(reaperHp(s.reaperDefeats) * runMods(g).enemyHp * coopScale(g, COOP.scale.bossHp))
   s.reaperId = reaper.id
   s.reaperSince = g.time
   g.bossId = reaper.id
   blastHorde(g, 320)
   g.flash = 1
-  g.shake = 12
+  setScreenShake(g, 12, 'team')
   g.events.push({ kind: 'reaper', defeats: s.reaperDefeats })
   legendEntrance(g, reaper)
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createRng } from '../engine/rng'
+import { grantAbility } from './abilities'
 import { pickAlpha, spawnAlpha } from './alphas'
+import { spawnHazard } from './bosses'
 import { chooseOffer, step } from './game'
 import { gainXp, recomputeStats } from './leveling'
 import { grantStone } from './mega'
@@ -8,6 +10,7 @@ import { NO_RANKS } from './meta'
 import { withBranch } from './moves'
 import { OUTBREAK_SPECIES } from './outbreak'
 import { moveOf, recordEvent, recordStep, resimulate, RULES_VERSION, startGame, startRecording, TICK, type Replay, type ReplayStart } from './replay'
+import { enterPlace } from './placeInterior'
 import { enterArena } from './riftArena'
 import { spawnWaveBoss } from './spawner'
 import { EVENTS } from '../data/waves'
@@ -203,6 +206,50 @@ const SCENARIOS = {
       gainXp(g, 800)
     },
   },
+  /** Zapdos arriving at 5:00 a few levels in: a wave legendary's entrance (its HP, its shiny roll), then its first phase against the player. */
+  waveLegend: {
+    start: { ...START, starter: 'pichu' },
+    seconds: 25,
+    stage: (g) => {
+      g.time = 300
+      g.nextEvent = 99
+      g.player.revives = 2
+      gainXp(g, 1200)
+      const boss = spawnWaveBoss(g, 'zapdos', g.time)
+      Object.assign(boss, { x: g.player.x + 90, y: g.player.y })
+    },
+  },
+  /** Down in the cave with Protect's echo fork (its bubbles overlap): walking the rooms through the corridor mouths (`MOUTH` in `dungeon.ts`). */
+  cave: {
+    start: { ...START, starter: 'charmander' },
+    seconds: 30,
+    stage: (g) => {
+      g.time = 240
+      g.nextEvent = 99
+      g.player.revives = 2
+      gainXp(g, 600)
+      g.player.moves.push({ id: 'protect', level: 4, cooldown: 0, path: withBranch(0, 4, 1) })
+      enterPlace(g, 'cave', g.player.x, g.player.y)
+    },
+  },
+  /** Alakazam's Magic Guard on Nightmare at 6:00 with a Life Orb: poison puddles under it and the world's next attack due, only direct hits counting. */
+  magicGuard: {
+    start: { ...START, difficulty: 'nightmare', starter: 'abra' },
+    seconds: 15,
+    stage: (g) => {
+      g.time = 360
+      g.nextEvent = 99
+      g.worldHazards.charge = 0.99
+      g.player.revives = 2
+      gainXp(g, 1500)
+      grantAbility(g, 'magicGuard')
+      g.player.curses.held.push('lifeOrb')
+      recomputeStats(g)
+      for (let i = 0; i < 3; i++) {
+        spawnHazard(g, { kind: 'zone', visual: 'sludge', x: g.player.x + 20 * i, y: g.player.y, r: 11, damage: 6, ttl: 10 })
+      }
+    },
+  },
 } as const satisfies Record<string, Scenario>
 
 type ScenarioId = keyof typeof SCENARIOS
@@ -213,19 +260,22 @@ type ScenarioId = keyof typeof SCENARIOS
  * failing test prints.
  */
 const PINNED: Partial<Record<number, Record<ScenarioId, string>>> = {
-  33: {
-    levelUps: '2998·51·13·6ff1ec0d',
-    mega: '1900·33·2·cac44d82',
-    riftFall: '711·0·1·74733b0f',
+  43: {
+    levelUps: '2998·50·13·8c971102',
+    mega: '1892·30·2·c69736f1',
+    riftFall: '675·0·1·b7486277',
     alphaHazards: '1002·6·19·93ff9daa',
-    nightBoss: '2098·37·17·7d5edd66',
+    nightBoss: '2098·46·17·c93d0636',
     bag: '1077·9·3·d13820e7',
-    shop: '1537·65·19·246b065f',
-    shopTms2: '1787·49·17·465b899a',
-    evoGate: '1487·52·24·4db92003',
-    porygonGate: '2074·62·37·8883eec0',
-    sketch: '1210·19·2·0f281e81',
-    legend: '1098·51·14·86dc0d8b',
+    shop: '1521·66·19·fcbbb126',
+    shopTms2: '1787·47·17·3cba2f20',
+    evoGate: '1487·55·24·ea1fa054',
+    porygonGate: '2074·60·37·391ff3dc',
+    sketch: '1210·20·2·e776249d',
+    legend: '1100·51·14·cdbdb688',
+    waveLegend: '1998·14·17·1fa0f40a',
+    cave: '2188·16·12·d2d47594',
+    magicGuard: '1188·29·19·fddbed17',
   },
 }
 

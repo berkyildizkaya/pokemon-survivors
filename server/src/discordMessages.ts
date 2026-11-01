@@ -7,7 +7,10 @@ import { DISCORD_GIFT } from '../../src/game/gifts'
 import type { Difficulty } from '../../src/game/difficulty'
 import { isHalloweenDay } from '../../src/game/halloween'
 import type { Suggestion } from '../../src/game/suggestions'
+import { en } from '../../src/i18n/en'
 import type { ChangelogUpdate } from '../../src/site/changelog'
+import type { PlayerProfile } from './staffDesk'
+import { STAFF_GIFTS, type GiftRefusal, type SentToday, type StaffGift, type StaffRank } from './staffGifts'
 import type { Review } from './suggestions'
 
 /**
@@ -225,3 +228,121 @@ export const reviewedNote = (review: Review, by: string | null) =>
 
 /** The review message's color once decided. */
 export const reviewedColor = (review: Review) => (review === 'open' ? GREEN : 0x707890)
+
+/* ---------------- Ideas from the Discord ---------------- */
+
+/** Where the board opens (`?ideias` in `main.ts`). */
+const BOARD_URL = `${PLAY_URL}?ideias`
+
+/** An idea staff put on the board from the Discord, as the bot's reply shows it. */
+export const ideaEmbed = (idea: Pick<Suggestion, 'title' | 'body' | 'handle'>): Embed => ({
+  title: `💡 ${idea.title}`.slice(0, 256),
+  url: BOARD_URL,
+  description: [idea.body && escape(idea.body), `Added to the suggestion board's Backlog for @${escape(idea.handle)}. Vote for it in the game!`].filter(Boolean).join('\n\n'),
+  color: GREEN,
+})
+
+/** Why an idea didn't go on the board: no linked game account to credit, or no suggestion in the messages. */
+export type NotAdded = 'unlinked' | 'none'
+
+export const NOT_ADDED = {
+  unlinked: 'I can’t credit this one: neither of you has a game account with a @handle linked to Discord. Link Discord in the game (its Discord screen) and try again.',
+  none: 'I couldn’t find a suggestion there. Reply to the message with the idea, or tell me what to add.',
+} as const satisfies Record<NotAdded, string>
+
+/* ---------------- The staff's bot ---------------- */
+
+/** A staff gift in words: `a Rare Egg`, `₽1,500`. */
+export const giftLabel = (gift: StaffGift) => (gift.kind === 'egg' ? `a ${en.eggs.tiers[gift.tier]}` : `₽${gift.amount.toLocaleString('en-US')}`)
+
+/** Who a player is in a staff message: their @handle, and their Discord account when linked. */
+export const playerName = (p: Pick<PlayerProfile, 'handle' | 'name' | 'discordId'>) =>
+  `${p.handle ? `@${escape(p.handle)}` : escape(p.name ?? 'a player without a handle')}${p.discordId ? ` (<@${p.discordId}>)` : ''}`
+
+/** What the bot says it sent: always the exact gift and player, whatever the LLM wrote. */
+export const giftReceipt = (gift: StaffGift, to: PlayerProfile, sent: boolean) =>
+  sent ? `🎁 Sent ${giftLabel(gift)} to ${playerName(to)}: it waits in their gift box in the game.` : `🎁 ${giftLabel(gift)} for ${playerName(to)} went out from this message already.`
+
+/** Why a staff gift didn't go (`left`: what's left of today's allowance, null for the owner and the trusted; `rank`: the sender's, for the ₽ cap). */
+export const giftRefusalText = (why: GiftRefusal | 'unknown' | 'who' | 'kind', gift: StaffGift | null, left: SentToday | null, rank: StaffRank = 'staff') => {
+  const allowance = left ? ` Left for you today: ${left.eggs} egg${left.eggs === 1 ? '' : 's'} and ₽${left.coins.toLocaleString('en-US')}.` : ''
+  switch (why) {
+    case 'who':
+      return 'Tell me who: a Discord mention or a game @handle.'
+    case 'unknown':
+      return 'I found no game account for that player (by @handle, or linked to that Discord account).'
+    case 'kind':
+      return 'I can send a common, rare or ultra egg, or ₽ with an amount.'
+    case 'tier':
+      return `${gift ? giftLabel(gift) : 'That egg'} is past what staff can send (${STAFF_GIFTS.tiers.staff.map((t) => en.eggs.tiers[t]).join(' or ')}).`
+    case 'amount':
+      return `One gift carries ₽1 to ₽${STAFF_GIFTS.coinsPerGift[rank].toLocaleString('en-US')}.`
+    case 'eggs':
+    case 'coins':
+      return `That's past your daily allowance (it resets at midnight, Brasília time).${allowance}`
+  }
+}
+
+/** The staff log's line for a gift sent from the Discord. */
+export const giftLogMessage = (o: { staffId: string; gift: StaffGift; to: PlayerProfile; link: string | null }): OutgoingMessage => ({
+  allowed_mentions: { parse: [] },
+  content: `🎁 <@${o.staffId}> sent ${giftLabel(o.gift)} to ${playerName(o.to)}${o.link ? ` · ${o.link}` : ''}`,
+})
+
+/** What the bot says a co-op beta change came to (`changed` false: the list already said so). */
+export const betaReceipt = (handle: string, on: boolean, changed: boolean, count: number) => {
+  const who = `@${escape(handle)}`
+  if (!changed) return on ? `🧪 ${who} is in the co-op beta already.` : `🧪 ${who} isn't in the co-op beta.`
+  return on
+    ? `🧪 Added ${who} to the co-op beta (${count} players). Co-op shows in their lobby once they reload the game, signed in.`
+    : `🧪 Took ${who} out of the co-op beta (${count} players). Links to a room still let them join.`
+}
+
+/** Why a co-op beta change didn't go. */
+export const BETA_REFUSAL = {
+  off: 'Editing the co-op beta needs a PostHog personal API key. Ask Pedro to set `POSTHOG_PERSONAL_API_KEY`.',
+  shape: 'The `coop-beta` flag on PostHog no longer holds a list of handles, so I won’t touch it. Ask Pedro.',
+  noHandle: 'That player has no @handle yet, and co-op needs one: they pick it in the game first.',
+  action: 'I can add a player to the co-op beta, take one out, or list who’s in it.',
+} as const
+
+/** The co-op beta's players, for `/coop-beta list`. */
+export const betaListText = (handles: readonly string[]) => {
+  const all = handles.map((h) => `@${escape(h)}`).join(', ')
+  return `🧪 Co-op beta: ${handles.length} players\n${all.length > 1800 ? `${all.slice(0, 1800)}…` : all}`
+}
+
+/** The staff log's line for a co-op beta change from the Discord. */
+export const betaLogMessage = (o: { staffId: string; handle: string; on: boolean; link: string | null }): OutgoingMessage => ({
+  allowed_mentions: { parse: [] },
+  content: `🧪 <@${o.staffId}> ${o.on ? 'added' : 'took'} @${escape(o.handle)} ${o.on ? 'to' : 'out of'} the co-op beta${o.link ? ` · ${o.link}` : ''}`,
+})
+
+const daysAgo = (iso: string, now: number) => {
+  const days = Math.floor((now - Date.parse(iso)) / 86_400_000)
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
+}
+
+const difficultyName = (d: string) => {
+  const names: Partial<Record<string, string>> = DIFFICULTY_NAMES
+  return names[d] ?? d
+}
+
+/** A player's profile, for staff (`/player`, and what the LLM reads). */
+export const playerLines = (p: PlayerProfile, now = Date.now()) =>
+  [
+    `**${playerName(p)}**${p.name && p.handle ? ` · ${escape(p.name)}` : ''}`,
+    `Joined ${p.joined.slice(0, 10)} · last seen ${daysAgo(p.seen, now)}${p.discordId ? '' : ' · Discord not linked'}`,
+    p.supporter ? `${{ supporter: 'Supporter', gold: 'Gold Supporter', diamond: 'Diamond Supporter' }[p.supporter]}${p.og ? ' · OG' : ''}` : 'Not a supporter',
+    p.banned ? `⛔ Banned ${p.banned.at.slice(0, 10)}${p.banned.reason ? `: ${escape(p.banned.reason)}` : ''}` : '',
+    p.runs.length ? `Runs: ${p.runs.map((r) => `${difficultyName(r.difficulty)} ${r.runs} (${r.wins} won, best ${formatTime(r.best)})`).join(' · ')}` : 'No finished runs',
+    p.handle ? `${PLAY_URL}?u=${p.handle}` : '',
+  ].filter(Boolean)
+
+/** A reply to staff: the text (clipped to Discord's limit) and embeds, never pinging anyone. */
+export const staffReply = (text: string, opts: { replyTo?: string; embeds?: readonly Embed[] } = {}): OutgoingMessage => ({
+  allowed_mentions: { parse: [] },
+  content: text.length > 1990 ? `${text.slice(0, 1989)}…` : text,
+  ...(opts.embeds?.length ? { embeds: opts.embeds.slice(0, 10) } : {}),
+  ...(opts.replyTo ? { message_reference: replyTo(opts.replyTo) } : {}),
+})

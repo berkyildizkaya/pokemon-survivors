@@ -4,7 +4,7 @@ import { ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies'
 import { EVENTS, nightCandidates, stageIndexAt, type WaveEvent } from '../data/waves'
 import { brasiliaDay, dayNumber, previousDay, type DayKey } from './day'
 import { createFight } from './bossFight'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { spawnEnemy } from './enemies'
 import type { Gift, GiftContent } from './gifts'
 import type { Save } from './meta'
@@ -40,6 +40,9 @@ export const halloweenAt = (now: Date) => isHalloweenDay(brasiliaDay(now))
 
 /** Days from `day` until the event starts: positive while the lobby counts down (from `HALLOWEEN.teaser`), else null. */
 export const daysToHalloween = (day: DayKey) => (day >= HALLOWEEN.teaser && day < HALLOWEEN.from ? dayNumber(HALLOWEEN.from) - dayNumber(day) : null)
+
+/** Where `day` stands to the event: before it, on one of its days, or after it (an event legend's card, `ui/starterSelect.ts`). */
+export const halloweenStanding = (day: DayKey): 'before' | 'on' | 'after' => (day < HALLOWEEN.from ? 'before' : day > HALLOWEEN.to ? 'after' : 'on')
 
 /** Days left in the event from `day` on, today included; null outside it. */
 export const halloweenDaysLeft = (day: DayKey) => (isHalloweenDay(day) ? dayNumber(HALLOWEEN.to) - dayNumber(day) + 1 : null)
@@ -193,7 +196,7 @@ export const bustDisguise = (g: Game, e: Enemy) => {
   e.fight ??= createFight(g.rng, g.difficulty, { x: e.x, y: e.y })
   e.fight.busted = true
   e.flash = 0.3
-  g.shake = Math.max(g.shake, 4)
+  shakeScreen(g, 4, e)
   burst(g, e.x, e.y - e.radius, { colors: ['#f8e078', '#c8a048', '#584020', '#ffffff'], count: 30, speed: 110, ttl: 0.55, gravity: 120 })
   g.events.push({ kind: 'disguise', enemy: e.kind })
 }
@@ -210,24 +213,44 @@ export const HAUNT_DEX = [...new Set(HALLOWEEN.haunts.map((id) => ENEMIES[id].de
 
 /* ---------------- The candy jar ---------------- */
 
-/** The save's side of the event: every candy brought home from a haunted run, and the night bosses beaten (the Caça aos Fantasmas, in `NIGHT_BOSSES` order). */
-export type HalloweenSave = { candies: number; hunted: readonly EnemyId[] }
+/**
+ * The save's side of the event: every candy brought home from a haunted run
+ * (what the jar's rewards count, so spending never takes one back), the ones
+ * spent at Duskull's stall (`spendCandies`) and the night bosses beaten (the
+ * Caça aos Fantasmas, in `NIGHT_BOSSES` order).
+ */
+export type HalloweenSave = { candies: number; spent: number; hunted: readonly EnemyId[] }
 
-export const NO_HALLOWEEN: HalloweenSave = { candies: 0, hunted: [] }
+export const NO_HALLOWEEN: HalloweenSave = { candies: 0, spent: 0, hunted: [] }
 
 /** The night bosses of a list, once each, in `NIGHT_BOSSES` order (unknown ids dropped). */
 const huntOf = (ids: readonly unknown[]) => NIGHT_BOSSES.filter((id) => ids.includes(id))
 
 export const parseHalloween = (raw: unknown): HalloweenSave => {
   const r = isRecord(raw) ? raw : {}
-  return { candies: wholeNumber(r.candies), hunted: Array.isArray(r.hunted) ? huntOf(r.hunted) : [] }
+  const candies = wholeNumber(r.candies)
+  return { candies, spent: wholeNumber(r.spent, candies), hunted: Array.isArray(r.hunted) ? huntOf(r.hunted) : [] }
 }
 
-/** Two devices' sides: the fuller jar (candies brought home on both sides apart aren't added up, like the records) and every night boss either beat. */
-export const mergeHalloween = (a: HalloweenSave, b: HalloweenSave): HalloweenSave => ({ candies: Math.max(a.candies, b.candies), hunted: huntOf([...a.hunted, ...b.hunted]) })
+/**
+ * Two devices' sides: the fuller jar and the larger spending (candies brought
+ * home or spent on both sides apart aren't added up, like ₽'s `spent`) and
+ * every night boss either beat.
+ */
+export const mergeHalloween = (a: HalloweenSave, b: HalloweenSave): HalloweenSave => ({
+  candies: Math.max(a.candies, b.candies),
+  spent: Math.max(a.spent, b.spent),
+  hunted: huntOf([...a.hunted, ...b.hunted]),
+})
 
 /** Banks a run's candies into the jar. */
 export const addCandies = (save: Save, candies: number): Save => (candies > 0 ? { ...save, halloween: { ...save.halloween, candies: save.halloween.candies + candies } } : save)
+
+/** The candies the save may still spend: what the jar got, less what the stall took. */
+export const candiesLeft = (h: HalloweenSave) => Math.max(0, h.candies - h.spent)
+
+/** Spends `n` candies (the caller checked `candiesLeft`); the jar keeps counting them for its rewards. */
+export const spendCandies = (save: Save, n: number): Save => ({ ...save, halloween: { ...save.halloween, spent: save.halloween.spent + n } })
 
 /**
  * Ticks a run's beaten night bosses (`RunSummary.nightBosses`) off the Caça
@@ -236,7 +259,7 @@ export const addCandies = (save: Save, candies: number): Save => (candies > 0 ? 
  */
 export const recordHunt = (h: HalloweenSave, beaten: readonly EnemyId[]): HalloweenSave => {
   const fresh = huntOf(beaten).filter((id) => !h.hunted.includes(id))
-  return fresh.length === 0 ? h : { candies: h.candies + fresh.length * HALLOWEEN.hunt.candies, hunted: huntOf([...h.hunted, ...fresh]) }
+  return fresh.length === 0 ? h : { ...h, candies: h.candies + fresh.length * HALLOWEEN.hunt.candies, hunted: huntOf([...h.hunted, ...fresh]) }
 }
 
 /** Whether every night boss has been beaten. */

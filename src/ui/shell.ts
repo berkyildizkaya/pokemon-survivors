@@ -60,20 +60,23 @@ export const backButton = (onBack: () => void) =>
     h('span', { class: 'key-hint' }, 'ESC'),
   )
 
-/** Square 44 px button with a pixel icon (`gearIcon`, `helpIcon`…) and an optional key hint. */
-export const iconButton = (icon: string, label: string, onClick: () => void, key?: string) =>
+/**
+ * Square 44 px button with a pixel icon (`gearIcon`, `newsIcon`…) and an optional key hint. `ink` marks a
+ * one-color ink icon (the gear, the `?`), which the dark theme draws light.
+ */
+export const iconButton = (icon: string, label: string, onClick: () => void, key?: string, ink = false) =>
   h(
     'button',
     { class: 'shell-btn shell-icon box', type: 'button', 'aria-label': label, title: label, onclick: onClick },
-    h('img', { src: icon, alt: '' }),
+    h('img', { src: icon, alt: '', class: ink ? 'ink-icon' : undefined }),
     key ? h('span', { class: 'key-hint' }, key) : null,
   )
 
 /** The gear: opens Settings. */
-export const gearButton = (onClick: () => void, key?: string) => iconButton(gearIcon(), t().shell.settings, onClick, key)
+export const gearButton = (onClick: () => void, key?: string) => iconButton(gearIcon(), t().shell.settings, onClick, key, true)
 
 /** The `?`: opens how to play (or a screen's own help). */
-export const helpButton = (onClick: () => void) => iconButton(helpIcon(), t().shell.help, onClick)
+export const helpButton = (onClick: () => void) => iconButton(helpIcon(), t().shell.help, onClick, undefined, true)
 
 /**
  * The ₽ chip: the save's wallet. Display only, unless `open` makes it a
@@ -94,6 +97,20 @@ export const walletChip = (wallet: number, open?: { label: string; onClick: () =
         h('img', { src: coinIcon(2), alt: '' }),
         h('b', {}, formatPokeDollars(wallet)),
       )
+
+/**
+ * A tile on the lobby's side rails (phones held upright): `icon` over a short
+ * `label`, an optional corner `badge`, and `aria` saying in full what the
+ * wide screens' card shows. `kind` names it for its colors (`rail-<kind>`).
+ */
+export const railTile = (kind: string, icon: Node, label: string, aria: string, badge: Slot = null) =>
+  h(
+    'button',
+    { class: `lobby-rail-tile box rail-${kind}`, type: 'button', 'aria-label': aria, title: aria },
+    h('span', { class: 'rail-icon' }, icon),
+    h('span', { class: 'rail-label' }, label),
+    badge,
+  )
 
 /** Bottom action bar: the screen's main buttons, in thumb reach. A flex child of `shellScreen`, so content above it never hides under it. */
 export const actionBar = (...children: Slot[]) => h('footer', { class: 'shell-actions' }, ...children)

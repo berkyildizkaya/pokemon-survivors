@@ -1,7 +1,9 @@
 import { drawEvoItem } from './evoItemArt'
-import { blitCentered, blitEllipse, blitRing, blitRotated, textSprite } from '../engine/pixelart'
+import { blitCentered, blitPacked, blitEllipse, blitRing, blitRotated, context2d, createCanvas, lazy, textSprite } from '../engine/pixelart'
 import { HAZARD_COLORS } from './hazardColors'
 import { drawCapture } from './capture'
+import { drawNightmareAir, drawNightmareDark, drawNightmareGround, shadeAlpha, SLEEP_TINT } from './darkrai'
+import { isAsleep } from '../game/playerSleep'
 import { drawDomainFloor, drawTear, warmDomain } from './domain'
 import { bossForm, drawBeamAir, drawBeamGround, drawBlasts, drawBossGround, drawBossMarker, drawEntrance, drawLegendScene, drawPairDown, drawPhantoms } from './legendFx'
 import { sceneHides } from '../game/legendScene'
@@ -19,14 +21,14 @@ import { xpTier } from '../game/pickups'
 import { isHeld } from '../game/status'
 import { inSolid, overTerrain, type Solid } from '../game/terrain'
 import { isAirborne, traitPace } from '../game/traits'
-import type { Attack, Enemy, Game, Hazard } from '../game/types'
+import type { Attack, Enemy, Game, Hazard, Player } from '../game/types'
 import { FX, HAZARD_FX, hostile, PICKUPS, SPARKLE, SPIT_FX } from './art'
-import { drawEvolvedAttack, drawEvolvedGround, drawFrost, drawPuff, drawShard } from './evolved'
+import { drawEvolvedAttack, drawEvolvedGround, drawFrost, drawShard } from './evolved'
 import { drawMapEventMarkers, drawMapEvents, markerInsets } from './mapEvents'
 import { ALPHA_PRIZE, alphaOutline, drawAlphaAir, drawAlphaGround, drawAlphaMarkers } from './alphas'
 import { drawScale } from '../game/alphas'
 import { drawMegaAir, drawMegaAttack, drawMegaGround, drawMegaStone, megaLook } from './megaFx'
-import { drawModAttack, drawModGround } from './modFx'
+import { drawModAttack, drawModGround, flightAngle } from './modFx'
 import { drawMoveFxAttack, drawMoveFxGround } from './moveFx'
 import { drawConsumable, drawFlash, drawProps, drawSleep } from './props'
 import { drawSpecialAttack, drawSpecialAura, drawSpecialGround } from './specialFx'
@@ -37,6 +39,7 @@ import { drawEntranceAir, drawEntranceGround, drawPlaceArrow, drawPlaceDark, dra
 import { roomOf } from '../game/room'
 import { drawLandmarkAir, drawTunnelDark, playerUnderground } from './landmarks'
 import { drawPokemon, sprites, type AnimName, type SpeciesSprites } from './sprites'
+import { bodyOf } from '../data/bodies'
 import { drawDrainVines, drawTypeEvolvedAttack, drawTypeEvolvedGround } from './typeEvolved'
 import { drawCompanion, type CompanionView } from './companion'
 import { drawStatusBadge, statusTint } from './status'
@@ -44,27 +47,37 @@ import { drawGuard, drawKitStatus, drawTelegraph } from './kitFx'
 import { drawEggAttack, drawEggGround, drawEggPlayer, eggPlayerLook } from './eggMoveFx'
 import { drawEgg3Attack, drawEgg3Ground, drawEgg3Player, egg3PlayerLook } from './eggMove3Fx'
 import { drawEgg2Attack, drawEgg2Ground } from './eggMove2Fx'
-import { drawVerbAir, drawVerbGround } from './verbFx'
+import { drawVerbAir, drawVerbGround, drawVerbPlayerAir, drawVerbPlayerGround } from './verbFx'
 import { drawTmAir, drawTmDisc, drawTmGround, drawTmPlayer } from './tmFx'
 import { drawShopTmAir } from './shopTmFx'
 import { drawShopTm2Air, drawShopTm2Ground, drawShopTm2Player, shopTm2PlayerLook } from './shopTmFx2'
 import { drawVerbEvolvedAir, drawVerbEvolvedGround } from './verbEvolvedFx'
 import { drawDuoAir, drawDuoGround } from './duoFx'
-import { drawLegendaryAir, drawLegendaryGround } from './legendaryFx'
-import { drawLegendary2Air, drawLegendary2Ground } from './legendaryFx2'
+import { drawAncientAura, drawLegendaryAir, drawLegendaryGround, drawStoppedFoes } from './legendaryFx'
+import { drawHeatAura, drawIronDefense, drawLegendary2Air, drawLegendary2Ground } from './legendaryFx2'
 import { drawSignatureAttack, drawSignatureGround, drawSignaturePlayer } from './signatureFx'
 import { drawTraitAir, drawTraitGround, traitLift, traitTint } from './traits'
 import { bolt, dashedRing } from './strokes'
-import { dropFog, drawWeather, warmFog } from './weather'
+import { dropFog, drawWeather, warmFog, type FogMode } from './weather'
 import { drawHauntedNight, drawTreat } from './halloweenArt'
-import { drawSolid, drawTerrainGround, drawWading, keepTerrain, solidsInView, warmTerrain } from './terrain'
+import { drawSolid, drawTerrainGround, drawWading, keepTerrain, solidCovers, solidsInView, warmTerrain } from './terrain'
 import { drawGround, GROUND_LOOKAHEAD, warmGround } from './world'
 import { damageBudget, showsText, textAlpha, type DamageNumbers } from './damageNumbers'
 import { CALM_PERIOD, HURT_TINT, type Flashes } from './flashes'
 import { detail } from './quality'
 import { localPlayer } from '../game/players'
 import { riftDomain } from '../game/rift'
-import { drawTeamAir, drawTeamGround, drawTeammate, drawTeamMarkers, flushTeamAttacks, showsPlain, showsStanding, teamAttackLayer } from './team'
+import { drawTeamAir, drawTeamGround, drawTeammate, drawTeamMarkers, showsPlain, showsStanding } from './team'
+import { drawVersusGuide } from './versusGuide'
+import { mapOf } from '../game/versusRules'
+import { drawArenaAim, type ArenaOverlay } from './arenaAim'
+import { drawValeAir, drawValeFloor, drawValeGround, drawValeZones, dropVale, TEAM_COLORS, warmVale } from './vale'
+import { concealed, drawGrassFront, drawGrassPatches, grassAlpha } from './valeGrass'
+import { drawValeProp, valePropCovers, valePropsInView, type ValeProp } from './valeProps'
+import { drawValePings } from './valePings'
+import { paintAttacks, type AttackSide } from './attackLayers'
+import { drawImpacts, watchImpacts } from './impacts'
+import { drawCrunch, drawDragonBreath, drawEarthquake, drawEmber, drawPinMissile, drawFireSpin, drawWhirlpool, drawFlashCannon, drawPsyshock, drawPyroBall, drawGust, drawRazorLeaf, drawRockTombLanding, drawSludge, drawSludgeGround, drawSwift, drawThunder, drawThunderGround, drawVineWhip, drawWaterGun } from './baseMoveFx'
 
 type Ctx = CanvasRenderingContext2D
 
@@ -81,42 +94,14 @@ const drawGroundAttack = (ctx: Ctx, a: Attack, t: number) => {
   switch (a.visual) {
     case 'telegraph':
       return drawTelegraph(ctx, a)
-    case 'whirlpool': {
-      blitEllipse(ctx, Math.round(r), Math.round(r), 'rgba(80,140,240,0.16)', a.x, a.y - 4)
-      dashedRing(ctx, a.x, a.y - 4, r, t * 5, ['#a8d0f8', '#ffffff', '#6890f0'], 0.45)
-      dashedRing(ctx, a.x, a.y - 4, r * 0.68, -t * 7, ['#6890f0', '#a8d0f8'], 0.35)
-      dashedRing(ctx, a.x, a.y - 4, r * 0.38, t * 9, ['#ffffff'], 0.3)
-      return
-    }
-    case 'sludge': {
-      if (a.age < a.activeFrom) return
-      const fade = Math.min(1, (a.ttl - a.age) / 0.3)
-      const grow = Math.min(1, (a.age - a.activeFrom) / 0.12)
-      ctx.globalAlpha = fade
-      blitEllipse(ctx, Math.round(r * grow), Math.round(r * 0.72 * grow), 'rgba(96,32,112,0.55)', a.x, a.y)
-      blitEllipse(ctx, Math.round(r * 0.7 * grow), Math.round(r * 0.48 * grow), 'rgba(176,80,184,0.55)', a.x, a.y - 1)
-      ctx.globalAlpha = 1
-      return
-    }
-    case 'thunder': {
-      if (a.age < a.activeFrom && Math.floor(a.age * 30) % 2 === 0) blitRing(ctx, Math.round(r), 1, '#f8e030', a.x, a.y)
-      return
-    }
-    case 'quake': {
-      ctx.globalAlpha = Math.max(0, 1 - a.age / a.ttl)
-      dashedRing(ctx, a.x, a.y, r, 0, ['#704820', '#a07840', '#e0c068'], 0.85)
-      dashedRing(ctx, a.x, a.y, r - 2, 1.3, ['#503010', '#906838'], 0.5)
-      ctx.fillStyle = '#503010'
-      for (let i = 0; i < 7; i++) {
-        const angle = (i / 7) * TAU + a.id
-        for (let d = 4; d < r - 3; d += 1.5) {
-          const jag = Math.sin(d * 0.7 + i) * 1.5
-          ctx.fillRect(Math.round(a.x + Math.cos(angle) * d - Math.sin(angle) * jag), Math.round(a.y + Math.sin(angle) * d + Math.cos(angle) * jag), 1, 1)
-        }
-      }
-      ctx.globalAlpha = 1
-      return
-    }
+    case 'whirlpool':
+      return drawWhirlpool(ctx, a, t)
+    case 'sludge':
+      return drawSludgeGround(ctx, a)
+    case 'thunder':
+      return drawThunderGround(ctx, a)
+    case 'quake':
+      return drawEarthquake(ctx, a)
     case 'drumRoots': {
       ctx.globalAlpha = Math.max(0, 1 - a.age / a.ttl)
       dashedRing(ctx, a.x, a.y - 4, r, a.age * 4, ['#78c850', '#a87840', '#58a838'], 0.75)
@@ -148,7 +133,7 @@ const drawGroundAttack = (ctx: Ctx, a: Attack, t: number) => {
       ctx.globalAlpha = Math.max(0, 1 - e)
       dashedRing(ctx, a.x, a.y, r * (0.7 + e * 0.6), a.id, ['#685028', '#a08048', '#d8c080'], 0.7, 0.5)
       ctx.globalAlpha = 1
-      return
+      return drawRockTombLanding(ctx, a)
     }
     default:
       drawEvolvedGround(ctx, a, t)
@@ -193,66 +178,23 @@ const drawAttack = (ctx: Ctx, a: Attack, t: number) => {
   const m = a.motion
   switch (a.visual) {
     case 'ember':
-      return blitCentered(ctx, FX.ember()[Math.floor(t * 12) % 2]!, a.x, a.y)
+      return drawEmber(ctx, a, t)
     case 'flame':
-      return blitCentered(ctx, FX.flame()[Math.floor((t + a.id) * 10) % 2]!, a.x, a.y - 2)
-    case 'water': {
-      // Seeking and returning jets (fork mods) point their way too.
-      const angle = m.kind === 'linear' || m.kind === 'homing' || m.kind === 'boomerang' ? Math.atan2(m.vy, m.vx) : 0
-      return blitRotated(ctx, FX.water(), a.x, a.y, angle)
-    }
-    case 'leaf': {
-      const scale = a.shape.kind === 'circle' ? Math.max(1, Math.round(a.shape.r / 6)) : 1
-      return blitRotated(ctx, FX.leaf(), a.x, a.y, a.age * 16, scale)
-    }
+      return drawFireSpin(ctx, a, t)
+    case 'water':
+      return drawWaterGun(ctx, a, t)
+    case 'leaf':
+      return drawRazorLeaf(ctx, a)
     case 'star':
-      return blitRotated(ctx, FX.star(), a.x, a.y, a.age * 9)
-    case 'sludge': {
-      if (a.age >= a.activeFrom) return
-      const k = a.age / a.activeFrom
-      const x = a.from.x + (a.x - a.from.x) * k
-      const y = a.from.y + (a.y - a.from.y) * k - Math.sin(k * Math.PI) * 40
-      blitEllipse(ctx, 3, 3, '#502060', x, y)
-      return blitEllipse(ctx, 2, 2, '#c060d0', x - 1, y - 1)
-    }
-    case 'thunder': {
-      if (a.age < a.activeFrom) return
-      const fade = 1 - (a.age - a.activeFrom) / (a.ttl - a.activeFrom)
-      ctx.globalAlpha = Math.max(0, fade)
-      bolt(ctx, a.x, a.y, 180)
-      if (a.shape.kind === 'circle') blitEllipse(ctx, Math.round(a.shape.r), Math.round(a.shape.r * 0.5), 'rgba(255,248,160,0.7)', a.x, a.y)
-      ctx.globalAlpha = 1
-      return
-    }
-    case 'gust': {
-      if (a.shape.kind !== 'circle') return
-      ctx.globalAlpha = 1 - a.age / a.ttl
-      dashedRing(ctx, a.x, a.y, a.shape.r, a.age * 20, ['#ffffff', '#e0e8f8', '#c8d0e8'], 0.7)
-      dashedRing(ctx, a.x, a.y, a.shape.r * 0.8, -a.age * 25, ['#ffffff'], 0.25)
-      ctx.globalAlpha = 1
-      return
-    }
-    case 'vine': {
-      if (a.shape.kind !== 'rect') return
-      const dir = a.flip ? -1 : 1
-      const reach = a.shape.w * Math.min(1, a.age / 0.07)
-      const startX = a.x - (dir * a.shape.w) / 2
-      ctx.globalAlpha = Math.min(1, (a.ttl - a.age) / 0.08)
-      for (let i = 0; i < reach; i++) {
-        const x = Math.round(startX + dir * i)
-        const y = Math.round(a.y + Math.sin(i * 0.25 - a.age * 40) * 2)
-        ctx.fillStyle = '#204818'
-        ctx.fillRect(x, y - 2, 1, 4)
-        ctx.fillStyle = i % 9 < 2 ? '#a8e870' : '#58a838'
-        ctx.fillRect(x, y - 1, 1, 2)
-        if (i % 14 === 7) {
-          ctx.fillStyle = '#78c850'
-          ctx.fillRect(x, y - 4, 2, 2)
-        }
-      }
-      ctx.globalAlpha = 1
-      return
-    }
+      return drawSwift(ctx, a, t)
+    case 'sludge':
+      return drawSludge(ctx, a, t)
+    case 'thunder':
+      return drawThunder(ctx, a)
+    case 'gust':
+      return drawGust(ctx, a)
+    case 'vine':
+      return drawVineWhip(ctx, a)
     case 'fist': {
       if (m.kind !== 'follow') return
       const angle = Math.atan2(m.oy + 8, m.ox)
@@ -260,51 +202,19 @@ const drawAttack = (ctx: Ctx, a: Attack, t: number) => {
       if (a.age > a.ttl * 0.5) spark(ctx, a.x + Math.cos(angle) * 6, a.y + Math.sin(angle) * 6, 5)
       return
     }
-    case 'steel': {
-      const r = a.shape.kind === 'circle' ? a.shape.r : 8
-      blitRotated(ctx, FX.steel(), a.x, a.y, 0, Math.max(1, Math.round(r / 4)))
-      if (Math.floor((t + a.id) * 12) % 3 === 0) spark(ctx, a.x, a.y, Math.round(r * 0.8))
-      return
-    }
+    case 'steel':
+      return drawFlashCannon(ctx, a, t)
     case 'arrow':
-      return blitRotated(ctx, FX.arrow(), a.x, a.y, m.kind === 'linear' ? Math.atan2(m.vy, m.vx) : 0)
+      return blitRotated(ctx, FX.arrow(), a.x, a.y, flightAngle(m) ?? 0)
     case 'shuriken':
       // Water Shuriken swells as it cuts (`signatures.ts`).
       return blitRotated(ctx, FX.shuriken(), a.x, a.y, a.age * 22, a.shape.kind === 'circle' && a.shape.r > 6 ? 2 : 1)
-    case 'jaws': {
-      const r = a.shape.kind === 'circle' ? a.shape.r : 10
-      const scale = Math.max(1, Math.round(r / 7))
-      const { top, bottom } = FX.jaws()
-      const gap = Math.round((1 - Math.min(1, a.age / a.activeFrom)) * r * 0.9)
-      const half = (top.height * scale) / 2
-      ctx.globalAlpha = a.age > a.activeUntil ? Math.max(0, 1 - (a.age - a.activeUntil) / (a.ttl - a.activeUntil)) : 1
-      blitRotated(ctx, top, a.x, a.y - gap - half, 0, scale)
-      blitRotated(ctx, bottom, a.x, a.y + gap + half, 0, scale)
-      if (a.age >= a.activeFrom) spark(ctx, a.x, a.y, Math.round(r * 0.9))
-      ctx.globalAlpha = 1
-      return
-    }
-    case 'pyro': {
-      if (a.age < a.activeFrom) {
-        const k = a.age / a.activeFrom
-        const x = a.from.x + (a.x - a.from.x) * k
-        const y = a.from.y + (a.y - a.from.y) * k - Math.sin(k * Math.PI) * 50
-        return blitRotated(ctx, FX.pyro(), x, y, a.age * 14)
-      }
-      if (a.shape.kind !== 'circle') return
-      const e = (a.age - a.activeFrom) / (a.ttl - a.activeFrom)
-      const r = Math.round(a.shape.r * (0.5 + 0.5 * e))
-      ctx.globalAlpha = Math.max(0, 1 - e)
-      blitEllipse(ctx, r, Math.round(r * 0.75), 'rgba(240,112,32,0.6)', a.x, a.y)
-      blitEllipse(ctx, Math.round(r * 0.55), Math.round(r * 0.4), '#f8d860', a.x, a.y - 1)
-      blitRing(ctx, r, 1, '#fff0a0', a.x, a.y)
-      ctx.globalAlpha = 1
-      return
-    }
-    case 'psy': {
-      const r = a.shape.kind === 'circle' ? a.shape.r : 6
-      return blitRotated(ctx, FX.psy()[Math.floor((t + a.id) * 10) % 2]!, a.x, a.y, 0, Math.max(1, Math.round((r * 2) / 7)))
-    }
+    case 'jaws':
+      return drawCrunch(ctx, a, (x, y, size) => spark(ctx, x, y, size))
+    case 'pyro':
+      return drawPyroBall(ctx, a, t)
+    case 'psy':
+      return drawPsyshock(ctx, a, t)
     case 'heart':
       return blitCentered(ctx, FX.heart(), a.x, a.y + Math.round(Math.sin(a.age * 14) * 1.5))
     case 'note': {
@@ -339,9 +249,9 @@ const drawAttack = (ctx: Ctx, a: Attack, t: number) => {
       return
     }
     case 'pin':
-      return blitRotated(ctx, FX.pin(), a.x, a.y, m.kind === 'homing' ? Math.atan2(m.vy, m.vx) : 0)
+      return drawPinMissile(ctx, a, t)
     case 'dragonBreath':
-      return drawPuff(ctx, a, t, ['rgba(72,32,168,0.55)', 'rgba(112,56,248,0.8)', '#a070f8', '#f0e0ff'])
+      return drawDragonBreath(ctx, a, t)
     case 'whirlpool':
     case 'quake':
     case 'drumRoots':
@@ -553,9 +463,9 @@ const enemyAnim = (e: Enemy, s: SpeciesSprites, aloft: boolean): AnimName =>
 /**
  * `time` is game time (shiny entrance), `t` wall time (status tint). `calm`
  * (Flashes: reduced) swaps the white hit flash for a dim red tint; `aloft`
- * flies the species that can.
+ * flies the species that can; `ringed` gives bosses their gold outline (out of a rift's arena).
  */
-const drawEnemy = (ctx: Ctx, e: Enemy, time: number, t: number, calm: boolean, aloft: boolean, clone: boolean) => {
+const drawEnemy = (ctx: Ctx, e: Enemy, time: number, t: number, calm: boolean, aloft: boolean, clone: boolean, ringed: boolean) => {
   const def: EnemyDef = ENEMIES[e.kind]
   const s = sprites(def.dex, e.shiny, bossForm(e))
   const scale = drawScale(e)
@@ -581,7 +491,8 @@ const drawEnemy = (ctx: Ctx, e: Enemy, time: number, t: number, calm: boolean, a
   const hit = e.flash > 0.08
   const tint = traitTint(e) ?? statusTint(e.status, t, e.id) ?? (calm && hit ? HURT_TINT : rage ? RAGE_TINT : clone ? CLONE_TINT : undefined)
   if (look?.alpha === 0) return
-  drawPokemon(ctx, s, anim, e.dir, e.animTime, e.x, y, { flash: Math.max(look?.flash ?? 0, hit && !calm ? 0.85 : 0), tint: look?.tint ?? tint, scale, outline: outlineOf(e, t, calm) ?? (clone ? CLONE_OUTLINE : undefined), alpha: look?.alpha })
+  const outline = outlineOf(e, t, calm) ?? (clone ? CLONE_OUTLINE : ringed && e.boss ? bossOutline(e, t, calm) : undefined)
+  drawPokemon(ctx, s, anim, e.dir, e.animTime, e.x, y, { flash: Math.max(look?.flash ?? 0, hit && !calm ? 0.85 : 0), tint: look?.tint ?? tint, scale, outline, outlineAlpha: outline === ELITE_OUTLINE ? eliteThrob(e, t) : 1, alpha: look?.alpha ?? shadeAlpha(e.kind, e.id, t) })
   if (e.shiny) drawSparkles(ctx, e.x, y - s.bodyH / 2, Math.max(s.bodyW, s.bodyH), time - e.bornAt, e.id)
   if (rage) drawRageEmbers(ctx, e.x, y - (s.bodyH * scale) / 2, size, t, e.id)
 }
@@ -592,6 +503,12 @@ const RAGE_TINT = { color: '#f83020', amount: 0 }
 /** 0..1 triangle wave at `hz`. */
 const pulse = (t: number, hz: number) => Math.abs(((t * hz) % 2) - 1)
 
+/** An elite's outline: one crimson, throbbing in opacity (`eliteThrob`), so a crowd of them shares its silhouettes. */
+const ELITE_OUTLINE = '#e02838'
+
+/** An elite outline's opacity: a slow throb, each elite on its own beat. */
+const eliteThrob = (e: Enemy, t: number) => (Math.floor(t * 2.5 + e.id * 0.37) % 2 === 0 ? 1 : 0.55)
+
 /**
  * Enraged bosses flicker red and orange fast (steady red when `calm`); elites
  * keep a slow crimson throb so a crowd of them reads at a glance on a phone.
@@ -599,26 +516,54 @@ const pulse = (t: number, hz: number) => Math.abs(((t * hz) % 2) - 1)
 const outlineOf = (e: Enemy, t: number, calm: boolean) => {
   if (e.alpha) return alphaOutline(e, t, calm)
   if (e.fight?.enraged) return calm || Math.floor(t * 8) % 2 === 0 ? '#f83020' : '#f8a020'
-  if (e.elite) return Math.floor(t * 2.5 + e.id * 0.37) % 2 === 0 ? '#e02838' : '#f86858'
+  if (e.elite) return ELITE_OUTLINE
   return undefined
 }
 
+/**
+ * The gold a boss wears on the map so it stands out of the horde (an Alpha's
+ * is crimson, an enraged boss's flickers red), pulsing slowly; steady when `calm`.
+ */
+const bossOutline = (e: Enemy, t: number, calm: boolean) => (calm || Math.floor(t * 1.5 + e.id * 0.37) % 2 === 0 ? '#f8c818' : '#f8f088')
+
 /** Unit steps per `Dir8` (0 Down, 1 DownRight, 2 Right, 3 UpRight, 4 Up, 5 UpLeft, 6 Left, 7 DownLeft). */
 const DIR_STEP: readonly (readonly [number, number])[] = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]
+
+/** Side of one speed-lines cell (`SPEED_LINES`), its middle where the streaks start. */
+const STREAK_CELL = 17
+const STREAK_MID = 8
+
+/**
+ * Every look of a runner's three streaks on one sheet: a row per direction, a
+ * column per flicker step (their lengths cycle through 4), so a crowd of
+ * runners draws one image each instead of a pixel at a time.
+ */
+const SPEED_LINES = lazy(() => {
+  const canvas = createCanvas(STREAK_CELL * 4, STREAK_CELL * 8)
+  const ctx = context2d(canvas)
+  ctx.fillStyle = '#ffffff'
+  DIR_STEP.forEach(([dx, dy], dir) => {
+    for (let step = 0; step < 4; step++) {
+      for (let i = -1; i <= 1; i++) {
+        const len = 3 + ((step + i * 3) & 3) - (i === 0 ? 0 : 1)
+        const ox = step * STREAK_CELL + STREAK_MID - dy * i * 3
+        const oy = dir * STREAK_CELL + STREAK_MID + dx * i * 3
+        for (let k = 0; k < len; k++) ctx.fillRect(ox - dx * k, oy - dy * k, 1, 1)
+      }
+    }
+  })
+  return canvas
+})
 
 /** A runner's three flickering white streaks trailing behind its body (`cy` is mid-body, `w` the body width). */
 const drawSpeedLines = (ctx: Ctx, e: Enemy, cy: number, w: number, t: number) => {
   const [dx, dy] = DIR_STEP[e.dir]!
   const back = Math.round(w / 2) + 1
-  const frame = Math.floor(t * 14)
-  ctx.fillStyle = '#ffffff'
+  const step = (Math.floor(t * 14) + e.id) & 3
+  const x = Math.round(e.x) - dx * back - STREAK_MID
+  const y = Math.round(cy) - dy * back - STREAK_MID
   ctx.globalAlpha = 0.8
-  for (let i = -1; i <= 1; i++) {
-    const len = 3 + ((frame + i * 3 + e.id) & 3) - (i === 0 ? 0 : 1)
-    const ox = Math.round(e.x - dx * back - dy * i * 3)
-    const oy = Math.round(cy - dy * back + dx * i * 3)
-    for (let k = 0; k < len; k++) ctx.fillRect(ox - dx * k, oy - dy * k, 1, 1)
-  }
+  ctx.drawImage(SPEED_LINES(), step * STREAK_CELL, e.dir * STREAK_CELL, STREAK_CELL, STREAK_CELL, x, y, STREAK_CELL, STREAK_CELL)
   ctx.globalAlpha = 1
 }
 
@@ -668,14 +613,17 @@ const drawPlayer = (ctx: Ctx, g: Game, calm: boolean) => {
   // Aegislash flashes white for a moment as it swaps stance.
   const swapped = localPlayer(g).special.stance !== null && localPlayer(g).special.total - localPlayer(g).special.cooldown < 0.12
   const flash = Math.max(mega.flash, calm ? 0 : p.hurt > 0.2 ? 0.7 : charging || swapped ? 0.6 : 0)
-  const tint = calm && p.hurt > 0.2 ? HURT_TINT : undefined
+  // Asleep (Dark Void): the player wears its violet.
+  const tint = calm && p.hurt > 0.2 ? HURT_TINT : isAsleep(p) ? SLEEP_TINT : undefined
   // Burrowed or out of sight (Dig): a faint ghost of the player.
   // Moves can lift the sprite (Body Slam's leap, Heavy Slam's hop, Fly) or hide it under the mound (Dig).
   const egg = flying ?? eggPlayerLook(g) ?? egg3PlayerLook(g)
   // Invulnerable after a hit: blinking, or a steady see-through when calm.
   const faded = calm ? p.iframes > 0 && localPlayer(g).special.active <= 0 : blink
-  const alpha = egg ? egg.alpha : p.hidden ? 0.3 : faded && mega.flash === 0 ? (calm ? 0.65 : 0.45) : 1
+  // Versus: in tall grass, the viewer's team draws see-through (`grassAlpha`).
+  const alpha = (egg ? egg.alpha : p.hidden ? 0.3 : faded && mega.flash === 0 ? (calm ? 0.65 : 0.45) : 1) * grassAlpha(g, viewer, p)
   if (alpha > 0) drawPokemon(ctx, s, anim, p.dir, p.animTime, p.x, p.y - (egg?.lift ?? 0), { alpha, flash, tint, outline: mega.outline })
+  if (p.versus && g.versus) drawGrassFront(ctx, mapOf(g.versus).grass, p.x, p.y, s.bodyW, g.now, p.moving, p.slot)
   // The shiny entrance plays shortly after the run starts.
   if (p.shiny) drawSparkles(ctx, p.x, p.y - s.bodyH / 2, Math.max(s.bodyW, s.bodyH), g.now - 0.3, 0)
   drawMegaAir(ctx, g, p.y - s.bodyH, p.animTime)
@@ -692,17 +640,21 @@ const drawHpBar = (ctx: Ctx, g: Game) => {
   ctx.fillRect(x - 1, y - 1, w + 2, 4)
   ctx.fillStyle = '#504848'
   ctx.fillRect(x, y, w, 2)
-  const ratio = p.hp / p.stats.maxHp
-  ctx.fillStyle = hpColor(ratio)
+  const ratio = Math.max(0, p.hp / p.stats.maxHp)
+  // Versus: everyone's bar in their team's color.
+  ctx.fillStyle = p.versus ? TEAM_COLORS[p.versus.team] : hpColor(ratio)
   ctx.fillRect(x, y, Math.ceil(w * ratio), 2)
 }
 
-const drawPickups = (ctx: Ctx, g: Game, t: number) => {
+/** The pickups on the ground in view (`visible`): a long run leaves hundreds of candies and coins behind. */
+const drawPickups = (ctx: Ctx, g: Game, t: number, visible: (x: number, y: number) => boolean) => {
   const candies = PICKUPS.candy()
   const coins = PICKUPS.coins()
   for (const k of g.pickups) {
+    if (!visible(k.x, k.y)) continue
     const bob = k.attracted ? 0 : Math.round(Math.sin(t * 4 + k.id) * 1.2)
-    if (!k.attracted) blitEllipse(ctx, 3, 1, 'rgba(16,40,16,0.25)', k.x, k.y + 4)
+    // Drawing lean, loot goes without its shadow, like the horde: thousands of candies lie about in a long endless run.
+    if (!k.attracted && !detail.lean) blitEllipse(ctx, 3, 1, 'rgba(16,40,16,0.25)', k.x, k.y + 4)
     if (k.kind === 'consumable') {
       drawConsumable(ctx, k.item, k.x, k.y + bob, k.id, t)
       continue
@@ -786,7 +738,7 @@ const drawEvolution = (ctx: Ctx, g: Game, t: number, calm: boolean) => {
 /** A co-op teammate, drawn from a copy of the game as that player (`coop/view.ts`). */
 type Mate = { mate: Game }
 
-type Drawable = Enemy | 'player' | 'companion' | Solid | Mate
+type Drawable = Enemy | 'player' | 'companion' | Solid | Mate | ValeProp
 const drawables: Drawable[] = []
 /** `drawables` in depth order, with each one's depth worked out once: the sort compares them thousands of times a frame. */
 const inDepth: Drawable[] = []
@@ -802,6 +754,8 @@ const byDepth = (a: number, b: number) => {
 /** How far a hitbox reaches from its center, to cull it off screen. */
 const reachOf = (shape: Attack['shape']) => (shape.kind === 'circle' ? shape.r : Math.max(shape.w, shape.h)) + 48
 const isSolid = (d: Drawable): d is Solid => d !== 'player' && d !== 'companion' && 'foot' in d
+/** Versus: a post, pillar or gate standing on the Vale (`render/valeProps.ts`). */
+const isValeProp = (d: Drawable): d is ValeProp => typeof d === 'object' && 'prop' in d
 
 /* ---------------- Biome ---------------- */
 
@@ -813,16 +767,18 @@ const BIOME_WARMUP = 10
 /**
  * Builds at most one piece of scenery not built yet, most needed first: the
  * ground about to scroll in, this biome's terrain sprites, the next biome's
- * ground and terrain, the fog veil where fog can roll in; and while `calm` (no
+ * ground and terrain, the fog veil (in the `fog` setting's mode) where fog can roll in; and while `calm` (no
  * run, or a menu over it), every biome's terrain. True if it built one. The
  * shell calls it in idle time: a mountain or the veil takes longer than a frame
  * lasts, so building one the first time it shows would stall that frame.
  */
-export const warmScenery = (g: Game | null, calm: boolean) => {
+export const warmScenery = (g: Game | null, calm: boolean, fog: FogMode) => {
   const keep = terrainBiomes(g)
   keepTerrain(keep)
   if (!g?.rift.arena || g.rift.arena.domain) dropArenas()
   if (!g?.place.inside) dropPlaceFloor()
+  if (!g?.versus) dropVale()
+  else if (warmVale(g.versus.map)) return true
   if (g && warmDomain(g)) return true
   if (g && !roomOf(g)) {
     const { w, h } = g.view
@@ -832,7 +788,7 @@ export const warmScenery = (g: Game | null, calm: boolean) => {
     if (warmGround(here, x, y, w, h, GROUND_LOOKAHEAD) || warmTerrain(here)) return true
     if (upcoming !== here && (warmGround(upcoming, x, y, w, h) || warmTerrain(upcoming))) return true
     if ('fog' in BIOMES[here].weather || 'fog' in BIOMES[upcoming].weather) {
-      if (warmFog(w, h)) return true
+      if (warmFog(w, h, fog)) return true
     } else if (g.weather.id !== 'fog' && g.weather.prev !== 'fog') dropFog()
   }
   return calm && keep.some((b) => warmTerrain(b))
@@ -861,13 +817,103 @@ const TEXT_PASSES = [false, true] as const
 
 /**
  * Player preferences from the settings screen, the supporter's companion walking along (`render/companion.ts`)
- * and, in co-op, the teammates: each a draw-only copy of the game as that player (`coop/view.ts`).
+ * and, in co-op, the teammates: each a draw-only copy of the game as that player (`coop/view.ts`), and this
+ * screen's own shake offset (`coop/shake.ts`; without one the draw rolls an offset from `g.shake` itself).
  */
-export type RenderOptions = { damageNumbers: DamageNumbers; screenShake: boolean; flashes: Flashes; companion?: CompanionView | null; mates?: readonly Game[] }
+export type RenderOptions = {
+  damageNumbers: DamageNumbers
+  screenShake: boolean
+  flashes: Flashes
+  fog: FogMode
+  /** How opaque the moves draw, 0..1: this screen's player's, and in co-op the teammates' (`render/attackLayers.ts`). */
+  attackOpacity: number
+  teamAttackOpacity: number
+  companion?: CompanionView | null
+  mates?: readonly Game[]
+  shakeOffset?: { x: number; y: number }
+  /** The Arena's lock-on and a touch button's aim (`render/arenaAim.ts`), this screen's. */
+  arena?: ArenaOverlay | null
+}
+
+/** The Arena's viewer (this screen's player, `render` sets it; null outside Versus): who the grass hides from and shows see-through. */
+let viewer: Player | null = null
+
+/** Reused lists of this screen's player's attacks and the teammates', refilled each co-op frame. */
+const ownAttacks: Attack[] = []
+const teamAttacks: Attack[] = []
+
+/**
+ * The moves on screen in the order they draw, each side with its opacity and a
+ * game holding only its attacks for the move modules' passes. Solo, one side:
+ * the game itself.
+ */
+const attackSides = (g: Game, slot: number, opts: RenderOptions): { side: AttackSide; alpha: number; game: Game }[] => {
+  if (g.coop === null) return [{ side: 'own', alpha: opts.attackOpacity, game: g }]
+  ownAttacks.length = teamAttacks.length = 0
+  const me = g.players[slot]
+  for (const a of g.attacks) {
+    if (a.owner === slot) ownAttacks.push(a)
+    // Versus: a rival hidden in the grass shows nothing of its own, its moves still out either.
+    else if (!me || !g.players[a.owner] || !concealed(me, g.players[a.owner]!)) teamAttacks.push(a)
+  }
+  return [
+    { side: 'own', alpha: opts.attackOpacity, game: { ...g, attacks: ownAttacks } },
+    { side: 'team', alpha: opts.teamAttackOpacity, game: { ...g, attacks: teamAttacks } },
+  ]
+}
 
 const isMate = (d: Drawable): d is Mate => typeof d === 'object' && 'mate' in d
 /** The teammates' drawables, kept from frame to frame. */
 const mateSlots: Mate[] = []
+
+/**
+ * On the floor around a player, from their own state (Sucker Punch's zone,
+ * Focus Punch's and a special's charge, Roost's nest, Overheat, a Mega's
+ * aura): `g` is that player's copy of the game, this screen's or a
+ * teammate's. `own`: this screen's player (a Mega's transformation veils it).
+ */
+const drawPlayerGround = (ctx: Ctx, g: Game, camX: number, camY: number, t: number, own: boolean) => {
+  drawVerbPlayerGround(ctx, g, t)
+  drawHeatAura(ctx, g, t)
+  drawSpecialAura(ctx, g, t)
+  drawMegaGround(ctx, g, camX, camY, t, own)
+}
+
+/** Over a player, from their own state (a guard, buffs, charges, stacks, a called sky): `g` is that player's copy of the game. */
+const drawPlayerAir = (ctx: Ctx, g: Game, t: number) => {
+  drawGuard(ctx, g, t)
+  drawEggPlayer(ctx, g, t)
+  drawEgg3Player(ctx, g, t)
+  drawSignaturePlayer(ctx, g, t)
+  drawTmPlayer(ctx, g, t)
+  drawShopTm2Player(ctx, g, t, g.player.y - playerSprites(g).bodyH)
+  drawVerbPlayerAir(ctx, g, t)
+  drawAncientAura(ctx, g, t)
+  drawIronDefense(ctx, g, t)
+}
+
+/** The teammates drawn over the moves this frame (`liftsOver`), kept from frame to frame. */
+const lifted: Game[] = []
+
+/**
+ * Whether a player standing plain at `at` in `inDepth` draws after the moves
+ * instead of in the depth pass, so a screen full of them never buries their
+ * sprite and HP bar (the horde's sprites included: the player shows over them
+ * too). Not while a solid in front reaches over them (a tall one already goes
+ * see-through around this screen's player), behind the graveyard's fence or
+ * in a fall's look.
+ */
+const liftsOver = (g: Game, at: number, look: BiomeId) => {
+  if (g.place.inside?.id === 'graveyard' || riftFallLook(g) || placeFallLook(g)) return false
+  const p = localPlayer(g)
+  const s = playerSprites(g)
+  for (let i = at + 1; i < inDepth.length; i++) {
+    const d = inDepth[i]!
+    if (isSolid(d) && solidCovers(g, d, look, p.x, p.y, s.bodyW, s.bodyH)) return false
+    if (isValeProp(d) && valePropCovers(g, d, p.x, p.y, s.bodyW, s.bodyH)) return false
+  }
+  return true
+}
 
 /** Particles a lean frame draws at most (`render/quality.ts`). */
 const LEAN_PARTICLES = 120
@@ -877,8 +923,9 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   const lean = detail.lean
   const calm = opts.flashes === 'reduced'
   const shake = opts.screenShake ? g.shake : 0
-  const shakeX = shake > 0 ? Math.round((Math.random() - 0.5) * shake * 2) : 0
-  const shakeY = shake > 0 ? Math.round((Math.random() - 0.5) * shake * 2) : 0
+  const given = opts.screenShake ? opts.shakeOffset : undefined
+  const shakeX = given ? given.x : shake > 0 ? Math.round((Math.random() - 0.5) * shake * 2) : 0
+  const shakeY = given ? given.y : shake > 0 ? Math.round((Math.random() - 0.5) * shake * 2) : 0
   const camX = Math.round(g.camera.x) + shakeX
   const camY = Math.round(g.camera.y) + shakeY
 
@@ -888,10 +935,11 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   if (g.rift.arena?.domain) drawDomainFloor(ctx, g.rift.arena, g.rift.arena.domain, camX, camY, w, h, t)
   else if (g.rift.arena) drawArena(ctx, g.rift.arena, camX, camY, w, h, t)
   else if (inside) drawPlaceFloor(ctx, inside, camX, camY, w, h, t)
+  else if (g.versus) drawValeFloor(ctx, g.versus.map, camX, camY, w, h)
   else drawGround(ctx, camX, camY, w, h, g.biome.id, fade)
   const upcoming = biomeAt(g.time + BIOME_WARMUP)
   // Scenery warms in idle time (`warmScenery`); in case that never comes, one of the next biome's chunks per frame.
-  if (upcoming !== g.biome.id) warmGround(upcoming, camX, camY, w, h)
+  if (upcoming !== g.biome.id && !g.versus) warmGround(upcoming, camX, camY, w, h)
   if (g.rift.arena && !g.rift.arena.domain) warmArena(g.rift.arena)
   // Scenery changes outfit halfway through the dissolve, like the breakables.
   const look = fade && fade.k < 0.5 ? fade.from : g.biome.id
@@ -899,27 +947,47 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   ctx.translate(-camX, -camY)
 
   const visible = (x: number, y: number, m = 48) => x > camX - m && x < camX + w + m && y > camY - m && y < camY + h + m * 2
+  const mates = opts.mates ?? []
+  viewer = g.versus ? localPlayer(g) : null
+  // Versus: a rival hidden in the grass draws nowhere.
+  const hiddenMate = (mate: Game) => viewer !== null && concealed(viewer, localPlayer(mate))
+  // Teammates standing in view wear their own auras, as this screen's player does.
+  const shown = (mate: Game) => {
+    const p = localPlayer(mate)
+    return showsPlain(p) && visible(p.x, p.y) && !hiddenMate(mate)
+  }
 
   drawTerrainGround(ctx, g, look, camX, camY)
-  // Ground marks far off screen (trails left behind, lingering fields) are skipped; the margin covers the widest of them.
+  // Versus: the spawn pads and the goal zones, under everything.
+  if (g.versus) {
+    drawValeZones(ctx, g, t)
+    drawGrassPatches(ctx, g, t, visible)
+  }
   const me = localPlayer(g)
-  // Co-op: teammates' hitboxes go through a see-through layer, so your own read first (`teamAttackLayer`).
-  let team = g.coop ? teamAttackLayer(w, h, camX, camY) : null
-  for (const a of g.attacks) if (a.age >= 0 && visible(a.x, a.y, Math.max(200, reachOf(a.shape)))) drawGroundAttack(team && a.owner !== me.slot ? team : ctx, a, t)
-  if (team) flushTeamAttacks(ctx, camX, camY)
-  drawVerbGround(ctx, g, t)
-  drawTmGround(ctx, g, t)
-  drawShopTm2Ground(ctx, g, t)
-  drawVerbEvolvedGround(ctx, g, t)
-  drawDuoGround(ctx, g, t)
-  drawLegendaryGround(ctx, g, t)
-  drawLegendary2Ground(ctx, g, t)
+  watchImpacts(g)
+  // The moves go through see-through layers at the player's chosen opacity, your own first (`paintAttacks`).
+  const sides = attackSides(g, me.slot, opts)
+  for (const side of sides) {
+    paintAttacks(ctx, side.side, side.alpha, g.view, camX, camY, (into) => {
+      const v = side.game
+      // Ground marks far off screen (trails left behind, lingering fields) are skipped; the margin covers the widest of them.
+      for (const a of v.attacks) if (a.age >= 0 && visible(a.x, a.y, Math.max(200, reachOf(a.shape)))) drawGroundAttack(into, a, t)
+      drawVerbGround(into, v, t)
+      drawTmGround(into, v, t)
+      drawShopTm2Ground(into, v, t)
+      drawVerbEvolvedGround(into, v, t)
+      drawDuoGround(into, v, t)
+      drawLegendaryGround(into, v, t)
+      drawLegendary2Ground(into, v, t)
+    })
+  }
   for (const hz of g.hazards) if (hz.kind === 'beam') drawBeamGround(ctx, hz)
     else if (hz.pull !== 0) drawVortexGround(ctx, hz, t)
     else if (visible(hz.x, hz.y)) drawHazardGround(ctx, hz)
   drawBossGround(ctx, g, t)
   drawOmenGround(ctx, g)
   drawDomainGround(ctx, g)
+  drawNightmareGround(ctx, g, t)
   // Breakables change outfit halfway through the dissolve.
   drawProps(ctx, g, t, look)
   // Map events wait outside with the rest of the world while the player is in a room.
@@ -927,24 +995,25 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   if (g.rift.portal && !indoors) (riftDomain(g, g.rift.portal.legend) ? drawTear : drawRiftPortal)(ctx, g.rift.portal, t)
   drawEntranceGround(ctx, g, t)
   drawPlaceGround(ctx, g, t)
-  drawSpecialAura(ctx, g, t)
-  drawMegaGround(ctx, g, camX, camY, t)
+  drawPlayerGround(ctx, g, camX, camY, t, true)
+  for (const mate of mates) if (shown(mate)) drawPlayerGround(ctx, mate, camX, camY, t, false)
   drawRiftFallGround(ctx, g, camX, camY)
   drawTraitGround(ctx, g, visible)
   drawAlphaGround(ctx, g, t, visible)
-  drawPickups(ctx, g, t)
+  drawPickups(ctx, g, t, visible)
+  if (g.versus) drawValeGround(ctx, g, t, visible)
   if (g.coop) drawTeamGround(ctx, g, t)
 
   drawables.length = 0
   // A wave legendary's scene draws it itself (its arrival, its capture).
   const hiddenBoss = sceneHides(g)
-  for (const e of g.enemies) if (visible(e.x, e.y) && e.id !== hiddenBoss) drawables.push(e)
+  // Versus: a Pokémon's avatar (its body for the rivals' moves) never draws; its player does.
+  for (const e of g.enemies) if (visible(e.x, e.y) && e.id !== hiddenBoss && e.behavior.kind !== 'avatar') drawables.push(e)
   drawables.push('player')
-  const mates = opts.mates ?? []
   for (let i = 0; i < mates.length; i++) {
     const mate = mates[i]!
     const p = localPlayer(mate)
-    if (p.gone || !visible(p.x, p.y)) continue
+    if (p.gone || !visible(p.x, p.y) || hiddenMate(mate)) continue
     const slot = (mateSlots[i] ??= { mate })
     slot.mate = mate
     drawables.push(slot)
@@ -952,9 +1021,10 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   const companion = opts.companion
   if (companion) drawables.push('companion')
   solidsInView(g, camX, camY, w, h, drawables)
+  if (g.versus) valePropsInView(g.versus.map, visible, drawables)
   // Mid-jump leapers sort last so they fly over the horde, and so does a flyer over a rock or a mountain.
   const depth = (d: Drawable) =>
-    d === 'player' ? localPlayer(g).y : isMate(d) ? localPlayer(d.mate).y : d === 'companion' ? (companion?.y ?? 0) : isSolid(d) ? d.y : isAirborne(d) || (overTerrain(d) && inSolid(g, d.x, d.y, 4)) ? d.y + 4096 : d.y
+    d === 'player' ? localPlayer(g).y : isMate(d) ? localPlayer(d.mate).y : d === 'companion' ? (companion?.y ?? 0) : isSolid(d) || isValeProp(d) ? d.y : isAirborne(d) || (overTerrain(d) && inSolid(g, d.x, d.y, 4)) ? d.y + 4096 : d.y
   // Filled by index and cut to size (emptying them would drop their storage every frame).
   const n = drawables.length
   for (let i = 0; i < n; i++) {
@@ -969,6 +1039,14 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   // Nothing casts a shadow up in the sky; under a tunnel's ridge the player isn't seen at all.
   const aloft = inSky(g)
   const hidden = playerUnderground(g)
+  // The players drawn over the moves (`liftsOver`): this screen's one last, on top of all.
+  let liftMe = false
+  lifted.length = 0
+  for (let i = 0; i < n; i++) {
+    const d = inDepth[i]!
+    if (d === 'player') liftMe = !hidden && (!g.coop || showsStanding(me)) && liftsOver(g, i, look)
+    else if (isMate(d) && showsPlain(localPlayer(d.mate)) && liftsOver(d.mate, i, look)) lifted.push(d.mate)
+  }
   for (const d of inDepth) {
     if (aloft) break
     // A fainted co-op player's Poké Ball casts its own.
@@ -981,28 +1059,33 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
         drawLegendAura(ctx, g, t, calm)
       }
     }
-    else if (d === 'companion') companion && shadow(ctx, companion.x, companion.y, sprites(companion.dex).bodyW)
+    else if (d === 'companion') companion && shadow(ctx, companion.x, companion.y, bodyOf(companion.dex).bodyW)
     // Drawing lean, the regular horde goes without: a shadow each is a draw call each.
     else if (isMate(d)) {
       const m = localPlayer(d.mate)
-      if (m.hp > 0 && !m.gone && !playerUnderground(d.mate)) shadow(ctx, m.x, m.y, playerSprites(d.mate).bodyW)
-    } else if (!isSolid(d) && d.dying < 0 && (!lean || d.boss || d.alpha)) shadow(ctx, d.x, d.y, d.radius * 3)
+      if (m.hp > 0 && !m.gone && !playerUnderground(d.mate)) {
+        const body = playerSprites(d.mate).bodyW
+        shadow(ctx, m.x, m.y, body)
+        drawWading(ctx, d.mate, body, t)
+      }
+    } else if (!isSolid(d) && !isValeProp(d) && d.dying < 0 && (!lean || d.boss || d.alpha)) shadow(ctx, d.x, d.y, d.radius * 3)
   }
   drawAfterimages(ctx, g, calm)
-  for (const mate of mates) drawAfterimages(ctx, mate, calm)
+  for (const mate of mates) if (!hiddenMate(mate)) drawAfterimages(ctx, mate, calm)
   for (const d of inDepth) {
     // Co-op: a player fainted, away or wrapped up in a moment of their own draws its own way (`render/team.ts`); this one only when fainted (their screen says the rest).
-    if (d === 'player') !hidden && (g.coop && !showsStanding(me) ? drawTeammate(ctx, g, me, t, calm) : drawPlayer(ctx, g, calm))
+    if (d === 'player') !hidden && !liftMe && (g.coop && !showsStanding(me) ? drawTeammate(ctx, g, me, t, calm) : drawPlayer(ctx, g, calm))
     else if (d === 'companion') companion && drawCompanion(ctx, companion, t)
-    else if (isMate(d)) showsPlain(localPlayer(d.mate)) ? drawPlayer(ctx, d.mate, calm) : drawTeammate(ctx, d.mate, localPlayer(d.mate), t, calm)
+    else if (isMate(d)) !lifted.includes(d.mate) && (showsPlain(localPlayer(d.mate)) ? drawPlayer(ctx, d.mate, calm) : drawTeammate(ctx, d.mate, localPlayer(d.mate), t, calm))
     else if (isSolid(d)) drawSolid(ctx, g, d, look)
-    else drawEnemy(ctx, d, g.now, t, calm, aloft, isClone(g, d))
+    else if (isValeProp(d)) drawValeProp(ctx, g, d, t, playerSprites(g).bodyW, playerSprites(g).bodyH)
+    else drawEnemy(ctx, d, g.now, t, calm, aloft, isClone(g, d), !g.rift.arena)
   }
   // Badges only on bosses: on a 300-enemy horde they'd bury the sprites (tint + particles carry it there).
   for (const d of inDepth) {
-    if (d !== 'player' && d !== 'companion' && !isMate(d) && !isSolid(d) && d.boss && d.dying < 0) {
+    if (d !== 'player' && d !== 'companion' && !isMate(d) && !isSolid(d) && !isValeProp(d) && d.boss && d.dying < 0) {
       const def: EnemyDef = ENEMIES[d.kind]
-      drawStatusBadge(ctx, d.status, d.x, d.y - sprites(def.dex).bodyH * drawScale(d) - (d.alpha ? 14 : 5))
+      drawStatusBadge(ctx, d.status, d.x, d.y - bodyOf(def.dex).bodyH * drawScale(d) - (d.alpha ? 14 : 5))
     }
   }
   drawEntranceAir(ctx, g, t)
@@ -1011,12 +1094,8 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   drawPlaceOver(ctx, g, camX, camY)
   drawSleep(ctx, g, t)
   drawKitStatus(ctx, g, t, visible)
-  drawGuard(ctx, g, t)
-  drawEggPlayer(ctx, g, t)
-  drawEgg3Player(ctx, g, t)
-  drawSignaturePlayer(ctx, g, t)
-  drawTmPlayer(ctx, g, t)
-  drawShopTm2Player(ctx, g, t, g.player.y - playerSprites(g).bodyH)
+  if (!liftMe) drawPlayerAir(ctx, g, t)
+  for (const mate of mates) if (shown(mate) && !lifted.includes(mate)) drawPlayerAir(ctx, mate, t)
   drawTraitAir(ctx, g, visible)
   drawAlphaAir(ctx, g, t, visible)
   drawRiftFallAir(ctx, g, t)
@@ -1024,21 +1103,43 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   drawPairDown(ctx, g, t)
   drawCapture(ctx, g, t)
   drawDomainAir(ctx, g, t)
+  drawNightmareAir(ctx, g, t)
   drawLegendScene(ctx, g, t)
-  if (g.coop) drawTeamAir(ctx, g, me, t)
 
-  team = g.coop ? teamAttackLayer(w, h, camX, camY) : null
-  for (const a of g.attacks) if (a.age >= 0 && visible(a.x, a.y, 200)) drawAttack(team && a.owner !== me.slot ? team : ctx, a, t)
-  if (team) flushTeamAttacks(ctx, camX, camY)
-  drawVerbAir(ctx, g, t, visible)
-  drawTmAir(ctx, g, t, visible)
-  drawShopTmAir(ctx, g, t, visible)
-  drawShopTm2Air(ctx, g, t, visible)
-  drawVerbEvolvedAir(ctx, g, t, visible)
-  drawDuoAir(ctx, g, t, visible)
-  drawLegendaryAir(ctx, g, t, visible)
-  drawLegendary2Air(ctx, g, t, visible)
-  drawDrainVines(ctx, g, t)
+  for (const side of sides) {
+    paintAttacks(ctx, side.side, side.alpha, g.view, camX, camY, (into) => {
+      const v = side.game
+      for (const a of v.attacks) if (a.age >= 0 && visible(a.x, a.y, 200)) drawAttack(into, a, t)
+      drawImpacts(into, g.now, (owner) => g.coop === null || (side.side === 'own') === (owner === me.slot))
+      drawVerbAir(into, v, t, visible)
+      drawTmAir(into, v, t, visible)
+      drawShopTmAir(into, v, t, visible)
+      drawShopTm2Air(into, v, t, visible)
+      drawVerbEvolvedAir(into, v, t, visible)
+      drawDuoAir(into, v, t, visible)
+      drawLegendaryAir(into, v, t, visible)
+      drawLegendary2Air(into, v, t, visible)
+      drawDrainVines(into, v, t)
+    })
+  }
+  // Over the moves (at any opacity), under the foes' attacks: the players lifted out of the depth pass, with what they wear above.
+  for (const mate of lifted) {
+    drawPlayer(ctx, mate, calm)
+    drawPlayerAir(ctx, mate, t)
+  }
+  if (liftMe) {
+    drawPlayer(ctx, g, calm)
+    drawPlayerAir(ctx, g, t)
+  }
+  // Teammates' name tags and bubbles, over everyone (in Versus, the goals' points left under them).
+  if (g.versus) {
+    drawValeAir(ctx, g)
+    drawValePings(ctx, g, t)
+  }
+  if (g.versus && opts.arena) drawArenaAim(ctx, g, me, opts.arena, t)
+  if (g.coop) drawTeamAir(ctx, g, me, t)
+  // Roar of Time's clocks over the foes it stopped: a mark on them, not a move, so it stays opaque.
+  drawStoppedFoes(ctx, g, t, visible)
   for (const hz of g.hazards) if (hz.kind === 'beam') drawBeamAir(ctx, hz, t, g)
     else if (hz.pull !== 0) drawVortexAir(ctx, hz, t)
     else if (hz.phantom === 0 && visible(hz.x, hz.y, 200)) drawHazard(ctx, hz)
@@ -1060,8 +1161,9 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   if (g.halloween && !g.rift.arena && !g.place.inside) drawHauntedNight(ctx, g, camX, camY, t)
   // The cave's dark and the graveyard's night, then the weather, over the world but under damage numbers.
   drawPlaceDark(ctx, g, camX, camY, t)
+  drawNightmareDark(ctx, g, camX, camY, t)
   drawTunnelDark(ctx, g, camX, camY)
-  drawWeather(ctx, g, camX, camY, t)
+  drawWeather(ctx, g, camX, camY, t, opts.fog)
   drawLegendSky(ctx, g, camX, camY, t)
   drawBlasts(ctx, g, camX, camY, t)
   drawDomainScreen(ctx, g, camX, camY, t)
@@ -1074,7 +1176,7 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
     for (const text of g.texts) {
       if (text.text.endsWith('!') !== bang || !showsText(text, mode, g.bossId, budget)) continue
       ctx.globalAlpha = textAlpha(text, mode)
-      blitCentered(ctx, textSprite(text.text, text.color), text.x, text.y)
+      blitPacked(ctx, textSprite(text.text, text.color), text.x, text.y)
     }
   }
   ctx.globalAlpha = 1
@@ -1086,6 +1188,7 @@ export const render = (ctx: Ctx, g: Game, t: number, opts: RenderOptions) => {
   drawAlphaMarkers(ctx, g, t, markerInsets())
   drawBossMarker(ctx, g, camX, camY, t)
   if (g.coop) drawTeamMarkers(ctx, g, me, camX, camY, t)
+  if (g.versus) drawVersusGuide(ctx, g, me, camX, camY, t)
   drawRiftFallOut(ctx, g)
   drawPlaceFallOut(ctx, g)
   // Explosions, rift jumps, a Mega's burst: white over the whole screen, unless flashes are reduced.

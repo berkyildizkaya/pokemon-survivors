@@ -12,8 +12,10 @@
     "roster": "node scripts/roster.mjs",
     "assets": "node scripts/fetch-assets.mjs",
     "credits": "node scripts/credits.mjs",
+    "creators": "node scripts/creators.mjs",
     "bodies": "node scripts/bodies.mjs",
     "determinism": "node scripts/determinism.mjs",
+    "rules:freeze": "npm run rules:freeze --prefix server",
     "soak": "node scripts/coop/soak.mjs"
   },
   "devDependencies": {
@@ -28,6 +30,7 @@
     "@clerk/shared": "^4.40.0",
     "@fontsource/press-start-2p": "^5.3.0",
     "@fontsource/vt323": "^5.3.0",
+    "fflate": "^0.8.3",
     "posthog-js": "^1.438.12"
   },
   "license": "MIT",

@@ -5,7 +5,7 @@ import type { HitKind } from '../data/abilities'
 import { burst } from './effects'
 import { toSteps, type EggTier } from './eggs'
 import { runBonus, wonRun } from './meta'
-import { inPlay, setPhase } from './players'
+import { inPlay, personal, setPhase } from './players'
 import { createTally, summarizeRun, type RunSummary } from './tally'
 import type { Game, Player, PlayerRecord } from './types'
 import type { DexLog } from './dex'
@@ -102,7 +102,7 @@ export const faint = (g: Game, foe: EnemyId | null, hit: HitKind) => {
 }
 
 /** Ticks an away player still standing holds the world before counting as down (`COOP.away.hold`). */
-const awayHoldTicks = () => Math.round(COOP.away.hold / TICK)
+const awayHoldTicks = () => dm.round(COOP.away.hold / TICK)
 
 /** An away player who stands and still holds the world for the team: away for less than `COOP.away.hold`. */
 const holdsWorld = (g: Game, p: Player) => p.away && !p.gone && p.hp > 0 && (g.coop?.awayTicks[p.slot] ?? 0) < awayHoldTicks()
@@ -114,20 +114,29 @@ const holdsWorld = (g: Game, p: Player) => p.away && !p.gone && p.hp > 0 && (g.c
  * dropped connection doesn't cost the run at once). Returns whether it ended.
  */
 export const checkWipe = (g: Game, foe: EnemyId | null = null, hit: HitKind = 'hazard') => {
-  if (g.coop === null || g.phase === 'gameover' || g.phase === 'victory') return false
+  // A Versus match ends on its clock only.
+  if (g.coop === null || g.versus || g.phase === 'gameover' || g.phase === 'victory') return false
   for (const p of g.players) if (!p.gone && p.hp > 0 && (!p.away || holdsWorld(g, p))) return false
   g.phase = 'gameover'
   g.events.push({ kind: 'gameover', foe, hit })
   return true
 }
 
-/** No active player stands, but an away one does and still holds the world: it waits for them to come back. */
+/**
+ * Whether the world waits with the team's level-ups done: no active player is
+ * free to play, but one stands and is busy on a screen of their own (a TM, a
+ * Poké Ball's prize, an evolution and its picks: `personal`, which otherwise
+ * play on around them), or an away one still holds the world. So the last one
+ * standing never comes back from a pick into a horde that kept coming.
+ */
 export const worldHeld = (g: Game) => {
   if (g.coop === null) return false
   let held = false
   for (const p of g.players) {
-    if (!p.gone && !p.away && p.hp > 0) return false
-    if (holdsWorld(g, p)) held = true
+    if (!p.gone && !p.away && p.hp > 0) {
+      if (!g.versus && personal(p.phase)) held = true
+      else return false
+    } else if (holdsWorld(g, p)) held = true
   }
   return held
 }
@@ -171,7 +180,7 @@ export const updateRevives = (g: Game, dt: number) => {
     p.revive = helper ? p.revive + dt : Math.max(0, p.revive - dt * r.decay)
     if (!helper || p.revive < r.time) continue
     p.revive = 0
-    p.hp = Math.max(1, Math.round(p.stats.maxHp * r.hp))
+    p.hp = Math.max(1, dm.round(p.stats.maxHp * r.hp))
     p.iframes = r.iframes
     p.hurt = 0
     helper.record.revives++
@@ -212,10 +221,18 @@ export const setAway = (g: Game, p: Player, away: boolean) => {
 /**
  * A player left the run for good: their Pokémon leaves the field (no Poké Ball
  * to revive), their open picks close, and they stop counting for the horde.
- * The run ends if nobody is left to play.
+ * The run ends if nobody is left to play. In Versus a bot takes the seat over.
  */
 export const leaveRun = (g: Game, p: Player) => {
   if (p.gone || g.coop === null) return
+  // Versus: a bot plays the seat on, so the teams stay even.
+  if (p.versus) {
+    p.versus.bot = true
+    p.away = false
+    g.coop.held[p.slot] = 0
+    g.events.push({ kind: 'left', slot: p.slot })
+    return
+  }
   p.gone = true
   p.away = false
   p.hp = 0
@@ -252,7 +269,7 @@ export const dropForEach = (g: Game, drop: () => void) => {
 export const reviveAll = (g: Game) => {
   for (const p of g.players) {
     if (!fainted(p)) continue
-    p.hp = Math.max(1, Math.round(p.stats.maxHp * COOP.revive.hp))
+    p.hp = Math.max(1, dm.round(p.stats.maxHp * COOP.revive.hp))
     p.revive = 0
     p.iframes = COOP.revive.iframes
   }
@@ -347,7 +364,7 @@ export type TeamStats = { players: PlayerStats[]; total: { damage: number; kills
 const sumDamage = (byMove: Player['damageByMove']) => {
   let sum = 0
   for (const v of Object.values(byMove)) sum += v ?? 0
-  return Math.round(sum)
+  return dm.round(sum)
 }
 
 /** The end screen's numbers: each player's line and the team's totals. Pure. */
@@ -360,7 +377,7 @@ export const coopStats = (g: Game): TeamStats => {
     damage: sumDamage(p.damageByMove),
     damageByMove: { ...p.damageByMove },
     kills: p.record.kills,
-    taken: Math.round(p.record.taken),
+    taken: dm.round(p.record.taken),
     revives: p.record.revives,
     faints: p.record.faints,
     moves: p.moves.map((m) => ({ id: m.id, level: m.level })),

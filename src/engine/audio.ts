@@ -30,9 +30,58 @@ const applyMix = () => {
   graph.music.gain.setTargetAtTime(loudness(mix.musicVolume) * MUSIC_HEADROOM, t, 0.02)
 }
 
+/** The kinds of audio session `navigator.audioSession` takes (Safari 16.4+; not in TypeScript's DOM types yet). */
+type AudioSessionType = 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record'
+
+declare global {
+  interface Window {
+    /** Safari before 14.1 names the constructor this way. */
+    webkitAudioContext?: typeof AudioContext
+  }
+  interface Navigator {
+    audioSession?: { type: AudioSessionType }
+  }
+}
+
+/**
+ * The iPhone's audio session for a mix. WebAudio plays as `ambient` there by default, which the
+ * ringer switch silences: on a phone left on silent the game made no sound at all, music
+ * included. With the game's music on it plays as `playback`, like a music app (the switch no
+ * longer mutes it, and another app's music stops); with the music off or the game muted it stays
+ * `ambient`, so the player's own music plays on under the effects.
+ */
+export const sessionType = (m: Mix): AudioSessionType => (!m.muted && m.musicVolume > 0 ? 'playback' : 'ambient')
+
+/** Sets the audio session where the browser has one (iOS Safari); elsewhere nothing to do. */
+const applySession = () => {
+  const session = navigator.audioSession
+  if (!session) return
+  const type = sessionType(mix)
+  if (session.type !== type) session.type = type
+}
+
+/** Set when this browser has no WebAudio (iOS Lockdown Mode turns it off) or refused a context: the game plays silent. */
+let silent = false
+
+/** A fresh AudioContext, or null where the browser has none to give. */
+const createContext = () => {
+  const Ctor = window.AudioContext ?? window.webkitAudioContext
+  if (!Ctor) return null
+  try {
+    return new Ctor()
+  } catch {
+    return null
+  }
+}
+
+/** The sfx bus and its context, made on the first call; null where WebAudio is missing (sounds just don't play). */
 const audio = () => {
   if (!graph) {
-    const ctx = new AudioContext()
+    const ctx = silent ? null : createContext()
+    if (!ctx) {
+      silent = true
+      return null
+    }
     const master = ctx.createGain()
     const sfx = ctx.createGain()
     const music = ctx.createGain()
@@ -53,6 +102,7 @@ const audio = () => {
 /** Updates bus volumes and mute. Safe to call before audio is unlocked. */
 export const setMix = (next: Mix) => {
   mix = next
+  applySession()
   applyMix()
 }
 
@@ -69,7 +119,9 @@ export const onAudioRunning = (fn: () => void) => {
 }
 
 const tone = (freq: number, endFreq: number, duration: number, wave: Wave, volume = 0.3, delay = 0) => {
-  const { ctx, sfx } = audio()
+  const out = audio()
+  if (!out) return
+  const { ctx, sfx } = out
   const t = ctx.currentTime + delay
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
@@ -84,7 +136,9 @@ const tone = (freq: number, endFreq: number, duration: number, wave: Wave, volum
 }
 
 const noise = (duration: number, volume = 0.2, delay = 0) => {
-  const { ctx, sfx } = audio()
+  const out = audio()
+  if (!out) return
+  const { ctx, sfx } = out
   const t = ctx.currentTime + delay
   const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate)
   const data = buffer.getChannelData(0)
@@ -125,6 +179,12 @@ const SFX = {
   move: () => tone(440, 440, 0.04, 'square', 0.06),
   /** A dialogue box's text blip, a letter or two at a time. */
   talk: () => tone(740, 740, 0.025, 'square', 0.035),
+  /** Arena: a teammate's ping on the map (two bright blips) and a quick chat line (a soft rising chirp). */
+  ping: () => {
+    tone(1320, 1320, 0.05, 'square', 0.07)
+    tone(1760, 1760, 0.07, 'square', 0.07, 0.07)
+  },
+  chat: () => tone(880, 1180, 0.06, 'triangle', 0.12),
   boss: () => [196, 185, 175, 165].forEach((f, i) => tone(f, f * 0.98, 0.35, 'sawtooth', 0.16, i * 0.3)),
   evolve: () => [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.2, 'triangle', 0.18, i * 0.11)),
   thunder: () => {
@@ -742,13 +802,13 @@ export const playSfx = (name: Sfx, minGapMs = 40) => {
 
 const cries = new Map<string, Promise<AudioBuffer | null>>()
 
-/** Decodes a cry once. `null` means this browser can't decode it in WebAudio (old Safari + .ogg). */
+/** Decodes a cry once. `null` means this browser can't decode it in WebAudio (old Safari + .ogg) or has no WebAudio. */
 const loadCry = (url: string) => {
   let buffer = cries.get(url)
   if (!buffer) {
     buffer = fetch(url)
       .then((r) => r.arrayBuffer())
-      .then((data) => audio().ctx.decodeAudioData(data))
+      .then((data) => audio()?.ctx.decodeAudioData(data) ?? null)
       .catch(() => null)
     cries.set(url, buffer)
   }
@@ -767,7 +827,9 @@ export const playCry = (url: string, volume = 0.35) => {
       el.volume = volume * loudness(mix.sfxVolume)
       return void el.play().catch(() => {})
     }
-    const { ctx, sfx } = audio()
+    const out = audio()
+    if (!out) return
+    const { ctx, sfx } = out
     const src = ctx.createBufferSource()
     const gain = ctx.createGain()
     src.buffer = buffer
@@ -784,7 +846,8 @@ export const playCry = (url: string, volume = 0.35) => {
  * buffer, which older iOS needs before WebAudio makes any sound.
  */
 export const unlockAudio = () => {
-  const { ctx } = audio()
+  const ctx = audio()?.ctx
+  if (!ctx) return
   if (ctx.state === 'running') return
   const src = ctx.createBufferSource()
   src.buffer = ctx.createBuffer(1, 1, 22050)

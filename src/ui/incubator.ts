@@ -2,54 +2,111 @@ import { playCry, playSfx } from '../engine/audio'
 import type { Input } from '../engine/input'
 import { blitEllipse, context2d } from '../engine/pixelart'
 import { HATCHLING_IDS, HATCHLINGS } from '../data/hatchlings'
-import { EGG_TIERS, EGGS, isReady, stepsLeft, type Egg, type Hatch } from '../game/eggs'
-import { eggCrack, eggIcon, eggSprite, SPARKLE } from '../render/art'
+import { INCUBATOR } from '../data/shop'
+import { EGG_TIERS, EGGS, guaranteedNew, incubatorSlots, isReady, MAX_SLOTS, pityShown, stepsToWalk, type Egg, type Hatch } from '../game/eggs'
+import { quickBlock, quickCount } from '../game/incubator'
+import type { Save } from '../game/meta'
+import { eggCrack, eggIcon, eggSprite, incubatorIcon, SPARKLE } from '../render/art'
 import { cryUrl, drawPokemon, loadedSprites, loadSpecies } from '../render/sprites'
 import { formatNumber, formatPokeDollars, t } from '../i18n'
 import { h, later, rich } from './dom'
 import { loadSave } from './save'
 import { settings } from './settings'
-import { hint, menu, type Screen } from './screens'
+import { confirmDialog, hint, menu, type Screen } from './screens'
 
-/** One incubator slot: the egg, its tier, a progress bar and the steps left (or "Ready!"). */
-const slotView = (egg: Egg | undefined) => {
+/**
+ * One incubator slot: the egg, its tier, a progress bar and the steps left to
+ * walk (or "Ready!"); a quick one wears its ×2, and one the egg pity makes
+ * sure to bring a new family its NEW!.
+ */
+const slotView = (egg: Egg | undefined, save: Save) => {
   const m = t().eggs
   if (!egg) return h('button', { class: 'egg-slot empty' }, h('span', { class: 'egg-hole' }), h('b', {}, m.empty))
   const ready = isReady(egg)
   const progress = egg.steps / EGG_TIERS[egg.tier].steps
   return h(
     'button',
-    { class: ready ? 'egg-slot ready' : 'egg-slot' },
+    { class: ['egg-slot', ready && 'ready', egg.quick && !ready && 'quick'].filter(Boolean).join(' ') },
+    egg.quick && !ready && h('i', { class: 'egg-quick' }, m.quick.badge),
+    guaranteedNew(egg.tier, save.hatched, save.eggPity) && h('i', { class: 'egg-new' }, t().new),
     h('img', { class: 'egg-art', src: eggIcon(egg.tier), alt: '' }),
     h('b', {}, m.tiers[egg.tier]),
     h('span', { class: 'egg-bar' }, h('i', { style: `width:${Math.round(progress * 100)}%` })),
-    h('span', { class: 'egg-steps' }, ready ? m.ready : m.stepsLeft(formatNumber(stepsLeft(egg)))),
+    h('span', { class: 'egg-steps' }, ready ? m.ready : m.stepsLeft(formatNumber(stepsToWalk(egg)))),
   )
 }
 
+/** A slot the shop sells, not bought yet: the incubator greyed out with its price and shop level. */
+const lockedView = (i: number) => {
+  const def = INCUBATOR.slots[i - EGGS.slots]!
+  return h(
+    'button',
+    { class: 'egg-slot locked' },
+    h('img', { class: 'egg-art', src: incubatorIcon(), alt: '' }),
+    h('b', {}, t().eggs.slotLocked),
+    h('span', { class: 'egg-steps' }, t().eggs.slotPrice(formatPokeDollars(def.price), def.minLevel)),
+  )
+}
+
+/** What tapping the slot at `i` says when it does nothing else: where to buy the slot, or why the egg can't take a Quick Incubator. */
+const slotNote = (save: Save, i: number): string | null => {
+  const m = t().eggs
+  if (i >= incubatorSlots(save)) {
+    const def = INCUBATOR.slots[i - EGGS.slots]!
+    return m.slotWhere(formatPokeDollars(def.price), t().shop.level(t().shop.levels[def.minLevel], def.minLevel))
+  }
+  const block = quickBlock(save, i)
+  return block === 'quick' ? m.quick.already : block === 'none' ? m.quick.none(formatPokeDollars(INCUBATOR.quick.price)) : null
+}
+
 /**
- * The incubator: its slots with the steps each egg still needs, and the
- * collection count. Picking a ready egg calls `onHatch` with its index.
+ * The incubator: its slots with the steps each egg still needs (the shop's
+ * extra slots locked until bought), the Quick Incubators owned, the
+ * collection count and the egg pity's rule and counts. Picking a ready egg calls `onHatch` with its index; a
+ * walking one asks to put a Quick Incubator on it, then calls `onQuick`.
  */
-export const incubator = (root: HTMLElement, input: Input, actions: { onHatch: (index: number) => void; onClose: () => void }): Screen => {
+export const incubator = (root: HTMLElement, input: Input, actions: { onHatch: (index: number) => void; onQuick: (index: number) => void; onClose: () => void }): Screen => {
   const m = t().eggs
   const save = loadSave()
-  const slots = Array.from({ length: EGGS.slots }, (_, i) => slotView(save.eggs[i]))
+  const owned = incubatorSlots(save)
+  const slots = Array.from({ length: MAX_SLOTS }, (_, i) => (i < owned ? slotView(save.eggs[i], save) : lockedView(i)))
   const back = h('button', { class: 'btn' }, m.back)
-  const owned = HATCHLING_IDS.filter((id) => save.hatched[id]).length
+  const collection = HATCHLING_IDS.filter((id) => save.hatched[id]).length
+  const note = h('p', { class: 'incubator-note' }, h('b', {}, m.collection(collection, HATCHLING_IDS.length)), ' · ', m.quick.owned(quickCount(save.incubator)), ' · ', m.sources)
+  const pity = [m.pity.rule(EGGS.pity), ...pityShown(save).map(([tier, n]) => m.pity.count(m.tiers[tier], n, EGGS.pity))].join(' · ')
   const close = () => later(actions.onClose)
   const first = save.eggs.findIndex(isReady)
+  let confirm: Screen | null = null
 
-  const nav = menu(input, [...slots, back], (i) => {
-    const egg = save.eggs[i]
-    if (i === slots.length) return close()
-    if (egg && isReady(egg)) {
-      playSfx('select')
-      return later(() => actions.onHatch(i))
-    }
-    playSfx('denied')
-  }, { horizontal: true, initial: first >= 0 ? first : slots.length })
-  const offEsc = input.onKey((k) => (k === 'Escape' || k === 'Backspace') && close())
+  /** Asks before using up a Quick Incubator; the slots stop listening meanwhile. */
+  const askQuick = (i: number, egg: Egg) => {
+    nav.off()
+    confirm = confirmDialog(root, input, m.quick.confirm(m.tiers[egg.tier], quickCount(save.incubator)), (yes) => {
+      confirm?.dispose()
+      confirm = null
+      if (yes) return later(() => actions.onQuick(i))
+      nav = bind(i)
+    }, { yes: m.quick.use })
+  }
+
+  const bind = (initial: number) =>
+    menu(input, [...slots, back], (i) => {
+      if (i === slots.length) return close()
+      const egg = save.eggs[i]
+      if (egg && isReady(egg)) {
+        playSfx('select')
+        return later(() => actions.onHatch(i))
+      }
+      if (egg && i < owned && quickBlock(save, i) === null) {
+        playSfx('select')
+        return askQuick(i, egg)
+      }
+      playSfx('denied')
+      const why = slotNote(save, i)
+      if (why) note.replaceChildren(rich(why))
+    }, { horizontal: true, initial })
+  let nav = bind(first >= 0 ? first : slots.length)
+  const offEsc = input.onKey((k) => confirm === null && (k === 'Escape' || k === 'Backspace') && close())
 
   const el = h(
     'div',
@@ -59,14 +116,15 @@ export const incubator = (root: HTMLElement, input: Input, actions: { onHatch: (
       { class: 'dialog box pop incubator' },
       h('div', { class: 'dialog-title' }, m.title),
       h('p', { class: 'incubator-intro' }, m.intro),
-      h('div', { class: 'egg-slots' }, ...slots),
-      h('p', { class: 'incubator-note' }, h('b', {}, m.collection(owned, HATCHLING_IDS.length)), ' · ', m.sources),
+      h('div', { class: `egg-slots slots-${MAX_SLOTS}` }, ...slots),
+      note,
+      h('p', { class: 'incubator-note incubator-pity' }, rich(pity)),
       h('div', { class: 'buttons' }, back),
-      hint(m.hint, ''),
+      hint(m.hint, m.touchHint),
     ),
   )
   root.append(el)
-  return { el, dispose: () => (nav.off(), offEsc(), el.remove()) }
+  return { el, dispose: () => (nav.off(), offEsc(), confirm?.dispose(), el.remove()) }
 }
 
 /* ---------------- Hatching scene ---------------- */
@@ -84,6 +142,9 @@ const HATCH = {
   reveal: 3.35,
 } as const
 
+/** Ms after the reveal before its buttons take a pick (keys and pad buttons also wait for a pause, `pressGuard`). */
+const REVEAL_GUARD_MS = 600
+
 /** Canvas size in pixels; CSS scales it by a whole number (see `.hatch-canvas`). */
 const W = 112
 const H = 96
@@ -96,7 +157,7 @@ const WISP = { flame: '#78f0a8', core: '#e0fff0', tail: 'rgba(120,240,168,0.5)',
 /**
  * "Oh? The Egg is hatching!": the egg wobbles and cracks, bursts in a white
  * flash and the Pokémon appears (shiny sparkles included) with its cry. A tap
- * or key skips to the reveal; then `play` starts a run with it and `done` moves on.
+ * or key skips to the reveal; then `done` (OK, the default) moves on and `play` starts a run with it.
  * The Haunted Egg hatches at night: a dusk backdrop, will-o'-wisps circling
  * and a violet burst. `holdAt` freezes the animation at that second (dev screenshots).
  */
@@ -124,14 +185,17 @@ export const hatchScene = (root: HTMLElement, input: Input, hatch: Hatch, action
     start = Math.min(start, performance.now() / 1000 - HATCH.reveal)
     playSfx(hatch.shiny ? 'shiny' : 'evolve')
     playCry(cryUrl(dex), 0.5)
-    const note = hatch.duplicate ? m.duplicate(name, formatPokeDollars(hatch.refund)) : hatch.shiny ? m.shinyUnlocked : m.unlocked
+    const unlocked = hatch.duplicate ? m.duplicate(name, formatPokeDollars(hatch.refund)) : hatch.shiny ? m.shinyUnlocked : m.unlocked
+    const note = hatch.guaranteed ? `${m.pity.hatched(EGGS.pity)} ${unlocked}` : unlocked
     text.replaceChildren(rich(hatch.shiny ? m.hatchedShiny(name) : m.hatched(name)), h('small', {}, note))
     const play = h('button', { class: 'btn' }, m.play(name))
     const ok = h('button', { class: 'btn' }, m.ok)
     buttons.replaceChildren(play, ok)
     buttons.classList.remove('hidden')
     skipHint.remove()
-    nav = menu(input, [play, ok], (i) => later(i === 0 ? actions.play : actions.done), { horizontal: true })
+    // OK is the default and the first picks wait (`REVEAL_GUARD_MS`): the key that skipped the hatch, held or
+    // repeating, must not land on "Play with" and start a run nobody asked for.
+    nav = menu(input, [play, ok], (i) => later(i === 0 ? actions.play : actions.done), { horizontal: true, initial: 1, guard: REVEAL_GUARD_MS })
   }
 
   // Before the reveal, any key or tap skips the animation.

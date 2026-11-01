@@ -10,7 +10,7 @@ import type { EvoItemId } from '../data/shop'
 import type { EvolutionStage } from '../data/starters'
 import { runBoost } from './evoItems'
 import { evolutionFreed, missingEvoItems, runEvoItems, stepOpen } from './evoGate'
-import { PLAYABLE, type PLAYABLE_IDS, type PlayableId } from '../data/hatchlings'
+import { isStarter, PLAYABLE, type PLAYABLE_IDS, type PlayableId } from '../data/hatchlings'
 import { abilityImmune, abilityLuck, abilitySet, createAbilityState, grantAbility, updateAbility } from './abilities'
 import { BAG_ITEMS, type BagItem } from './bag'
 import { branchContext, evolutionOffers, playerForm } from './branch'
@@ -24,7 +24,7 @@ import { DEFAULT_DIFFICULTY, type Difficulty } from './difficulty'
 import { updateBosses, updateHazards } from './bosses'
 import { createWorldHazards, updateWorldHazards } from './hazards'
 import { updateConsumables } from './consumables'
-import { burst, updateEffects } from './effects'
+import { burst, shakeScreen, updateEffects } from './effects'
 import { updateEndless } from './endlessSystem'
 import { blastHorde, rebuildGrid, updateEnemies } from './enemies'
 import {
@@ -35,10 +35,12 @@ import { createMapEvents, updateMapEvents } from './mapEvents'
 import { createCurseState } from './curses'
 import { curseCast, decideCurse, updateCurses } from './curseSystem'
 import { updateDuos } from './duoMoves'
+import { recipeOf } from './duoRules'
 import { createMegaState, updateMega, updateMegaIntro } from './mega'
 import { NO_RANKS, runCharges, type Ranks } from './meta'
 import { afterCast as afterModCast, echoStats, hasMod, MOD } from './mods'
 import { forkAt, isManual, MOVES, moveStats, type CastStats, type MoveDef, type MoveId } from './moves'
+import { VERSUS_KIT } from '../data/versus'
 import { afterCast, updateMoveKit } from './moveHooks'
 import { updateSignatures } from './signatures'
 import { createTmState, pickTm } from './tms'
@@ -62,6 +64,10 @@ import { roomOf } from './room'
 import { SKY } from '../data/places'
 import { updateArena, updateArenaFall } from './riftArena'
 import { domainCamera, updateDomainScene } from './domain'
+import { isAsleep, tickSleep } from './playerSleep'
+import { inGrass } from './versusGrass'
+import { aimCast, autoFocus, type Cast } from './versusKit'
+import { kitOffers, queueUpgrade } from './versusPacing'
 import { updateLegendScene } from './legendScene'
 import { updateRiftPortal } from './riftPortal'
 import { updateSightings } from './sightings'
@@ -70,11 +76,12 @@ import { createTension } from './tension'
 import { updateStatuses } from './statusSystem'
 import { createTally } from './tally'
 import { updateShopTms } from './shopTmSystem'
+import { trainingCamera, updateTraining } from './training'
 import { createWeather, updateWeather } from './weather'
 import { updateTraits } from './traitSystem'
 import { BASE_STATS } from './stats'
 import { TERRAIN } from '../data/terrain'
-import { actAs, eachPlayer, followPlayers, inPlay, phaseOf, setPhase } from './players'
+import { actAs, eachPlayer, followPlayers, inPlay, ownAttack, phaseOf, setPhase } from './players'
 import { createCoopState, createRecord, updateCoop } from './coop'
 import { COOP } from '../data/coop'
 import type { Game, Offer, OwnedMove, Player } from './types'
@@ -89,7 +96,7 @@ export const LEGEND_RADIUS = 8
 
 /** The player's hitbox from its sprite's body (data, so every device agrees); a legend's is capped (`LEGEND_RADIUS`). */
 const playerRadius = (dex: number, legend: boolean) => {
-  const r = Math.max(6, Math.round(bodyOf(dex).bodyW * 0.3))
+  const r = Math.max(6, dm.round(bodyOf(dex).bodyW * 0.3))
   return legend ? Math.min(LEGEND_RADIUS, r) : r
 }
 
@@ -168,8 +175,10 @@ export const createPlayer = (slot: number, setup: PlayerSetup, lucky: boolean, x
     still: 0,
     guard: null,
     hidden: null,
+    ward: null,
     drain: { left: 0, at: 0 },
     rooted: 0,
+    asleep: 0,
     moveBuffs: [],
     special: createSpecialState(),
     mega: createMegaState(),
@@ -204,19 +213,22 @@ export const createPlayer = (slot: number, setup: PlayerSetup, lucky: boolean, x
     gone: false,
     revive: 0,
     record: createRecord(),
+    hits: [],
   }
 }
 
 /**
  * A fresh run for `setups` by slot (one solo), standing side by side. Each
- * player rolls their 1/64 shiny in slot order, then the run draws its wild
+ * player rolls their 1/64 shiny in slot order (only a starter's counts: a
+ * hatched family's shiny comes from its egg, a legend's from beating it shiny), then the run draws its wild
  * cast unless the shell drew it ahead (`drawRoster`). The team's best Shiny
  * Charm counts (solo, the player's).
  */
-const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetup[], roster: Roster | undefined, options: RunOptions, coop: boolean): Game => {
+export const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetup[], roster: Roster | undefined, options: RunOptions, coop: boolean): Game => {
   const bag = options.bag ?? []
   const rng = createRng(seed)
-  const lucky = setups.map(() => rollShiny(rng, SHINY_ODDS.player))
+  // Every slot rolls, so the rng moves the same whoever plays.
+  const lucky = setups.map((setup) => rollShiny(rng, SHINY_ODDS.player) && isStarter(setup.starter))
   const players = setups.map((setup, slot) => createPlayer(slot, setup, lucky[slot]!, coop ? (slot - (setups.length - 1) / 2) * COOP.spacing : 0, view))
   const player = players[0]!
   const starter = player.starter
@@ -239,6 +251,7 @@ const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetu
     camera: { x: -view.w / 2, y: -view.h / 2 },
     shake: 0,
     hitstop: 0,
+    hitstopRest: 0,
     kills: 0,
     coins: 0,
     // A legend never meets itself among the bosses (`avoidLegend`), nor the outbreak's basic in its horde (`LEGEND_HORDE`).
@@ -281,6 +294,7 @@ const createRun = (view: Game['view'], seed: number, setups: readonly PlayerSetu
     now: 0,
     legendScene: null,
     coop: coop ? createCoopState(players.length) : null,
+    training: null,
   }
   for (const p of players) {
     g.player = p
@@ -365,8 +379,10 @@ const rolling = (g: Game): RollOptions => {
 /**
  * Per-tick player input, as plain data so the simulation stays DOM-free. `mega`
  * presses the Mega button and `lunge` fires the manual moves (Quick Attack).
+ * `casts` are the Arena kit's aimed casts this tick (`versusKit.ts`), at most one per skill;
+ * `locked`, a target locked or let go this tick (only Fair Play's idle count, `trackIdle`, reads it).
  */
-export type StepInput = { move: Vec; special: boolean; mega?: boolean; lunge?: boolean }
+export type StepInput = { move: Vec; special: boolean; mega?: boolean; lunge?: boolean; casts?: Cast[]; locked?: boolean }
 
 /** A player with no input this tick: stands still, presses nothing. */
 const STILL: StepInput = { move: { x: 0, y: 0 }, special: false }
@@ -387,7 +403,8 @@ export const walkPlayer = (g: Game, input: Vec, dt: number) => {
   p.moving = moving || slow === 0
   const ground = groundAt(g, p.x, p.y)
   const tailwind = g.place.inside?.id === 'sky' ? SKY.tailwind : 1
-  const pace = p.stats.speed * slow * tailwind * (ground === 'water' ? playerWaterPace(g) : 1)
+  // Versus: the role's pace, a slow on the Pokémon's avatar, its own goal's boost (`VersusSeat.pace`).
+  const pace = p.stats.speed * slow * tailwind * (ground === 'water' ? playerWaterPace(g) : 1) * (p.versus?.pace ?? 1)
   const vx = moving ? input.x * pace : 0
   const vy = moving ? input.y * pace : 0
   // On ice the player's speed only slowly follows the stick, so they slide.
@@ -414,7 +431,8 @@ export const walkPlayer = (g: Game, input: Vec, dt: number) => {
 const updatePlayer = (g: Game, input: Vec, dt: number) => {
   const p = g.player
   const moving = walkPlayer(g, input, dt)
-  if (moving) {
+  // In the Arena a cast holds the Pokémon turned to its aim for a moment (`VersusSeat.hold`).
+  if (moving && !(p.versus && p.versus.hold > 0)) {
     const len = dm.hypot(input.x, input.y)
     p.facing = { x: input.x / len, y: input.y / len }
     p.dir = dir8(input.x, input.y)
@@ -437,13 +455,24 @@ const castMove = (g: Game, owned: OwnedMove, s: CastStats) => {
   if (hasMod(s.mods, 'echo')) owned.echo = MOD.echo.delay
 }
 
+/** Casts `owned` with its stats now and starts its cooldown, with what follows a cast (`afterCast`, a curse's price). */
+const castOwned = (g: Game, owned: OwnedMove) => {
+  const s = moveStats(owned.id, owned.level, g.player.stats, owned.path)
+  castMove(g, owned, s)
+  owned.cooldown += s.cooldown
+  afterCast(g, owned)
+  curseCast(g)
+}
+
 /**
  * Casts every move of the acting player whose cooldown ran out. A manual move
  * instead waits, recharged, for a `press`, and holds it while the special
- * moves the player.
+ * moves the player. The Arena plays its kit instead (`updateKit`).
  */
-const updateMoves = (g: Game, press: boolean, dt: number) => {
+const updateMoves = (g: Game, input: StepInput, dt: number) => {
   const p = g.player
+  if (p.versus) return updateKit(g, input.casts, dt)
+  const press = input.lunge === true
   for (const owned of p.moves) {
     if (owned.echo !== undefined && owned.echo > 0) {
       owned.echo -= dt
@@ -456,11 +485,52 @@ const updateMoves = (g: Game, press: boolean, dt: number) => {
       owned.cooldown -= dt
       if (owned.cooldown > 0) continue
     }
-    const s = moveStats(owned.id, owned.level, p.stats, owned.path)
-    castMove(g, owned, s)
-    owned.cooldown += s.cooldown
-    afterCast(g, owned)
-    curseCast(g)
+    castOwned(g, owned)
+  }
+}
+
+/**
+ * The Arena's kit (`versusKit.ts`): the first move is the basic attack, cast
+ * on its own at the auto target (the lock, else the best rival in reach);
+ * Move 1 and Move 2 wait, recharged, for the player's cast and fire where it
+ * aimed (held while the special moves the player). The focus lasts the cast.
+ */
+const updateKit = (g: Game, casts: readonly Cast[] | undefined, dt: number) => {
+  const p = g.player
+  const v = p.versus!
+  for (let i = 0; i < p.moves.length; i++) {
+    const owned = p.moves[i]!
+    if (owned.echo !== undefined && owned.echo > 0) {
+      owned.echo -= dt
+      if (owned.echo <= 0) castMove(g, owned, echoStats(moveStats(owned.id, owned.level, p.stats, owned.path)))
+    }
+    if (i === 0) {
+      owned.cooldown -= dt
+      if (owned.cooldown > 0) continue
+      v.focus = autoFocus(g, p)
+    } else {
+      owned.cooldown = Math.max(0, owned.cooldown - dt)
+      const cast = casts?.find((c) => c.skill === i - 1)
+      if (!cast || owned.cooldown > 0 || specialBusy(p.special)) continue
+      v.focus = aimCast(g, p, cast)
+      g.events.push({ kind: 'versusCast', skill: cast.skill })
+    }
+    castOwned(g, owned)
+    if (i > 0) holdLasting(g, owned.id)
+    v.focus = null
+  }
+}
+
+/**
+ * A move whose effect lasts on its own in a run (an aura, a trail: its hitbox
+ * has no end, each cast refreshing it) lasts `VERSUS_KIT.persist` seconds past
+ * each cast of Move 1 or Move 2, so the player casts it rather than owning it.
+ */
+const holdLasting = (g: Game, move: MoveId) => {
+  for (const a of g.attacks) {
+    if (a.move !== move || !ownAttack(g, a) || (a.ttl !== Infinity && !a.lasting)) continue
+    a.lasting = true
+    a.ttl = a.age + VERSUS_KIT.persist
   }
 }
 
@@ -473,7 +543,8 @@ export const advancePhase = (g: Game): void => {
   const p = g.player
   p.prize = null
   if (p.pendingLevelUps > 0) {
-    p.offers = rollOffers(loadout(g), g.rng, 3, rolling(g))
+    // The Arena's kit has level-ups of its own (Move 2, an evolution's upgrade: `versusPacing.ts`).
+    p.offers = (p.versus ? kitOffers(g, loadout(g)) : null) ?? rollOffers(loadout(g), g.rng, 3, rolling(g))
     setPhase(g, 'levelup')
     g.events.push({ kind: 'levelup' })
     return
@@ -578,7 +649,7 @@ const awaken = (g: Game, n: number): void => {
   blastHorde(g, AWAKENING.push)
   const color = PLAYABLE[p.starter].color
   burst(g, p.x, p.y - 12, { colors: [color, '#ffffff', '#f8e8a0'], count: 80, speed: 190, ttl: 0.9, size: 2, drag: 3 })
-  g.shake = Math.max(g.shake, 8)
+  shakeScreen(g, 8)
   g.flash = Math.max(g.flash, 0.4)
   p.evolution = null
   g.events.push({ kind: 'awakened', legend: s.id, n, form: formAfter(s.id, n)?.key ?? null })
@@ -629,7 +700,8 @@ const pickOffer = (g: Game, offer: Offer) => {
     return advancePhase(g)
   }
   if (phase !== 'levelup' || offer.kind === 'form' || offer.kind === 'ability' || offer.kind === 'curse' || offer.kind === 'tm' || offer.kind === 'forget' || offer.kind === 'pass') return
-  if (offer.kind === 'move' && forkAt(offer.id, offer.level)) {
+  // A fork opens its branches, except on the Arena kit's own screens (a move taking a slot's place at its level, `versusPacing.ts`).
+  if (offer.kind === 'move' && forkAt(offer.id, offer.level) && !p.versus?.learn) {
     p.offers = branchOffers(offer)
     return
   }
@@ -684,12 +756,12 @@ export const rerollOffers = (g: Game, p: Player = g.player) => {
   actAs(g, before)
 }
 
-/** Whether a card can be forgotten: moves and items can, berries, evolutions and fork branches can't. */
-export const canBanish = (offer: Offer) => offer.kind === 'move' || offer.kind === 'item'
+/** Whether a card can be forgotten: moves, items and duo fusions can, berries, evolutions and fork branches can't. */
+export const canBanish = (offer: Offer) => offer.kind === 'move' || offer.kind === 'item' || offer.kind === 'duo'
 
 /**
- * Spends a player's Esquecer charge on their card at `index`: its move or
- * item never comes back to them this run, and that slot alone is drawn again
+ * Spends a player's Esquecer charge on their card at `index`: its move, item
+ * or duo recipe (both its outcomes) never comes back to them this run, and that slot alone is drawn again
  * (from the learnset's new moves during the opening draft). The slot changes
  * in place, so the shell keeps the screen and redraws just that card.
  */
@@ -701,6 +773,8 @@ export const banishOffer = (g: Game, index: number, p: Player = g.player) => {
   const before = actAs(g, p)
   p.banishes--
   p.banished.add(id)
+  const recipe = offer.kind === 'duo' ? recipeOf(offer.to) : undefined
+  if (recipe) p.banished.add(recipe.to)
   const shown = p.offers.filter((_, i) => i !== index)
   const ids = new Set(shown.map(offerSubject))
   const fresh = drafting(g)
@@ -739,6 +813,8 @@ export const updateEvolution = (g: Game, dt: number) => {
   p.banishes++
   p.freshMoves = FRESH_LEVELUPS
   p.evolution = null
+  // In the Arena the new form brings a move upgrade (`versusPacing.ts`).
+  queueUpgrade(p)
   g.events.push({ kind: 'evolved', to: evo.to })
   if (p.ability.id === null) offerAbilities(g)
   else advancePhase(g)
@@ -760,24 +836,57 @@ const updateMegaIntros = (g: Game, dt: number) => {
  * The first half of a player's tick: walking (or a tunnel carrying them),
  * cursed items, a legend's presence, the Mega form, the ability and the special.
  */
-const stepPlayer = (g: Game, input: StepInput, dt: number) => {
+export const stepPlayer = (g: Game, input: StepInput, dt: number) => {
+  // Asleep (Dark Void): the stick and the buttons do nothing until they wake.
+  const asleep = isAsleep(g.player)
+  tickSleep(g.player, dt)
   // Under a tunnel's ridge the player is carried through instead of walking.
-  if (!updateTunnel(g, dt)) updatePlayer(g, input.move, dt)
+  if (!updateTunnel(g, dt)) updatePlayer(g, asleep ? STILL.move : input.move, dt)
   updateCurses(g)
   if (updateLegend(g)) recomputeStats(g)
-  updateMega(g, input.mega === true, dt)
+  updateMega(g, !asleep && input.mega === true, dt)
   if (updateAbility(g, dt)) recomputeStats(g)
-  updateSpecial(g, input.special, dt)
+  updateSpecial(g, !asleep && input.special, dt)
 }
 
 /** A player's moves: their kit's running state, signatures, shop TMs, legendary move, the casts and duo moves. */
-const stepMoves = (g: Game, input: StepInput, dt: number) => {
+export const stepMoves = (g: Game, input: StepInput, dt: number) => {
   updateMoveKit(g, dt)
   updateSignatures(g, dt)
   updateShopTms(g, dt)
   updateLegendary(g)
-  updateMoves(g, input.lunge === true, dt)
+  // Asleep (Dark Void), or in the Arena's tall grass, no move is cast: their cooldowns wait.
+  if (isAsleep(g.player) || inGrass(g.player)) return
+  updateMoves(g, input, dt)
   updateDuos(g, dt)
+}
+
+/**
+ * World seconds after a hitstop ends in which a new one is dropped: a volley
+ * of impacts (Sky Uppercut's fists, a chain of landings, a special cast again
+ * and again) freezes the screen once instead of in a stutter. The hits keep
+ * their shake and dust.
+ */
+export const HITSTOP_REST = 1
+
+/**
+ * A hitstop running counts down and says whether it holds the tick there:
+ * in solo it freezes the whole world; in co-op never, since it would hold
+ * every teammate for one player's hit (and pull their predicted sprites
+ * back), so it only counts down while the team plays on. Co-op's prediction
+ * ghost (`coop/predict.ts`) asks the same, so it plays through one too.
+ * One that starts within `HITSTOP_REST` of the last one's end never holds.
+ */
+export const hitstopHolds = (g: Game, dt: number) => {
+  if (g.hitstopRest > 0) {
+    g.hitstopRest = Math.max(0, g.hitstopRest - dt)
+    g.hitstop = 0
+    return false
+  }
+  if (g.hitstop <= 0) return false
+  g.hitstop -= dt
+  if (g.hitstop <= 0) g.hitstopRest = HITSTOP_REST
+  return g.coop === null
 }
 
 /** One fixed-timestep simulation tick of a solo run. */
@@ -808,10 +917,8 @@ export const stepTeam = (g: Game, inputs: readonly StepInput[], dt: number) => {
   if (updateDomainScene(g, dt)) return
   if (updateLegendScene(g, dt)) return
   if (updatePlaceFall(g, dt)) return
-  if (g.hitstop > 0) {
-    g.hitstop -= dt
-    return
-  }
+  if (hitstopHolds(g, dt)) return
+  if (g.training !== null) return stepTraining(g, inputs, dt)
 
   // The run clock stops inside a rift (`clockRuns`); `now` never does.
   g.now += dt
@@ -879,6 +986,37 @@ export const stepTeam = (g: Game, inputs: readonly StepInput[], dt: number) => {
     if (p.pendingLevelUps > 0 || evolutionFreed(g)) advancePhase(g)
   }
   g.player = actor
+}
+
+/**
+ * The Dojo's tick (`training.ts`): only the players, their moves and the
+ * dummies. The run clock, the horde, bosses, hazards, the map and the weather
+ * wait, and nothing levels up.
+ */
+const stepTraining = (g: Game, inputs: readonly StepInput[], dt: number) => {
+  g.now += dt
+  const actor = g.player
+  for (const p of g.players) {
+    g.player = p
+    stepPlayer(g, inputs[p.slot] ?? STILL, dt)
+  }
+  g.player = actor
+  rebuildGrid(g)
+  updateEnemies(g, dt)
+  updateHazards(g, dt)
+  updateStatuses(g, dt)
+  rebuildGrid(g)
+  for (const p of g.players) {
+    g.player = p
+    stepMoves(g, inputs[p.slot] ?? STILL, dt)
+  }
+  g.player = actor
+  updateAttacks(g, dt)
+  updateVerbEvolved(g, dt)
+  updateTerrain(g, dt)
+  updateEffects(g, dt)
+  updateTraining(g, dt)
+  followPlayers(g, dt, trainingCamera)
 }
 
 /**

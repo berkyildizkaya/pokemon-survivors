@@ -16,7 +16,7 @@ export type Poly = { kind: 'poly'; pts: readonly Pt[] }
 export type ArenaShape = Circle | Poly
 
 /** Scenery standing in an arena (cover against the legendary's shots). */
-export type ArenaPiece = 'seaRock' | 'redPillar' | 'bell' | 'stalagmite' | 'basalt' | 'jadeStump' | 'column' | 'marbleStump' | 'palm' | 'meteorCrystal'
+export type ArenaPiece = 'seaRock' | 'redPillar' | 'bell' | 'stalagmite' | 'basalt' | 'jadeStump' | 'column' | 'marbleStump' | 'palm' | 'meteorCrystal' | 'nightSpire'
 
 /** What each piece stands on, around its anchor. */
 export const ARENA_FEET: Record<ArenaPiece, Ellipse> = {
@@ -30,6 +30,7 @@ export const ARENA_FEET: Record<ArenaPiece, Ellipse> = {
   marbleStump: { x: 0, y: -1, rx: 8, ry: 4 },
   palm: { x: 0, y: 0, rx: 7, ry: 4 },
   meteorCrystal: { x: 0, y: -1, rx: 9, ry: 4 },
+  nightSpire: { x: 0, y: -1, rx: 9, ry: 4 },
 }
 
 /** Every few seconds a rule steps the arena (the tide rises, the edge falls), with a warning before. */
@@ -74,7 +75,7 @@ export const circle = (x: number, y: number, r: number): Circle => ({ kind: 'cir
 export const poly = (...pts: Pt[]): Poly => ({ kind: 'poly', pts })
 /** `n` points evenly around a circle of radius `r`, starting `turn` rad round. */
 export const around = (n: number, r: number, turn = 0) =>
-  Array.from({ length: n }, (_, i): Pt => [Math.round(dm.cos(turn + (i / n) * Math.PI * 2) * r), Math.round(dm.sin(turn + (i / n) * Math.PI * 2) * r)])
+  Array.from({ length: n }, (_, i): Pt => [dm.round(dm.cos(turn + (i / n) * Math.PI * 2) * r), dm.round(dm.sin(turn + (i / n) * Math.PI * 2) * r)])
 
 /** A straight stretch of floor `w` px wide from `a` to `b` (a convex quad), for corridors between rooms. */
 export const lane = ([ax, ay]: Pt, [bx, by]: Pt, w: number): Poly => {
@@ -84,7 +85,7 @@ export const lane = ([ax, ay]: Pt, [bx, by]: Pt, w: number): Poly => {
   return poly([ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny])
 }
 
-const LUGIA_ISLANDS = around(6, 104, 0.5).map(([x, y]) => circle(x, Math.round(y * 0.96), 28))
+const LUGIA_ISLANDS = around(6, 104, 0.5).map(([x, y]) => circle(x, dm.round(y * 0.96), 28))
 
 /** Southern Island: a sandy island with palms for cover, ringed by surf that slows whoever wades. Latias and Latios share it. */
 const SOUTHERN_ISLAND: ArenaLayout = {
@@ -206,6 +207,19 @@ export const ARENA_LAYOUTS: Record<RiftLegend, ArenaLayout> = {
       { piece: 'meteorCrystal', x: 48, y: 18 },
     ],
     pattern: 'craters',
+    boss: [0, -60],
+    player: [0, 50],
+  },
+  /** Darkrai's Nightmare without its domain (co-op): a slab of dark dream adrift, spires of black crystal to hide behind. */
+  darkrai: {
+    floor: [circle(0, 0, R)],
+    solids: [
+      { piece: 'nightSpire', x: -84, y: -44 },
+      { piece: 'nightSpire', x: 86, y: -40 },
+      { piece: 'nightSpire', x: -60, y: 70 },
+      { piece: 'nightSpire', x: 64, y: 72 },
+    ],
+    pattern: 'slabs',
     boss: [0, -60],
     player: [0, 50],
   },

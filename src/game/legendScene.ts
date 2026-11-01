@@ -1,11 +1,13 @@
 import { retain } from '../engine/math'
-import { isWaveLegend, WAVE_LEGEND_HP } from '../data/legendBosses'
+import { isWaveLegend, WAVE_LEGEND_HP, WAVE_LEGEND_SHINY } from '../data/legendBosses'
 import type { EnemyId } from '../data/enemies'
-import { burst, updateEffects } from './effects'
+import { burst, shakeScreen, updateEffects } from './effects'
 import { despawnEnemy } from './enemies'
 import { centerScreen } from './players'
+import { rollShiny } from './shiny'
 import { winRun } from './coop'
 import type { Enemy, Game } from './types'
+import * as dm from '../engine/dmath'
 
 /**
  * The wave legendaries' moments on the map (`data/legendBosses.ts`), played
@@ -62,10 +64,11 @@ export const entranceBeat = (t: number) => {
   return { camera: travel * (1 - back), arrive: Math.min(1, Math.max(0, (t - ENTRANCE.settle - ENTRANCE.pan) / ENTRANCE.arrive)) }
 }
 
-/** A wave legendary just came into play: it takes its HP (`WAVE_LEGEND_HP`) and its entrance plays now, or after the one playing. */
+/** A wave legendary just came into play: it takes its HP (`WAVE_LEGEND_HP`), may be shiny (`WAVE_LEGEND_SHINY`) and its entrance plays now, or after the one playing. */
 export const legendEntrance = (g: Game, boss: Enemy) => {
   if (!isWaveLegend(boss.kind)) return
-  boss.hp = boss.maxHp = Math.round(boss.maxHp * WAVE_LEGEND_HP)
+  boss.hp = boss.maxHp = dm.round(boss.maxHp * WAVE_LEGEND_HP)
+  boss.shiny = rollShiny(g.rng, WAVE_LEGEND_SHINY)
   const s = g.legendScene
   if (s) {
     s.next.push(boss.id)
@@ -125,11 +128,11 @@ export const updateLegendScene = (g: Game, dt: number) => {
       return true
     }
     const beat = entranceBeat(s.t)
-    if (beat.arrive > 0 && beat.arrive < 1) g.shake = Math.max(g.shake, 1 + beat.arrive * 4)
+    if (beat.arrive > 0 && beat.arrive < 1) shakeScreen(g, 1 + beat.arrive * 4, 'team')
     if (before < ENTRANCE_REVEAL && s.t >= ENTRANCE_REVEAL) {
       // A light flash: the shell flashes the screen too, and the title card shows through it.
       g.flash = 0.4
-      g.shake = Math.max(g.shake, 10)
+      shakeScreen(g, 10, 'team')
       burst(g, boss.x, boss.y - boss.radius, { colors: ['#ffffff', '#f8f0a0', '#c8d8f8'], count: 70, speed: 200, ttl: 0.6, size: 2, drag: 3 })
       g.events.push({ kind: 'legendTitle', enemy: s.enemy, shiny: boss.shiny })
     }

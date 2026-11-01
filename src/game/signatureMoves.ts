@@ -1,6 +1,6 @@
 import { dirTo, fromAngle, TAU } from '../engine/math'
 import { chance, pick, range } from '../engine/rng'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { damageEnemy } from './combat'
 import { guard, hpFraction, stacksOf, sweep } from './moveKit'
 import type { Look, MoveDef, MoveId, MoveStats } from './moves'
@@ -242,7 +242,7 @@ export const SIGNATURE_MOVES = {
         })
       }
       burst(g, p.x, p.y - 14, { colors: ['#fff0a0', '#f8b030', '#f05818', '#a02010'], count: 18, speed: 90, ttl: 0.5, gravity: -120, size: 2 })
-      g.shake = Math.max(g.shake, 2)
+      shakeScreen(g, 2)
       cast(g, 'eruption')
     },
   },
@@ -434,10 +434,10 @@ export const SIGNATURE_MOVES = {
       { fork: [{ stats: { cooldown: -0.4 }, mods: ['burstOnKill'] }, { stats: { cooldown: -0.3 }, mods: ['drain'] }] },
       { damage: 8, area: 0.15 },
     ],
-    // Wrapped in flames, the player leaps onto the biggest crowd nearby and lands in a fiery crash. Bulk hits harder.
+    // Wrapped in flames, the player leaps onto the biggest crowd nearby (ahead, while walking) and lands in a fiery crash. Bulk hits harder.
     fire: (g, s, owned) => {
       const p = g.player
-      const t = densestFoe(g.enemies, p.x, p.y, CHARGE_RANGE, 40)
+      const t = densestFoe(g.enemies, p.x, p.y, CHARGE_RANGE, 40, p.moving ? p.facing : null)
       if (!t) {
         owned.cooldown -= s.cooldown - CHARGE_RETRY
         return

@@ -8,6 +8,8 @@ import type { PokeType } from '../../data/types'
 import type { EggSource } from '../../game/eggs'
 import type { StatusKind } from '../../game/status'
 import type { Difficulty } from '../../game/difficulty'
+import type { Locale } from '..'
+import type { OurFacts } from '../../site/rivals'
 
 /** Number in Brazilian format (`1.250`, `0,75`). */
 const n = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -21,6 +23,18 @@ const either = (items: readonly string[]) => (items.length < 2 ? items.join('') 
 type BossPress = { pace: number; more: number; chain: number }
 /** The boss rules the guide quotes (`BOSS_RAGE`, `BOSS_DIFFICULTY`, and the spawn share of `BOSS_FIGHT` and `FINALE`). */
 type BossRules = { stance: readonly [number, number]; below: number; speed: number; wait: number; chain: number; fight: number; window: number; finale: number; press: { hard: BossPress; nightmare: BossPress } }
+/**
+ * What the tier list's method quotes (`site/tierList.ts`): its window and runs, the smoothing's weight,
+ * the difficulties' weights (percent) and the tiers' cuts (odds against the average Pokémon).
+ */
+export type TierMethod = {
+  days: number
+  runs: number
+  prior: number
+  minRuns: number
+  weights: { normal: number; hard: number; nightmare: number }
+  cuts: { S: number; A: number; B: number; C: number }
+}
 /** Elites and runners as the guide quotes them (`ELITE`, `RUNNER`; `from` is a clock like `1:00`). */
 type HordeRules = { fill: number; share: number; hp: number; damage: number; from: string; speed: number; frail: number; lead: number }
 
@@ -39,8 +53,12 @@ export const sitePt = {
     pokedex: 'Pokédex',
     guide: 'Guia',
     changelog: 'Novidades',
+    tierList: 'Tier list',
     legal: 'Legal',
     support: 'Apoie',
+    creators: 'Criadores',
+    compare: 'Pokémon Survivors vs PokéSurvivor',
+    alternatives: 'Jogos estilo Vampire Survivors',
     language: 'Idioma',
   },
   footer: {
@@ -50,6 +68,9 @@ export const sitePt = {
     credits: 'Créditos',
     source: 'Código no GitHub',
     support: 'Apoie o projeto',
+    notThem: 'Pokémon Survivors (pokemonsurvivors.com) não é o PokéSurvivor (pokesurvivor.com), outro fan game com nome parecido.',
+    compare: 'Veja as diferenças',
+    alternatives: 'Outros jogos de Pokémon estilo Vampire Survivors',
   },
   home: 'Início',
   playCta: 'Jogar grátis',
@@ -80,6 +101,7 @@ export const sitePt = {
     results: (count: number) => `${count} ${s(count, 'Pokémon encontrado', 'Pokémon encontrados')}`,
     empty: 'Nenhum Pokémon com esses filtros.',
     clear: 'Limpar filtros',
+    tierLink: 'Qual é o melhor Pokémon? Veja a tier list, feita com as partidas dos jogadores',
     roles: { starter: 'Inicial', egg: 'Ovo', enemy: 'Selvagem', boss: 'Chefe', legendary: 'Lendário', event: 'Evento' },
     roleFilter: { starter: 'Iniciais', egg: 'Ovos', enemy: 'Selvagens', boss: 'Chefes', legendary: 'Lendários', event: 'Eventos' },
     link: (name: string) => `Link para ${name}`,
@@ -100,6 +122,7 @@ export const sitePt = {
     wildStats: { hp: 'HP', damage: 'Dano de contato', speed: 'Velocidade', xp: 'EXP' },
     eventNote: 'Aparece nos eventos do mapa: foge de você e solta moedas a cada golpe. Derrube ele antes que escape para ganhar o Pay Day.',
     companionNote: 'Companheiro de presente: chega na caixa de presentes dos apoiadores durante a Noite das Bruxas e anda ao seu lado na partida, deixando um rastro de doces.',
+    cameoNote: 'Não é um inimigo: aparece por um instante na fenda do Darkrai, durante a Noite das Bruxas, e quebra o pesadelo com a Lunar Wing.',
     wildNote: 'Valores base. Inimigos comuns ficam mais fortes a cada minuto; chefes, não.',
     appears: 'Quando aparece',
     horde: (from: string, until: string) => `Pode entrar na horda, de ${from} a ${until}`,
@@ -112,6 +135,7 @@ export const sitePt = {
     trio: (at: string, trio: string) => `Chefe em ${at} nas partidas que sorteiam o trio ${trio} (1 em 3)`,
     night: (at: string, percent: number) => `Chefe da Noite das Bruxas em ${at}, nas partidas assombradas do evento (${n(percent)}% de chance)`,
     rift: (from: string) => `No seu domínio, atrás de uma fenda lendária, a partir de ${from} (opcional)`,
+    eventRift: (from: string) => `Só na Noite das Bruxas 2026: numa partida assombrada, a fenda do Pesadelo pode tomar o lugar de uma fenda, a partir de ${from} (opcional)`,
     /** `name` comes with its preposition (`places`). */
     place: (name: string, from: string) => `Vive ${name}, a partir de ${from} (lugar opcional)`,
     placeBoss: (name: string, from: string) => `Desperta da Pedra Peculiar ${name}, a partir de ${from}`,
@@ -129,9 +153,95 @@ export const sitePt = {
     legendMode: 'Modo Lendário',
     capture: (need: number) => (need === 1 ? 'Vença-o 1 vez como chefe, em qualquer modo, e ele fica jogável no Modo Lendário (ranking próprio, horda mais forte, despertares no Nv 12 e 28).' : `Vença-o ${need} vezes como chefe, em qualquer modo, e ele fica jogável no Modo Lendário (ranking próprio, horda mais forte, despertares no Nv 12 e 28).`),
     captureLast: 'O último troféu: só se deixa capturar no modo sem fim, depois que os outros 22 lendários forem capturados.',
+    captureEvent: (need: number) => `Lenda de evento: vença-o ${need} vezes na fenda do Pesadelo durante a Noite das Bruxas 2026 (24/10 a 2/11) e ele fica jogável no Modo Lendário para sempre. Ele não conta para o Arceus.`,
     captureShiny: 'Vencer um shiny na vitória da captura, ou depois, libera a forma shiny.',
     innate: (name: string) => `Inata (sempre ativa): ${name}`,
     opens: (move: string) => `Começa com ${move}`,
+  },
+
+  /** A Pokémon's own page (`/pokedex/charmander/`): a family's stages together, or a legend. Names stay in English. */
+  dexPage: {
+    title: (names: readonly string[]) => `${list(names)} no Pokémon Survivors: golpes, evolução e habilidades`,
+    legendTitle: (name: string) => `${name} no Pokémon Survivors: como capturar, ataques e Modo Lendário`,
+    description: (name: string, signature: string) =>
+      `${name} no Pokémon Survivors, o jogo grátis estilo Vampire Survivors com Pokémon: status, linha evolutiva, o golpe inicial ${signature}, ataque especial, golpes que aprende e Habilidades.`,
+    legendDescription: (name: string) =>
+      `${name} no Pokémon Survivors, o jogo grátis estilo Vampire Survivors com Pokémon: quando aparece, seus ataques de chefe e como capturá-lo para jogar com ele no Modo Lendário.`,
+    h1: (names: readonly string[]) => `${list(names)} no Pokémon Survivors`,
+    /** A long family (Eevee and its eight) is named by its first stage. */
+    family: (name: string) => `${name} e suas evoluções`,
+    starter: (name: string, types: readonly string[], region: string, count: number) =>
+      `${name} é um dos ${count} iniciais do Pokémon Survivors, do tipo ${list(types)}, da região de ${region}.`,
+    egg: (name: string, types: readonly string[]) => `${name} é uma das famílias que saem dos ovos no Pokémon Survivors, do tipo ${list(types)}.`,
+    legend: (name: string, types: readonly string[], count: number) => `${name} é um dos ${count} lendários do Pokémon Survivors, do tipo ${list(types)}.`,
+    eventLegend: (name: string, types: readonly string[]) => `${name} é a lenda de evento da Noite das Bruxas 2026 no Pokémon Survivors, do tipo ${list(types)}.`,
+    faq: 'Perguntas frequentes',
+    unlockQ: (name: string) => `Como liberar ${name} no Pokémon Survivors?`,
+    starterA: (name: string) => `${name} é um inicial: está liberado desde a primeira partida, sem precisar de nada.`,
+    eggA: (name: string, egg: string) =>
+      `Chocando um ${egg}. Chefes, baús trancados e fendas às vezes deixam ovos, que chocam na incubadora com os passos dados nas partidas; quando ${name} sai do ovo, fica jogável para sempre.`,
+    evolveQ: (name: string) => `Como ${name} evolui?`,
+    evolveA: (steps: readonly string[]) => `No meio da partida, ao subir de nível: ${list(steps)}.`,
+    /** One evolution step: the forms it can go to (a branching one names all of them) and the level. */
+    step: (names: readonly string[], level: number) => `em ${either(names)} no Nv ${level}`,
+    evolveItem: 'Algumas formas pedem um item de evolução, que você compra na Loja do Kecleon ou acha com os chefes.',
+    signatureQ: (name: string) => `Qual é o golpe inicial de ${name}?`,
+    signatureA: (name: string, move: string) => `${name} começa toda partida com ${move}, o golpe assinatura da família. Os outros golpes vêm dos level-ups, conforme a linha evolui.`,
+    megaQ: (name: string) => `${name} tem Mega Evolução?`,
+    megaA: (megas: readonly string[]) =>
+      `Sim: na evolução final, ${either(megas)}. A Mega Stone cai do primeiro lendário de fenda que você vence na partida, e a Mega Evolução dura 20 segundos.`,
+    catchQ: (name: string) => `Como capturar ${name} no Pokémon Survivors?`,
+    whereQ: (name: string) => `Onde ${name} aparece?`,
+    awakens: (form: string) => `No Modo Lendário, o segundo despertar (Nv 28) o transforma em ${form}.`,
+    mega: 'Mega Evolução',
+    megaLine: (stone: string, ability: string) => `${stone} · Habilidade ${ability}`,
+    play: (name: string) => `Jogar com ${name}`,
+    others: 'Outros Pokémon jogáveis',
+    groups: { starter: 'Iniciais', egg: 'Ovos', legendary: 'Lendários' },
+    back: 'Ver a Pokédex completa',
+    page: (name: string) => `Página de ${name}`,
+    tierQ: (name: string) => `${name} é bom no Pokémon Survivors?`,
+    tierA: (name: string, tier: string, rate: number, runs: number, days: number) =>
+      `Na tier list, feita com as partidas dos jogadores, ${name} está no tier ${tier}: venceu o Mewtwo em ${rate}% das ${n(runs)} partidas no Normal dos últimos ${days} dias.`,
+    tierNoneA: (name: string) => `${name} ainda não tem partidas suficientes para ganhar um tier na tier list. Ela é atualizada com o tempo.`,
+    tierLine: (tier: string, rate: number) => `Tier ${tier} na tier list · ${rate}% de vitórias no Normal`,
+    tierLineNone: 'Ainda sem tier na tier list: poucas partidas',
+  },
+
+  /** The tier list (`/tier-list/`), ranked from real runs (`site/tierList.ts`). Pokémon names stay in English. */
+  tierList: {
+    title: 'Tier list do Pokémon Survivors: os melhores Pokémon, com dados reais',
+    description:
+      'Tier list do Pokémon Survivors feita com as partidas dos jogadores: os melhores Pokémon para vencer o Mewtwo, de S a D, com a taxa de vitória de cada inicial e família dos ovos no Normal, no Difícil e no Pesadelo.',
+    h1: 'Tier list do Pokémon Survivors',
+    best: (names: readonly string[], runs: number, days: number) =>
+      `Qual é o melhor Pokémon do Pokémon Survivors? Pelas ${n(runs)} partidas dos últimos ${days} dias, hoje são ${list(names)}: com eles, os jogadores vencem o Mewtwo mais vezes do que com qualquer outro.`,
+    intro: 'Os iniciais e as famílias dos ovos, de S a D, por quantas vezes vencem o Mewtwo nas três dificuldades. Toque num Pokémon para abrir a página dele; os números de cada um e o método estão logo abaixo.',
+    updated: (date: string, days: number) => `Partidas dos ${days} dias até ${date}. A tier list é atualizada com o tempo.`,
+    tiers: 'Tiers, do melhor para o pior',
+    tier: (tier: string) => `Tier ${tier}`,
+    noData: 'Sem dados',
+    noDataNote: (min: number) => `Menos de ${min} partidas até agora: ainda sem tier.`,
+    tableTitle: 'Os números de cada Pokémon',
+    tableNote:
+      'Em cada dificuldade, a porcentagem de partidas que venceram o Mewtwo (o modo sem fim conta como vitória) e, entre parênteses, quantas partidas. A nota compara as chances de vencer com as da média: 1× é a média.',
+    head: { rank: '#', pokemon: 'Pokémon', tier: 'Tier', score: 'Nota', minute: 'Minuto médio' },
+    methodTitle: 'Como a tier list é feita',
+    method: (r: TierMethod) => [
+      `Ela sai das ${n(r.runs)} partidas terminadas nos últimos ${r.days} dias no modo normal (sem o Desafio do dia e sem o Modo Lendário), contadas de forma anônima pelo jogo. Uma vitória é uma partida que venceu o Mewtwo.`,
+      `Cada dificuldade conta separado. Para um Pokémon com poucas partidas não pular para o topo por sorte, a taxa de vitória de cada um é puxada para a média daquela dificuldade, como se ele tivesse jogado mais ${r.prior} partidas na média: com 20 partidas, o resultado anda bastante em direção à média; com 500, quase nada muda.`,
+      `Depois, a nota compara as chances de vencer de cada Pokémon com as da média, em cada dificuldade, e junta as três: o Difícil vale ${r.weights.hard}%, o Normal ${r.weights.normal}% e o Pesadelo ${r.weights.nightmare}%. O Difícil pesa mais porque tem muitas partidas e é jogado sobretudo por quem já conhece o jogo, seja qual for o Pokémon. O Normal é o mais jogado, mas é onde os iniciantes se concentram, e o Pesadelo é o teste mais duro, mas tem poucas vitórias, então oscila mais. Comparar chances, e não porcentagens, faz subir de 5% para 10% no Pesadelo valer tanto quanto subir de 55% para 70% no Normal.`,
+      `Os tiers saem da nota: S a partir de ${n(r.cuts.S)}× (quase o dobro das chances da média), A a partir de ${n(r.cuts.A)}×, B a partir de ${n(r.cuts.B)}× (na média ou acima), C a partir de ${n(r.cuts.C)}× e D abaixo disso. Quem tem menos de ${r.minRuns} partidas, somando as três dificuldades, fica em "Sem dados" até ser mais jogado.`,
+    ],
+    caveatsTitle: 'O que a tier list não diz',
+    /** `popular`: the most played family on Normal and its runs there. */
+    caveats: (popular: string, runs: number) => [
+      `Quem escolhe faz diferença. Quem está começando costuma pegar os iniciais mais famosos (só ${popular} tem ${n(runs)} partidas no Normal), enquanto as famílias dos ovos ficam nas mãos de quem já jogou o bastante para chocá-las. Por isso a taxa de vitória dos ovos sai mais bonita e a dos iniciais populares, mais baixa, sem que o Pokémon seja tão melhor ou pior assim.`,
+      'A Loja do Kecleon também pesa: quem já comprou mais melhorias vence mais, com qualquer Pokémon.',
+      'O jogo muda. Golpes, chefes e dificuldades são ajustados com frequência, e partidas de antes de um ajuste ainda contam até saírem da janela.',
+      'Mesmo com o ajuste para a média, poucas partidas dão números incertos: um tier de diferença entre dois Pokémon do meio da lista quase não quer dizer nada.',
+      'No fim, o melhor Pokémon é aquele com quem você joga bem. Qualquer um deles pode vencer o Mewtwo.',
+    ],
   },
 
   /** Enemy traits, built from `data/traits.ts`. */
@@ -251,7 +361,7 @@ export const sitePt = {
   guide: {
     title: 'Como jogar Pokémon Survivors: guia completo',
     description:
-      'Guia do Pokémon Survivors: controles no teclado, controle e celular, como funciona a partida, níveis, golpes, evolução de golpes com itens, ataque especial, tipos e status, chefes, shinies, itens e eventos do mapa e Loja do Kecleon.',
+      'Guia do Pokémon Survivors: controles no teclado, controle e celular, como funciona a partida, níveis, golpes, evolução de golpes com itens, ataque especial, tipos e status, chefes, shinies, itens e eventos do mapa, Loja do Kecleon e co-op online.',
     h1: 'Como jogar',
     intro:
       'Pokémon Survivors é um roguelite estilo Vampire Survivors: você só anda, e o seu Pokémon ataca sozinho. Este guia explica tudo o que acontece numa partida, com os números do jogo.',
@@ -272,6 +382,7 @@ export const sitePt = {
       landmarks: 'Pontos de interesse do mapa',
       megas: 'Mega Evolução',
       legends: 'Modo Lendário',
+      coop: 'Co-op online',
       shinies: 'Shinies',
       eggs: 'Ovos e incubadora',
       items: 'Itens no mapa',
@@ -349,7 +460,7 @@ export const sitePt = {
         'A partida começa com um draft: com o relógio parado, você escolhe o 2º golpe entre 3 da lista do seu Pokémon.',
         'Todo golpe base se divide em dois caminhos no Nv 4 e no Nv 7: o card mostra "2 caminhos" e, ao ser escolhido, se abre nos dois. Cada caminho muda como o golpe joga (ricochetear, explodir, deixar rastro, ecoar…), não só os números.',
         `Cada card sorteia a raridade: o raro (${n(rarePercent)}% de chance, moldura azul) sobe 2 níveis de uma vez, e o shiny (1 em ${shinyOneIn}, o dobro com o Shiny Charm) é uma escolha grátis, seguida de outra.`,
-        'Esquecer tira uma oferta da partida: o card sai voando, o espaço é sorteado de novo e aquele golpe ou item não volta mais. As cargas vêm do Escape Rope da Loja do Kecleon, de cada chefe derrotado e de cada evolução.',
+        'Esquecer tira uma oferta da partida: o card sai voando, o espaço é sorteado de novo e aquele golpe, item ou golpe em dupla não volta mais. As cargas vêm do Escape Rope da Loja do Kecleon, de cada chefe derrotado e de cada evolução.',
         'A lista de golpes cresce com o Pokémon: cada evolução libera golpes novos (um aviso mostra quais), que aparecem com mais frequência nas 3 subidas de nível seguintes. São mais golpes do que espaços, então cada partida deixa alguns de fora.',
         'Chefes derrotados deixam um TM com um golpe de fora do repertório, o Tutor de Golpes ensina golpes que combinam com o seu tipo, e vencer uma fenda oferece o golpe lendário do próprio lendário (um por partida). Com os espaços cheios, aprender pede para esquecer um golpe.',
       ],
@@ -373,7 +484,7 @@ export const sitePt = {
       neverEvolves: 'Golpes assinatura, de TM, lendários e em dupla não evoluem: eles já são o golpe final e crescem pelos próprios caminhos.',
       duoTitle: 'Golpes em dupla',
       duoParagraphs: [
-        'Leve dois golpes ao nível máximo (ou evolua-os) e, se os tipos deles formarem uma das receitas abaixo, um card dourado oferece uni-los num golpe em dupla: ele toma o espaço do primeiro, libera o do segundo e sobe até o Nv 5. Os dois golpes usados não voltam mais.',
+        'Leve dois golpes ao nível máximo (ou evolua-os) e, se os tipos deles formarem uma das receitas abaixo, um card dourado oferece uni-los num golpe em dupla: ele toma o espaço do primeiro, libera o do segundo e sobe até o Nv 5. Os dois golpes usados não voltam mais. Não quer a união? Esquecer tira o card, e aquela receita não volta mais na partida.',
         'As receitas vão por tipo, então funcionam com qualquer Pokémon. Só cabe 1 golpe em dupla por partida, e a Poké Ball nunca une golpes sozinha.',
       ],
       duoTypesHead: 'Tipos',
@@ -421,6 +532,19 @@ export const sitePt = {
       itemsNote: 'King\'s Rock aumenta a chance de status, Toxic Orb aumenta o dano de queimadura e veneno, e Light Clay faz os status durarem mais.',
     },
     /** The Legend mode: capturing legends and playing them (`game/capture.ts`, `game/legend.ts`). */
+    /** Co-op: rooms, the team's rules and what it leaves out (`COOP`, `COOP_LOCKS` in `data/coop.ts`). */
+    coop: {
+      paragraphs: (m: { players: number; revive: number; reviveHp: number; pick: number; vote: number }) => [
+        `No lobby, Co-op abre o jogo em equipe: até ${m.players} treinadores na mesma partida, cada um com o seu Pokémon. Crie uma sala e chame os amigos pelo link (quem abre entra direto na sala), pelo código de 5 letras e números ou pela lista de Amigos, que mostra quem está online, numa sala ou jogando, e manda o convite na hora. Cada um escolhe o seu Pokémon e fica pronto, e o anfitrião escolhe a dificuldade e começa. O co-op usa a sua conta: a equipe vê o seu @nome, e o ₽ que você ganha fica salvo nela.`,
+        `A EXP é da equipe: todo Exp. Candy chega para todos, então todo mundo sobe de nível junto e escolhe ao mesmo tempo (quem passa de ${m.pick}s tem a escolha feita pelo jogo). A evolução, a Habilidade, a TM ou a Poké Ball de um jogador não param a partida dos outros, e chefes e fendas deixam para cada um a própria TM, Poké Ball, prêmio de Alfa e Mega Stone.`,
+        `Quem desmaia vira uma Poké Ball no chão: um colega parado ao lado por ${m.revive}s o reanima com ${m.reviveHp}% do HP. A partida acaba quando ninguém mais consegue jogar; depois do Mewtwo, a equipe tem ${m.vote}s para votar se segue no modo sem fim. Se a conexão cair, o jogo reconecta e você volta de onde parou. No fim, o ₽ da equipe é dividido entre os jogadores que começaram a partida.`,
+        'Por enquanto o co-op é o modo normal: os lugares (caverna, cemitério e céu) não abrem, os pontos de interesse ficam só de enfeite, os lendários das fendas lutam na arena antiga, sem domínio, e ficam de fora o Modo Lendário, a Mochila, as TMs, os itens de evolução e as Tampinhas da loja, o Surto do dia, a Noite das Bruxas, o Desafio do dia e o ranking.',
+      ],
+      scaleTitle: 'A horda cresce com a equipe',
+      whatHead: 'O quê',
+      perHead: 'Por jogador a mais',
+      scale: { spawn: 'Ritmo da horda', cap: 'Tamanho máximo da horda', hp: 'HP dos inimigos', bossHp: 'HP de chefes, Alfas e lendários', coins: 'Poké Dollars coletados' },
+    },
     legends: {
       paragraphs: (m: { count: number; awaken: readonly number[] }) => [
         `Os ${m.count} lendários do jogo podem ser capturados e jogados no Modo Lendário. Para capturar um, vença-o como chefe, em qualquer modo: a cada vitória antes da captura ele escapa da Poké Ball e o jogo conta (Kyogre escapou… 2/3); na vitória que fecha a conta, ele é capturado e aparece na aba Lendários da seleção de parceiro. Vencer um shiny na vitória da captura, ou em qualquer vitória depois, libera a forma shiny.`,
@@ -434,7 +558,9 @@ export const sitePt = {
       opensHead: 'Golpe lendário',
       pressureTitle: 'Dificuldades no Modo Lendário',
       pressure: 'A Pressão soma-se a cada dificuldade: os multiplicadores do Modo Lendário ficam assim.',
-      where: { rift: 'Fenda lendária', trio: 'Trio lendário', mythical: 'Junto do Mewtwo (1 em 10)', finale: 'Chefe final', endless: 'Modo sem fim, por último' },
+      where: { rift: 'Fenda lendária', trio: 'Trio lendário', mythical: 'Junto do Mewtwo (1 em 10)', finale: 'Chefe final', endless: 'Modo sem fim, por último', event: 'Noite das Bruxas 2026 (evento)', festival: 'Festival das Lanternas 2026 (prêmio)' },
+      /** The event legends (`EVENT_LEGENDS`), after the table. */
+      eventNote: 'Na Noite das Bruxas de 2026 (24 de outubro a 2 de novembro), o Darkrai chega como lenda de evento: ele só aparece na fenda do Pesadelo, que pode tomar o lugar de uma fenda numa partida assombrada, e é capturado com 2 vitórias. Joga com o Dark Void, que faz as multidões dormirem, e a inata Bad Dreams, que fere quem dorme perto dele. Depois do evento ele volta para as sombras, mas quem o capturou segue jogando com ele. Ele não conta para o Arceus.',
     },
     megas: {
       paragraphs: (m: { lines: number; twins: string; duration: number; recharge: number; intro: string }) => [
@@ -452,7 +578,7 @@ export const sitePt = {
         `Entrar é opcional: fique ${n(r.enter)}s dentro do rasgo. Cada lendário tem o seu domínio (tabela abaixo), e a primeira parte é a travessia: um lugar maior que a tela, subindo para o norte, com os Pokémon que servem o lendário vindo pela frente e uma ameaça que avança atrás de você (a maré, uma parede de lava, os andares desabando, o tempo se desfazendo) e machuca quem fica para trás. No fim, o caminho de volta se fecha, a câmera viaja até o lendário e ele chega com um card de título e o seu próprio tema.`,
         `A batalha tem três fases, marcadas na barra de HP. Cada fase transforma a arena (a caverna inunda e vira ilhas, a lava sobe em canais, o topo do Pilar Celeste cai no céu) e termina num golpe supremo, sempre avisado e com um lugar seguro marcado: atrás de uma rocha, numa ilha, no vão entre os raios, embaixo das asas do Ho-Oh. Ficar parado não funciona: golpes caem onde você está. Latias e Latios lutam juntos, e o Deoxys troca de Forma a cada fase. Se a batalha passar de uns ${n(r.battle)} minutos, o domínio colapsa e joga você de volta sem recompensa.`,
         `Vencido, o lendário se ajoelha e você joga a Poké Ball: cada vitória conta para capturá-lo (veja o Modo Lendário). Cair lá dentro não encerra a partida: a fenda expulsa você para o mapa com ${r.fallHp}% do HP, sem recompensa, e o seu Revive fica guardado. O relógio da partida para lá dentro; a horda lá fora fica congelada e nada novo nasce até você voltar.`,
-        `A recompensa vale o risco: muita EXP, dois sacos de ₽ além da chuva de chefe, Poké Balls extras, uma Rare Candy, uma Super Potion e metade do HP de volta. Em 1 de ${r.shiny} fendas o lendário é shiny e paga o dobro de ₽ e mais uma Poké Ball.`,
+        `A recompensa vale o risco: muita EXP, um saco de ₽ além da chuva de chefe, Poké Balls extras, uma Rare Candy, uma Super Potion e metade do HP de volta. Em 1 de ${r.shiny} fendas o lendário é shiny e paga o dobro de ₽ e mais uma Poké Ball.`,
       ],
       domainHead: 'Domínio',
       legendHead: 'Lendário',
@@ -560,14 +686,17 @@ export const sitePt = {
       seeAll: 'Veja todos os shinies na Pokédex',
     },
     eggs: {
-      paragraphs: (starters: number, families: number, slots: number, perRun: number, stepPx: number, shiny: number, weight: number) => [
+      /** The incubator's upgrades (`INCUBATOR` in data/shop.ts): the slots sold, each with its price and shop level, and the Quick Incubator. */
+      incubator: (m: { max: number; slots: readonly { n: number; price: string; level: string }[]; quick: string; speed: number }) =>
+        `A aba Incubadora da loja do Kecleon vende mais vagas, que são suas para sempre: ${m.slots.map((s) => `a ${s.n}ª por ${s.price} (com a loja em ${s.level})`).join(' e ')}, até ${m.max} vagas. Ela também vende a Incubadora Rápida (${m.quick}): na incubadora, toque num ovo para usar, e ele anda ${m.speed}x mais rápido até chocar.`,
+      paragraphs: (starters: number, families: number, slots: number, perRun: number, stepPx: number, shiny: number, weight: number, pity: number) => [
         `Além dos ${starters} iniciais, ${families} famílias de Pokémon jogáveis saem de ovos, de todos os tipos e gerações: são ${starters + families} Pokémon para jogar. Cada uma tem golpe inicial, especial, evolução no meio da partida e status próprios.`,
         `Chefes, baús trancados e fendas às vezes deixam um ovo, no máximo ${perRun} por partida. Ele vai para a incubadora, que tem ${slots} vagas. Cada ${stepPx} px andados numa partida contam um passo, e todos os ovos da incubadora andam juntos. O ovo achado no meio da partida já conta os passos dados depois dele.`,
-        `Quando um ovo fica pronto, ele choca ao sair da partida ou na incubadora (no menu inicial e na aba Ovos da escolha de parceiro). Famílias que você ainda não tem saem ${weight}x mais. O filhote tem 1 chance em ${shiny} de ser shiny, e aí fica shiny em todas as partidas.`,
+        `Quando um ovo fica pronto, ele choca ao sair da partida ou na incubadora (no menu inicial e na aba Ovos da escolha de parceiro). Famílias que você ainda não tem saem ${weight}x mais. O filhote tem 1 chance em ${shiny} de ser shiny, e aí fica shiny em todas as partidas. Garantia: depois de ${pity} ovos do mesmo tipo sem Pokémon novo, o próximo traz um com certeza (a incubadora mostra a contagem).`,
         'Um repetido, ou um ovo achado com a incubadora cheia, vira Poké Dollars. O jogador que nunca teve um ovo ganha o primeiro com certeza.',
         'O Ovo da Amizade não cai em partidas: ele chega como Presente Misterioso quando você cria a conta pelo convite de alguém, e quando um amigo que você convidou termina 3 partidas. Só sai Munchlax dele. Com 3 amigos você ganha o título Embaixador(a) e uma moldura exclusiva, com 5, um Ovo ultra raro, e com 10, um Dratini shiny. O seu link e o progresso de cada amigo ficam no card Convide amigos, na tela inicial.',
         'O Ovo Assombrado também não cai em partidas: só a barraca do Duskull vende, na praça, durante a Noite das Bruxas (24/10 a 2/11), um por dia. Dele só saem Litwick, Phantump, Drifloon e Sandygast, 25% cada, tenha você já ou não. Depois do evento, ele só volta no ano que vem.',
-        'O Ovo do Kecleon também não cai em partidas: ele fica fixo na Vitrine da loja, por ₽ 10.000, um por dia. Dele só saem Porygon, Exeggcute, Scraggy e Smeargle, 25% cada. Porygon2 pede o Up-Grade, Porygon-Z o Dubious Disc e Exeggutor a Leaf Stone; o Smeargle não evolui, mas o Sketch copia o golpe do inimigo mais perto. Com 100 carimbos no cartão fidelidade, vem um Ovo do Kecleon com shiny garantido.',
+        'O Ovo do Kecleon também não cai em partidas: ele fica fixo na Vitrine da loja: o primeiro do dia custa ₽ 10.000 e cada um depois custa o dobro do anterior, até 6 por dia (₽ 320.000 o sexto). Dele só saem Porygon, Exeggcute, Scraggy e Smeargle, 25% cada. Porygon2 pede o Up-Grade, Porygon-Z o Dubious Disc e Exeggutor a Leaf Stone; o Smeargle não evolui, mas o Sketch copia o golpe do inimigo mais perto. Com 100 carimbos no cartão fidelidade, vem um Ovo do Kecleon com shiny garantido.',
       ],
       tierHead: 'Ovo',
       stepsHead: 'Passos',
@@ -663,7 +792,8 @@ export const sitePt = {
       paragraphs: (coins: readonly number[], minute: number, kills: number, victory: number) => [
         `Inimigos derrotados às vezes soltam Poké Dollars: moeda, pilha e saco (${list(coins.map((c) => `₽${n(c)}`))}). Os mais fortes soltam com mais frequência, e chefes e shinies sempre pagam.`,
         `No fim da partida entra um bônus: ₽${minute} por minuto sobrevivido, ₽1 a cada ${kills} derrotados e ₽${n(victory)} pela vitória. Quem desiste pela pausa fica com as moedas, mas perde o bônus.`,
-        'Gaste tudo na Loja do Kecleon, na praça a leste da casa do seu parceiro no lobby. A Vitrine do dia é igual para todo mundo e vira à meia-noite de Brasília: um brinde grátis por dia, o Ovo do Kecleon (um por dia), uma oferta com 30% off, consumíveis para a Mochila, o ovo do dia e um estilo. O irmão roxo do Kecleon vende TMs (compradas uma vez, você arma antes da partida e a primeira TM que cair é ela) e itens de evolução: o caminho que pede um item só abre com ele (sem a Dawn Stone, nada de Gallade), e um chefe também pode derrubar um na partida, só para ela. No Treino ficam as melhorias permanentes: o botão Reembolsar devolve tudo o que você gastou nelas, para testar outras combinações. Lá também ficam as Tampinhas: +3% em tudo por nível, até 3, só para o Pokémon que as recebe. Na Expansão você investe para a loja crescer (Carrinho, Tenda, Loja, Kecleon Mart e Loja de Departamento), com mais itens na Vitrine e na Mochila. De sexta a domingo, a partir do Kecleon Mart, a caravana do Meowth para na praça com um ovo ultra, a Tampinha Dourada e TMs exclusivas; com 7 carimbos no cartão fidelidade (um por dia em que você passa na loja) ele dá 20% de desconto. Sem conta, o progresso fica salvo só neste navegador.',
+        'Gaste tudo na Loja do Kecleon, na praça a leste da casa do seu parceiro no lobby. A Vitrine do dia é igual para todo mundo e vira à meia-noite de Brasília: um brinde grátis por dia, o Ovo do Kecleon (até 6 por dia, cada um pelo dobro do anterior), uma oferta com 30% off, consumíveis para a Mochila, o ovo do dia e um estilo. O irmão roxo do Kecleon vende TMs (compradas uma vez, você arma antes da partida e a primeira TM que cair é ela) e itens de evolução: o caminho que pede um item só abre com ele (sem a Dawn Stone, nada de Gallade), e um chefe também pode derrubar um na partida, só para ela. No Treino ficam as melhorias permanentes: o botão Reembolsar devolve tudo o que você gastou nelas, para testar outras combinações. Lá também ficam as Tampinhas: +3% em tudo por nível, até 3, só para o Pokémon que as recebe. Na Expansão você investe para a loja crescer (Carrinho, Tenda, Loja, Kecleon Mart e Loja de Departamento), com mais itens na Vitrine e na Mochila. Na Incubadora, vagas extras para a incubadora (para sempre) e a Incubadora Rápida, que faz um ovo andar o dobro. De sexta a domingo, a partir do Kecleon Mart, a caravana do Meowth para na praça com um ovo ultra, a Tampinha Dourada e TMs exclusivas; com 7 carimbos no cartão fidelidade (um por dia em que você passa na loja) ele dá 20% de desconto. Sem conta, o progresso fica salvo só neste navegador.',
+        'Festival da Praça: cerca de uma vez por mês, por 14 dias, a fonte da praça do Kecleon vira um pote da comunidade. Com uma conta (com @nome e 3 partidas terminadas), você joga ₽ na fonte, de ₽ 100 até ₽ 200 mil por dia. Cada marco que o pote passa vira um Presente para todos os jogadores, até para quem jogou como convidado ou não doou, e fica na caixa de Presentes até 7 dias depois do fim. Quem doa ₽ 50 mil num festival ganha o título Mecenas, e os 10 maiores doadores aparecem na placa da fonte (dá para esconder o seu nome). O primeiro é o Festival das Lanternas, de 03/11 a 16/11.',
       ],
       upgradeHead: 'Melhoria',
       effectHead: 'Efeito',
@@ -694,7 +824,7 @@ export const sitePt = {
         ['Som', 'Liga ou desliga todo o som (atalho: M).'],
         ['Números de dano', 'Mostra ou esconde os números de dano na tela.'],
         ['Tremor de tela', 'Liga ou desliga o tremor em explosões e golpes fortes.'],
-        ['Idioma', 'Troca entre português, inglês e espanhol.'],
+        ['Idioma', 'Troca entre português, inglês, espanhol, francês, chinês tradicional e turco.'],
       ],
     },
     cta: 'Pronto? Escolha seu parceiro e jogue.',
@@ -744,9 +874,21 @@ export const sitePt = {
         'Um companheiro que te segue nas partidas.',
         'O nome no mural abaixo e nos agradecimentos da vitória.',
         'Voto no próximo Pokémon dos ovos.',
-        'Ouro, com R$ 50 ou US$ 10 somados: fundo de cartão, papel de parede da Caixa do PC e selo dourados.',
+        'Ouro e Diamante agora são mensais, no Patreon (veja abaixo): doações avulsas não somam para Ouro.',
       ],
       note: 'Tudo cosmético: nada muda uma partida nem o ranking. As recompensas precisam de uma conta no jogo (entrar com Google é grátis).',
+    },
+    /** The Patreon tiers, by the pledge kept active (`PATREON_TIERS`). */
+    monthly: {
+      title: 'Apoio mensal no Patreon',
+      lead: 'Quer apoiar todo mês? No Patreon, seu nível segue o valor que você mantém ativo. Depois, vincule o Patreon à sua conta no Hall da Fama do jogo.',
+      tiers: [
+        '<b>Apoiador(a), US$ 5/mês:</b> tudo o que quem doa ganha, o cargo Supporter e o canal exclusivo no Discord, e o Hall da Fama enquanto o apoio durar.',
+        '<b>Ouro, US$ 10/mês:</b> tudo de Apoiador(a), selo e cargo Ouro, fundo e papel de parede dourados, e o Hall da Fama para sempre.',
+        '<b>Diamante, US$ 20/mês:</b> tudo de Ouro, selo e cargo Diamante, um lendário que você capturou como companheiro (shiny se capturado shiny), voto mensal num novo Pokémon ultrarraro e decoração de diamante no Hall da Fama.',
+      ],
+      cta: 'Apoiar no Patreon',
+      note: 'Quem doou antes do Patreon é Apoiador(a) OG: mantém tudo o que tem, para sempre, com uma seção só sua no Hall da Fama.',
     },
     wall: { title: 'Mural de apoiadores', empty: 'Ainda ninguém por aqui. Seu nome pode ser o primeiro!' },
     pick: 'Escolha como pagar',
@@ -801,7 +943,11 @@ export const sitePt = {
       cries: 'Cries (sons dos Pokémon)',
       criesText: 'PokéAPI/cries.',
       fonts: 'Fontes',
-      fontsText: 'Press Start 2P e VT323, sob a SIL Open Font License (OFL). Servidas pelo próprio site.',
+      fontsText: 'Press Start 2P e VT323, sob a SIL Open Font License (OFL), e Cubic 11 (俐方體11號) para o chinês, de uso livre. Servidas pelo próprio site.',
+      /** Translation credits (`data/translators.ts`): each reviewed language (a key per `Locale`), named in this language. */
+      translation: 'Tradução',
+      languages: { pt: 'português', en: 'inglês', es: 'espanhol', fr: 'francês', zh: 'chinês', tr: 'turco' },
+      reviewedBy: (language: string, name: string, discord: string) => `Tradução para o ${language} revisada por ${name}, moderadora do nosso Discord (${discord}). Perfil no jogo:`,
       inspiration: 'Inspiração',
       inspirationText: 'Vampire Survivors, da poncle.',
       nonCommercial: 'Como os sprites são CC BY-NC, o jogo como um todo não pode ser usado comercialmente.',
@@ -829,8 +975,7 @@ export const sitePt = {
     privacyAfter: [
       'Para apagar esses dados, limpe os dados do site nas configurações do navegador.',
       'Sprites, sons e fontes vêm do próprio site, sem chamadas a serviços de terceiros. O site é hospedado na Vercel, que, como qualquer servidor, pode registrar dados técnicos de acesso (como endereço IP) para operar e proteger o serviço.',
-      'Para saber quantas pessoas visitam o site e jogam, usamos o Vercel Web Analytics e uma instância própria do Umami, num servidor nosso. Eles contam visitas de forma anônima e agregada (página, país, navegador, dispositivo e site de origem) e, no caso do Umami, também o resumo de cada partida (Pokémon inicial, até que minuto e nível você chegou e se venceu), sem cookies e sem identificar ou seguir você entre sites.',
-      'No jogo, usamos também o PostHog (posthog.com, com os dados guardados nos Estados Unidos) para entender como ele é jogado e corrigir erros. Ele recebe o resumo de cada partida (Pokémon, dificuldade, golpes, itens, até que minuto e nível você chegou e como ela terminou), quais telas você abre no menu e, quando o jogo dá erro, a mensagem do erro e o replay da partida em andamento (a semente e os comandos, sem nada pessoal). Tudo isso vai ligado ao identificador aleatório do ph_ps e, se você entrou com uma conta, ao id dela e ao seu nome de usuário, nunca ao seu e-mail ou nome. O PostHog não usa cookies aqui e não segue você entre sites.',
+      'No jogo, usamos o PostHog (posthog.com, com os dados guardados nos Estados Unidos) para entender como ele é jogado e corrigir erros. Ele recebe o resumo de cada partida (Pokémon, dificuldade, golpes, itens, até que minuto e nível você chegou e como ela terminou), quais telas você abre no menu e, quando o jogo dá erro, a mensagem do erro e o replay da partida em andamento (a semente e os comandos, sem nada pessoal). Tudo isso vai ligado ao identificador aleatório do ph_ps e, se você entrou com uma conta, ao id dela e ao seu nome de usuário, nunca ao seu e-mail ou nome. O PostHog não usa cookies aqui e não segue você entre sites.',
       'Doações são pagas nas páginas da AbacatePay (abacatepay.com: Pix e cartões brasileiros) ou do Stripe (stripe.com: cartões de outros países, Apple Pay e Google Pay). Os dados de pagamento vão direto para eles, e o jogo nunca vê seu cartão. Eles nos mostram o valor e, como a qualquer recebedor, dados de quem pagou (como nome e e-mail), que não usamos para nada além de registrar a doação. Se você der um @ (ou resgatar o código da doação), ela fica ligada a essa conta do jogo para as recompensas chegarem; o valor nunca aparece em público, só o selo de apoiador, que dá para esconder.',
     ],
     contact: [
@@ -839,6 +984,208 @@ export const sitePt = {
     ],
     issues: 'Abrir uma issue no GitHub',
     source: 'Ver o código-fonte',
+  },
+  creators: {
+    title: 'Criadores: vídeos e lives de Pokémon Survivors',
+    description:
+      'Vídeos e lives de Pokémon Survivors feitos por quem joga, no YouTube e no TikTok. Grave o seu, mande no Discord e ganhe no jogo o título Criador(a) de Conteúdo e a moldura de criador.',
+    h1: 'Criadores',
+    lead: 'Vídeos e lives de quem joga Pokémon Survivors. Dê o play aqui mesmo e siga quem faz.',
+    videos: 'Vídeos',
+    people: 'Quem faz',
+    play: (title: string) => `Assistir: ${title}`,
+    watchOn: (platform: string) => `Ver no ${platform}`,
+    videoAbout: (name: string) => `Vídeo de Pokémon Survivors feito por ${name}.`,
+    langs: { pt: 'Em português', en: 'Em inglês', es: 'Em espanhol', fr: 'Em francês', zh: 'Em chinês', tr: 'Em turco' } satisfies Record<Locale, string>,
+    join: {
+      title: 'Faz vídeos do jogo?',
+      lead: 'Gameplay, live, guia, Short ou TikTok, em qualquer língua: todo vídeo do jogo pode entrar aqui.',
+      steps: [
+        'Publique o vídeo no YouTube, no TikTok ou onde preferir.',
+        'Mande o link no canal #screenshots-and-clips do nosso Discord.',
+        'Diga seu @ no jogo: você ganha o título Criador(a) de Conteúdo e a moldura de criador.',
+      ],
+      cta: 'Mandar meu vídeo no Discord',
+    },
+  },
+  compare: {
+    title: 'Pokémon Survivors vs PokéSurvivor: são o mesmo jogo? As diferenças',
+    description:
+      'Pokémon Survivors (pokemonsurvivors.com) e PokéSurvivor (pokesurvivor.com) são dois fan games grátis de Pokémon estilo Vampire Survivors, de autores diferentes. Veja lado a lado: Pokémon, co-op, idiomas, ranking e código.',
+    h1: 'Pokémon Survivors e PokéSurvivor são o mesmo jogo?',
+    lead: [
+      'Não. São dois fan games gratuitos de Pokémon no estilo Vampire Survivors, com nomes quase iguais, feitos por pessoas diferentes. Pokémon Survivors (pokemonsurvivors.com, este site) é feito por Pedro Barretto, no Brasil. PokéSurvivor (pokesurvivor.com) é feito por JPTER78.',
+      'Os dois saíram em outubro de 2026, rodam no navegador e são grátis, então buscadores e IAs às vezes confundem um com o outro. Abaixo, o que muda entre eles.',
+    ],
+    table: { title: 'Lado a lado', feature: 'Recurso' },
+    rows: (f: OurFacts) => [
+      ['Feito por', 'Pedro Barretto (Brasil)', 'JPTER78'],
+      ['Site', 'pokemonsurvivors.com', 'pokesurvivor.com'],
+      ['Onde joga', 'Navegador no PC e no celular, em pé ou deitado. Instala como app.', 'Navegador no PC e no celular, deitado. Instala como app.'],
+      ['Conta', 'Opcional: o solo não pede cadastro. Com conta, salva na nuvem, entra no ranking e joga co-op.', 'Opcional: convidado ou conta (nome e senha ou Google). Com conta, salva na nuvem, entra no ranking e joga co-op.'],
+      ['Como ataca', `Todos os golpes atacam sozinhos, até ${f.moves} ao mesmo tempo.`, 'Você escolhe o golpe ativo (teclas 1 a 4). Cada lendário vencido deixa unir golpes num só espaço.'],
+      ['Pokémon jogáveis', `${f.starters} iniciais com a linha evolutiva completa, mais ${f.eggs} famílias que saem de ovos e ${f.legends} lendários no Modo Lendário.`, '966 Pokémon das 9 gerações.'],
+      ['Como libera Pokémon', 'Ovos que chocam com os passos dados nas partidas. Lendários são capturados vencendo-os como chefes.', 'Gacha por região, com tickets ganhos jogando.'],
+      ['Partida', `${f.minutes} minutos até Mewtwo, com chefes lendários e fendas épicas no caminho. Depois, modo sem fim até Arceus.`, 'Hordas por tempo, com fendas que levam a uma arena contra um lendário.'],
+      ['Co-op', `Online, até ${f.players} jogadores. Sala por link, código ou lista de amigos.`, 'Online, até 4 jogadores. Sala com convite aos amigos.'],
+      ['Idiomas', `${f.languages}: português, inglês, espanhol, francês, chinês tradicional e turco.`, '7: espanhol, inglês, francês, italiano, português e chinês simplificado e tradicional.'],
+      ['Ranking', 'Por tempo sobrevivido. As partidas que aparecem no ranking são conferidas: o servidor joga cada uma de novo a partir do replay.', 'Por tempo sobrevivido, solo ou em grupo.'],
+      ['Código', 'Aberto, licença MIT.', 'Público, licença PolyForm Noncommercial (MIT até 14/10/2026).'],
+      ['Anúncios e compras', 'Nenhum. Doações opcionais.', 'Nenhum. Doações opcionais.'],
+    ],
+    names: {
+      title: 'Nomes parecidos',
+      items: [
+        { name: 'Pokémon Survivors', text: 'Este jogo, em pokemonsurvivors.com. "Survivors" no plural.' },
+        { name: 'PokéSurvivor (ou Poke Survivor)', text: 'O jogo do JPTER78, em pokesurvivor.com.' },
+        { name: 'Poke Survivors (Android)', text: 'Um port não oficial do PokéSurvivor para Android, feito em Godot. Não é este jogo.' },
+        { name: 'pokesurvivor.games e pokesurvival.com', text: 'Sites de fãs com guias que levam ao PokéSurvivor.' },
+        { name: 'Pokémon Survivor Burst', text: 'Outro fan game, para baixar no PC, feito por ClessioTV com Pokémon Essentials.' },
+      ],
+    },
+    pickOurs: {
+      title: 'Jogue o Pokémon Survivors se você…',
+      items: (f: OurFacts) => [
+        `quer uma partida com começo, meio e fim: ${f.minutes} minutos até Mewtwo, depois o modo sem fim contra Arceus;`,
+        'gosta de montar build: golpes que se dividem em dois caminhos no Nv 4 e no Nv 7, Habilidades, itens, golpes em dupla e Mega Evolução;',
+        `quer jogar com os lendários: capture os ${f.legends} vencendo-os como chefes e jogue com eles no Modo Lendário;`,
+        'quer jogar no celular em pé, com uma mão;',
+        'quer um ranking em que as partidas do topo são conferidas pelo servidor;',
+        'quer código aberto com licença MIT, para estudar e reaproveitar.',
+      ],
+    },
+    pickTheirs: {
+      title: 'Jogue o PokéSurvivor se você…',
+      items: [
+        'quer colecionar: são 966 Pokémon e um gacha por região;',
+        'prefere escolher você mesmo o golpe que ataca;',
+        'joga em italiano ou em chinês simplificado;',
+        'quer a comunidade maior e mais vídeos no YouTube.',
+      ],
+    },
+    faq: {
+      title: 'Perguntas frequentes',
+      items: (f: OurFacts) => [
+        {
+          q: 'Pokémon Survivors e PokéSurvivor são o mesmo jogo?',
+          a: 'Não. São dois fan games gratuitos e diferentes, de autores diferentes, que saíram no mesmo mês com nomes quase iguais. Pokémon Survivors fica em pokemonsurvivors.com e é feito por Pedro Barretto. PokéSurvivor fica em pokesurvivor.com e é feito por JPTER78.',
+        },
+        {
+          q: 'Busquei "Pokémon Survivors" e apareceu o PokéSurvivor. Errei o nome?',
+          a: 'Não. Pokémon Survivors, com "Survivors" no plural, é este jogo, em pokemonsurvivors.com. Buscadores e IAs às vezes confundem os dois.',
+        },
+        {
+          q: 'Qual é melhor?',
+          a: `Depende do que você procura. O PokéSurvivor tem mais Pokémon (966) e um gacha para colecionar. O Pokémon Survivors tem partidas de ${f.minutes} minutos com chefes lendários, lendários jogáveis, Mega Evolução, golpes que se dividem em caminhos e um ranking conferido no servidor. Os dois são grátis: dá para jogar os dois.`,
+        },
+        {
+          q: 'Os dois são grátis e oficiais?',
+          a: 'Os dois são grátis, sem anúncios nem compras, e rodam no navegador. Nenhum é oficial: são fan games sem ligação com Nintendo, The Pokémon Company, GAME FREAK ou Creatures.',
+        },
+        {
+          q: 'Dá para jogar Pokémon Survivors com amigos?',
+          a: `Sim. O co-op online junta até ${f.players} jogadores na mesma partida, cada um com o seu Pokémon. Crie uma sala e chame os amigos pelo link, pelo código ou pela lista de amigos. Precisa de uma conta.`,
+        },
+      ],
+    },
+    checked: (date: string) => `Os dados do PokéSurvivor foram conferidos em ${date} no site e no código dele, e podem ter mudado desde então.`,
+    report: 'Viu algo errado? Avise no GitHub',
+    alternatives: 'Outros jogos de Pokémon estilo Vampire Survivors',
+    cta: 'Jogar Pokémon Survivors grátis',
+  },
+  alternatives: {
+    title: 'Jogos de Pokémon estilo Vampire Survivors: os fan games grátis (2026)',
+    description:
+      'Os fan games gratuitos de Pokémon no estilo Vampire Survivors: Pokémon Survivors, PokéSurvivor e Pokémon Survivor Burst, mais o roguelite PokeRogue. Onde rodam, co-op, quantos Pokémon e para quem é cada um.',
+    h1: 'Jogos de Pokémon estilo Vampire Survivors',
+    lead: 'Não existe um Pokémon Vampire Survivors oficial, mas fãs fizeram alguns. Estes são os fan games gratuitos de Pokémon no estilo survivors-like (ou bullet heaven), em que você só anda e o seu Pokémon ataca sozinho contra hordas, mais um roguelite de Pokémon por turnos para quem quer outro ritmo.',
+    disclosure: (date: string) =>
+      `Quem escreve é o autor do Pokémon Survivors, o primeiro da lista, então leve isso em conta. Os dados dos outros jogos foram conferidos em ${date} nos sites deles e podem ter mudado.`,
+    glance: { title: 'Resumo', game: 'Jogo', plays: 'Onde joga', style: 'Estilo', coop: 'Co-op', roster: 'Pokémon' },
+    madeBy: 'Feito por',
+    bestFor: 'Bom para',
+    visit: (name: string) => `Abrir ${name}`,
+    games: {
+      ours: {
+        plays: 'Navegador, PC e celular',
+        style: 'Survivors-like',
+        coop: 'Até 4 online',
+        roster: (f: OurFacts) => `${f.starters} iniciais, ${f.eggs} famílias de ovos, ${f.legends} lendários`,
+        about: (f: OurFacts) => [
+          `Escolha um dos ${f.starters} iniciais de Kanto a Paldea e sobreviva ${f.minutes} minutos de hordas: todos os seus golpes atacam sozinhos, você aprende golpes e itens a cada nível e evolui no meio da partida, até enfrentar Mewtwo. Chefes lendários, fendas épicas com o domínio de cada lendário, Mega Evolução e um modo sem fim contra Arceus.`,
+          `Ovos chocam mais ${f.eggs} famílias, os lendários vencidos ficam jogáveis no Modo Lendário, e o co-op online junta até ${f.players} jogadores. Em ${f.languages} idiomas, com código aberto (MIT).`,
+        ],
+        bestFor: 'quem quer partidas curtas com chefes, builds variadas e lendários jogáveis, no PC ou no celular em pé.',
+      },
+      pokesurvivor: {
+        plays: 'Navegador, PC e celular (deitado)',
+        style: 'Survivors-like',
+        coop: 'Até 4 online',
+        roster: '966 Pokémon',
+        about: [
+          'O maior elenco do gênero: 966 Pokémon das 9 gerações, liberados num gacha por região com tickets ganhos jogando. Você escolhe o golpe que ataca, e fendas levam a uma arena contra um lendário. Tem missões, conquistas, ranking e co-op para até 4 jogadores, em 7 idiomas.',
+          'Também existe um port não oficial para Android, chamado Poke Survivors, feito em Godot.',
+        ],
+        bestFor: 'quem quer colecionar o maior número de Pokémon.',
+      },
+      burst: {
+        plays: 'Download, Windows e Mac',
+        style: 'Survivors-like',
+        coop: 'Não',
+        roster: 'Cresce a cada versão',
+        about: [
+          'Feito em Pokémon Essentials (RPG Maker XP), é para baixar e jogar no computador. Tem os modos Clássico, Rush e Torre, chefes e ranking online, em vários idiomas. O autor avisa que a versão de celular não foi testada.',
+        ],
+        bestFor: 'quem prefere um jogo baixado, com cara de jogo de Pokémon clássico.',
+      },
+      pokerogue: {
+        plays: 'Navegador, PC e celular',
+        style: 'Roguelite por turnos',
+        coop: 'Não',
+        roster: 'Todas as gerações',
+        about: [
+          'Não é um survivors-like: as batalhas são por turnos, como nos jogos da série, onda após onda, capturando Pokémon para montar o time. É o roguelite de Pokémon mais conhecido, gratuito e de código aberto.',
+        ],
+        bestFor: 'quem quer um roguelite de Pokémon com batalhas por turnos, sem hordas.',
+      },
+    },
+    faq: {
+      title: 'Perguntas frequentes',
+      items: (f: OurFacts) => [
+        {
+          q: 'Existe um Pokémon Vampire Survivors oficial?',
+          a: 'Não. A Pokémon nunca lançou um jogo nesse estilo. Os que existem são fan games gratuitos e não oficiais, como Pokémon Survivors, PokéSurvivor e Pokémon Survivor Burst.',
+        },
+        {
+          q: 'Qual jogo de Pokémon estilo Vampire Survivors tem co-op?',
+          a: `Pokémon Survivors e PokéSurvivor, os dois com co-op online para até ${f.players} jogadores, no navegador.`,
+        },
+        {
+          q: 'Qual dá para jogar no celular sem baixar nada?',
+          a: 'Pokémon Survivors, PokéSurvivor e PokeRogue rodam no navegador do celular. O Pokémon Survivors também funciona com o celular em pé. O Pokémon Survivor Burst é para baixar no computador.',
+        },
+      ],
+    },
+    compareLink: 'Pokémon Survivors e PokéSurvivor lado a lado',
+    cta: 'Jogar Pokémon Survivors grátis',
+  },
+  notFound: {
+    title: 'Página não encontrada · Pokémon Survivors',
+    eyebrow: 'ERRO 404 · ROTA 404',
+    h1: 'Você se perdeu na Rota 404.',
+    lead: 'Esta página não existe, mas os Zubat sim. Ande até uma placa para sair.',
+    url: 'Endereço procurado:',
+    mean: { before: 'Você quis dizer ', after: '?' },
+    hint: 'Setas ou WASD para andar. No celular, toque e arraste. Os ataques saem sozinhos.',
+    game: 'Mini jogo: ande pela Rota 404 até uma placa',
+    start: 'Ande para começar',
+    go: 'Ir para',
+    over: '{name} desmaiou na Rota 404.',
+    time: 'Tempo',
+    ko: 'Nocautes',
+    best: 'Recorde',
+    retry: 'Tentar de novo',
+    notes: { play: 'Uma partida de verdade', pokedex: 'Todos os Pokémon do jogo', guide: 'Como jogar' },
   },
 }
 

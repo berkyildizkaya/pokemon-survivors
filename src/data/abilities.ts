@@ -15,15 +15,20 @@ import type { PokeType } from './types'
  * replaces the family's.
  */
 
-/** What hurt the player (`hurtPlayer`): a body, a boss strike or shot, a blast, a beam, lava or a trap. */
-export type HitKind = 'body' | 'hazard' | 'shot' | 'blast' | 'beam' | 'lava' | 'trap'
+/**
+ * What hurt the player (`hurtPlayer`): a body, a boss strike or shot, a blast,
+ * a beam, lava, a trap or a lingering patch on the ground (`zone`: a spitter's
+ * puddle, the world's Stealth Rock, a boss's field).
+ */
+export type HitKind = 'body' | 'hazard' | 'shot' | 'blast' | 'beam' | 'lava' | 'trap' | 'zone'
 
 /**
- * Harm an ability shrugs off: hits of a kind (lava, traps, blasts), the
- * weather's wear (`chip`), terrain that slows (water, ice) and the wards
- * allies put on wild Pokémon (`wards`, which hits go through).
+ * Harm an ability shrugs off: hits of a kind (lava, traps, blasts, lingering
+ * patches), the weather's wear (`chip`), HP lost to no hit at all (`drain`:
+ * a cursed item's bite, Bad Dreams), terrain that slows (water, ice) and the
+ * wards allies put on wild Pokémon (`wards`, which hits go through).
  */
-export type Immunity = 'lava' | 'trap' | 'blast' | 'chip' | 'terrain' | 'wards'
+export type Immunity = 'lava' | 'trap' | 'blast' | 'zone' | 'chip' | 'drain' | 'terrain' | 'wards'
   /** The weather's boost to foes' hits and the world's attacks (`game/hazards.ts`): Air Lock. */
   | 'weather'
 
@@ -47,6 +52,12 @@ export type AbilityEffect =
   | { kind: 'contact'; status: readonly StatusSpec[]; damage: number }
   /** Every `every` s, foes within `radius` px get `status` (Unnerve). */
   | { kind: 'aura'; radius: number; every: number; status: StatusSpec }
+  /**
+   * Every `every` s (on the never-paused clock, so it keeps no state), each
+   * sleeping foe within `radius` px takes `damage` × the contact power, and
+   * stays asleep (Darkrai's Bad Dreams).
+   */
+  | { kind: 'nightmare'; radius: number; every: number; damage: number }
   /**
    * Damage the player takes, ×`factor`, from attacks of these `types`, hits of
    * these `hits` kinds or (`boss`) bosses and elites; `absorb` turns it into healing (Water Absorb).
@@ -164,8 +175,8 @@ export const ABILITIES = {
   voltAbsorb: { name: 'Volt Absorb', effects: [absorb('electric')] },
   lightningRod: { name: 'Lightning Rod', effects: [absorb('electric'), stats({ typeDamage: { electric: 0.15 } })] },
   bulletproof: { name: 'Bulletproof', effects: [{ kind: 'resist', hits: ['shot', 'blast'], factor: 0.4 }] },
-  levitate: { name: 'Levitate', effects: [{ kind: 'immune', to: ['lava', 'trap', 'terrain'] }] },
-  magicGuard: { name: 'Magic Guard', effects: [{ kind: 'immune', to: ['lava', 'trap', 'blast', 'chip'] }] },
+  levitate: { name: 'Levitate', effects: [{ kind: 'immune', to: ['lava', 'trap', 'zone', 'terrain'] }] },
+  magicGuard: { name: 'Magic Guard', effects: [{ kind: 'immune', to: ['lava', 'trap', 'blast', 'zone', 'chip', 'drain'] }] },
   magicBounce: { name: 'Magic Bounce', effects: [{ kind: 'guard', every: 12, reflect: true }] },
   illusion: { name: 'Illusion', effects: [{ kind: 'guard', every: 10 }] },
   damp: { name: 'Damp', effects: [{ kind: 'immune', to: ['blast'] }, stats({ typeDamage: { water: 0.1 } })] },
@@ -242,6 +253,8 @@ export const ABILITIES = {
   airLock: { name: 'Air Lock', effects: [{ kind: 'immune', to: ['chip', 'weather'] }] },
   /** Arceus's type follows the biome (`game/legend.ts`), and its moves of that type hit harder. */
   multitype: { name: 'Multitype', effects: [{ kind: 'ownType', bonus: 0.2 }] },
+  /** Darkrai's: the foes its Dark Void put to sleep (or anything else did) suffer in their dreams. */
+  badDreams: { name: 'Bad Dreams', effects: [{ kind: 'nightmare', radius: 120, every: 0.5, damage: 1 }] },
 } as const satisfies Record<string, AbilityDef>
 
 export type AbilityId = keyof typeof ABILITIES
@@ -379,6 +392,8 @@ export const FAMILY_ABILITIES = {
   latios: ['sniper', 'infiltrator', 'adaptability'],
   deoxys: ['sniper', 'moxie', 'adaptability'],
   arceus: ['moldBreaker', 'magicGuard', 'sturdy'],
+  darkrai: ['insomnia', 'unnerve', 'infiltrator'],
+  cresselia: ['naturalCure', 'magicGuard', 'synchronize'],
 } as const satisfies Record<PlayableId, AbilitySet>
 
 /** The abilities of a branch picked at the family's first evolution (`data/branches.ts`). */

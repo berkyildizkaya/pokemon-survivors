@@ -4,10 +4,12 @@ import { addDays, brasiliaDay, type DayKey } from '../game/day'
 import { hasStatue } from '../game/loyalty'
 import type { Save } from '../game/meta'
 import { stallGoods, stallOn } from '../game/stalls'
-import type { PlazaVisitors } from '../render/plaza'
+import { LANTURN, type PlazaVisitors } from '../render/plaza'
 import { emotionUrl, type Speaker } from './dialogue'
 import { h } from './dom'
 import { today } from './save'
+import { SENSEI } from '../render/dojo'
+import { JUDGE } from '../render/stadium'
 
 /**
  * Who comes by the Kecleon plaza today, for the shell (the plaza's pieces)
@@ -77,3 +79,12 @@ export const meowthSpeaker = () => visitorSpeaker(CARAVAN.dex, CARAVAN.name, '#b
 
 /** A seasonal stall's keeper. */
 export const stallSpeaker = (id: StallId) => visitorSpeaker(STALLS[id].dex, STALLS[id].name, id === 'halloween' ? '#7048a8' : '#c83030')
+
+/** Lanturn, at the festival's Lantern Market. */
+export const lanturnSpeaker = () => visitorSpeaker(LANTURN.dex, LANTURN.name, '#2f78b8')
+
+/** Machoke, the Dojo's sensei (`render/dojo.ts`). */
+export const senseiSpeaker = () => visitorSpeaker(SENSEI.dex, SENSEI.name, '#c04830')
+
+/** Ninjask, the Estádio's judge (`render/stadium.ts`). */
+export const judgeSpeaker = () => visitorSpeaker(JUDGE.dex, JUDGE.name, '#b08818')

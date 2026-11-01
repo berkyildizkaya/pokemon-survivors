@@ -1,5 +1,5 @@
 import type { BlastSafe } from '../../data/bosses'
-import type { SiteMessages } from './pt'
+import type { SiteMessages, TierMethod } from './pt'
 
 /** Number in English format (`1,250`, `0.75`). */
 const n = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -19,8 +19,12 @@ export const siteEn: SiteMessages = {
     pokedex: 'Pokédex',
     guide: 'Guide',
     changelog: 'Changelog',
+    tierList: 'Tier list',
     legal: 'Legal',
     support: 'Support',
+    creators: 'Creators',
+    compare: 'Pokémon Survivors vs PokéSurvivor',
+    alternatives: 'Games like Vampire Survivors',
     language: 'Language',
   },
   footer: {
@@ -30,6 +34,9 @@ export const siteEn: SiteMessages = {
     credits: 'Credits',
     source: 'Source on GitHub',
     support: 'Support the project',
+    notThem: 'Pokémon Survivors (pokemonsurvivors.com) is not PokéSurvivor (pokesurvivor.com), another fan game with a similar name.',
+    compare: 'See the differences',
+    alternatives: 'More Pokémon games like Vampire Survivors',
   },
   home: 'Home',
   playCta: 'Play for free',
@@ -60,6 +67,7 @@ export const siteEn: SiteMessages = {
     results: (count: number) => `${count} Pokémon found`,
     empty: 'No Pokémon match these filters.',
     clear: 'Clear filters',
+    tierLink: 'Which Pokémon is best? See the tier list, built from players’ runs',
     roles: { starter: 'Starter', egg: 'Egg', enemy: 'Wild', boss: 'Boss', legendary: 'Legendary', event: 'Event' },
     roleFilter: { starter: 'Starters', egg: 'Eggs', enemy: 'Wild', boss: 'Bosses', legendary: 'Legendaries', event: 'Events' },
     link: (name: string) => `Link to ${name}`,
@@ -79,6 +87,7 @@ export const siteEn: SiteMessages = {
     wildStats: { hp: 'HP', damage: 'Contact damage', speed: 'Speed', xp: 'EXP' },
     eventNote: 'Shows up as a map event: it runs from you and drops coins with every hit. Knock it out before it escapes for the Pay Day jackpot.',
     companionNote: 'A gift companion: it lands in supporters\' gift box during Halloween Night and walks beside you in runs, leaving a trail of candy.',
+    cameoNote: 'Not a foe: it shows up for a moment in Darkrai\'s rift during Halloween Night and breaks the nightmare with Lunar Wing.',
     wildNote: 'Base values. Regular enemies get tougher every minute; bosses don\'t.',
     appears: 'When it shows up',
     horde: (from: string, until: string) => `May join the horde, from ${from} to ${until}`,
@@ -91,6 +100,7 @@ export const siteEn: SiteMessages = {
     trio: (at: string, trio: string) => `Boss at ${at} in runs that draw the ${trio} trio (1 in 3)`,
     night: (at: string, percent: number) => `Halloween Night boss at ${at}, in the event's haunted runs (${n(percent)}% chance)`,
     rift: (from: string) => `In its domain, behind a legendary rift, from ${from} (optional)`,
+    eventRift: (from: string) => `Only on Halloween Night 2026: in a haunted run, the Nightmare rift can take a rift's place, from ${from} (optional)`,
     place: (name: string, from: string) => `Lives in the ${name}, from ${from} (optional place)`,
     placeBoss: (name: string, from: string) => `Breaks out of the Odd Keystone in the ${name}, from ${from}`,
     places: { cave: 'Dark Cave', graveyard: 'Haunted Graveyard', sky: 'sky above the clouds (Flying types only)' },
@@ -105,9 +115,90 @@ export const siteEn: SiteMessages = {
     legendMode: 'Legend Mode',
     capture: (need: number) => (need === 1 ? 'Beat it once as a boss, in any mode, and it becomes playable in Legend Mode (its own ranking, a tougher horde, awakenings at Lv 12 and 28).' : `Beat it ${need} times as a boss, in any mode, and it becomes playable in Legend Mode (its own ranking, a tougher horde, awakenings at Lv 12 and 28).`),
     captureLast: 'The last trophy: it can only be caught in endless mode, once the other 22 legendaries are caught.',
+    captureEvent: (need: number) => `Event legend: beat it ${need} times in the Nightmare rift during Halloween Night 2026 (October 24 to November 2) and it's playable in Legend Mode for good. It doesn't count toward Arceus.`,
     captureShiny: 'Beating a shiny one on the catching win, or after, unlocks its shiny.',
     innate: (name: string) => `Innate (always on): ${name}`,
     opens: (move: string) => `Starts with ${move}`,
+  },
+
+  dexPage: {
+    title: (names: readonly string[]) => `${list(names)} in Pokémon Survivors: moves, evolution and abilities`,
+    legendTitle: (name: string) => `${name} in Pokémon Survivors: how to catch it, attacks and Legend Mode`,
+    description: (name: string, signature: string) =>
+      `${name} in Pokémon Survivors, the free Vampire Survivors-style Pokémon game: stats, evolution line, its starting move ${signature}, special attack, learnset and Abilities.`,
+    legendDescription: (name: string) =>
+      `${name} in Pokémon Survivors, the free Vampire Survivors-style Pokémon game: when it shows up, its boss attacks and how to catch it to play as it in Legend Mode.`,
+    h1: (names: readonly string[]) => `${list(names)} in Pokémon Survivors`,
+    family: (name: string) => `${name} and its evolutions`,
+    starter: (name: string, types: readonly string[], region: string, count: number) =>
+      `${name} is one of the ${count} starters in Pokémon Survivors, a ${list(types)} type from the ${region} region.`,
+    egg: (name: string, types: readonly string[]) => `${name} is one of the families that hatch from eggs in Pokémon Survivors, a ${list(types)} type.`,
+    legend: (name: string, types: readonly string[], count: number) => `${name} is one of the ${count} legendaries in Pokémon Survivors, a ${list(types)} type.`,
+    eventLegend: (name: string, types: readonly string[]) => `${name} is the Halloween Night 2026 event legend in Pokémon Survivors, a ${list(types)} type.`,
+    faq: 'FAQ',
+    unlockQ: (name: string) => `How do you unlock ${name} in Pokémon Survivors?`,
+    starterA: (name: string) => `${name} is a starter: it's unlocked from your very first run, nothing needed.`,
+    eggA: (name: string, egg: string) =>
+      `By hatching a ${egg}. Bosses, locked chests and rifts sometimes drop eggs, which hatch in the incubator with the steps you walk in runs; once ${name} hatches, it's yours to play for good.`,
+    evolveQ: (name: string) => `How does ${name} evolve?`,
+    evolveA: (steps: readonly string[]) => `Mid-run, as it levels up: ${list(steps)}.`,
+    step: (names: readonly string[], level: number) => `into ${either(names)} at Lv ${level}`,
+    evolveItem: 'Some forms need an evolution item, bought in the Kecleon Shop or found on bosses.',
+    signatureQ: (name: string) => `What is ${name}'s starting move?`,
+    signatureA: (name: string, move: string) => `${name} starts every run with ${move}, the family's signature move. The other moves come from level-ups as the line evolves.`,
+    megaQ: (name: string) => `Can ${name} Mega Evolve?`,
+    megaA: (megas: readonly string[]) =>
+      `Yes: at its final stage, into ${either(megas)}. The Mega Stone drops from the first rift legendary you beat in the run, and the Mega Evolution lasts 20 seconds.`,
+    catchQ: (name: string) => `How do you catch ${name} in Pokémon Survivors?`,
+    whereQ: (name: string) => `Where does ${name} show up?`,
+    awakens: (form: string) => `In Legend Mode, its second awakening (Lv 28) turns it into ${form}.`,
+    mega: 'Mega Evolution',
+    megaLine: (stone: string, ability: string) => `${stone} · Ability ${ability}`,
+    play: (name: string) => `Play as ${name}`,
+    others: 'Other playable Pokémon',
+    groups: { starter: 'Starters', egg: 'Eggs', legendary: 'Legendaries' },
+    back: 'See the full Pokédex',
+    page: (name: string) => `${name}'s page`,
+    tierQ: (name: string) => `Is ${name} good in Pokémon Survivors?`,
+    tierA: (name: string, tier: string, rate: number, runs: number, days: number) =>
+      `On the tier list, built from players’ runs, ${name} is ${tier} tier: it beat Mewtwo in ${rate}% of its ${n(runs)} runs on Normal over the last ${days} days.`,
+    tierNoneA: (name: string) => `${name} doesn’t have enough runs yet to get a tier on the tier list. It’s updated over time.`,
+    tierLine: (tier: string, rate: number) => `${tier} tier on the tier list · ${rate}% wins on Normal`,
+    tierLineNone: 'No tier yet on the tier list: too few runs',
+  },
+
+  tierList: {
+    title: 'Pokémon Survivors tier list: the best Pokémon, from real runs',
+    description:
+      'A Pokémon Survivors tier list built from players’ real runs: the best Pokémon for beating Mewtwo, from S to D, with every starter’s and egg family’s win rate on Normal, Hard and Nightmare.',
+    h1: 'Pokémon Survivors tier list',
+    best: (names: readonly string[], runs: number, days: number) =>
+      `What is the best Pokémon in Pokémon Survivors? Going by ${n(runs)} runs over the last ${days} days, right now it’s ${list(names)}: players beat Mewtwo with them more often than with anything else.`,
+    intro: 'The starters and egg families from S to D, by how often they beat Mewtwo across the three difficulties. Tap a Pokémon to open its page; everyone’s numbers and the method are right below.',
+    updated: (date: string, days: number) => `Runs from the ${days} days up to ${date}. The tier list is updated over time.`,
+    tiers: 'Tiers, best to worst',
+    tier: (tier: string) => `${tier} tier`,
+    noData: 'No data',
+    noDataNote: (min: number) => `Fewer than ${min} runs so far: no tier yet.`,
+    tableTitle: 'Every Pokémon’s numbers',
+    tableNote:
+      'On each difficulty, the share of runs that beat Mewtwo (endless mode counts as a win) and, in brackets, how many runs. The score compares the odds of winning with the average’s: 1× is average.',
+    head: { rank: '#', pokemon: 'Pokémon', tier: 'Tier', score: 'Score', minute: 'Avg. minute' },
+    methodTitle: 'How the tier list is made',
+    method: (r: TierMethod) => [
+      `It comes from the ${n(r.runs)} runs finished over the last ${r.days} days in the regular mode (no Daily Challenge, no Legend Mode), counted anonymously by the game. A win is a run that beat Mewtwo.`,
+      `Each difficulty counts on its own. So a Pokémon with few runs can’t luck its way to the top, its win rate on each is pulled toward that difficulty’s average, as if it had played ${r.prior} more runs at the average: with 20 runs, the result moves a good way toward the average; with 500, it barely changes.`,
+      `Then the score compares each Pokémon’s odds of winning with the average’s on each difficulty and blends the three: Hard counts ${r.weights.hard}%, Normal ${r.weights.normal}% and Nightmare ${r.weights.nightmare}%. Hard counts most because it has plenty of runs and is played mostly by people who already know the game, whatever their Pokémon. Normal is the most played, but it’s where beginners gather, and Nightmare is the toughest test but has few wins, so it swings more. Comparing odds instead of percentages makes going from 5% to 10% on Nightmare worth as much as going from 55% to 70% on Normal.`,
+      `The tiers come from the score: S from ${n(r.cuts.S)}× (nearly double the average’s odds), A from ${n(r.cuts.A)}×, B from ${n(r.cuts.B)}× (average or better), C from ${n(r.cuts.C)}× and D below that. Anyone with fewer than ${r.minRuns} runs, all three difficulties together, stays under “No data” until it’s played more.`,
+    ],
+    caveatsTitle: 'What the tier list doesn’t tell you',
+    caveats: (popular: string, runs: number) => [
+      `Who picks matters. New players tend to go for the famous starters (${popular} alone has ${n(runs)} runs on Normal), while the egg families are in the hands of people who have played enough to hatch them. That flatters the eggs’ win rates and drags down the popular starters’, without the Pokémon being that much better or worse.`,
+      'The Kecleon Shop matters too: players with more upgrades bought win more, with any Pokémon.',
+      'The game changes. Moves, bosses and difficulties get tuned often, and runs from before a change still count until they leave the window.',
+      'Even pulled toward the average, few runs make for shaky numbers: one tier between two Pokémon in the middle of the list means very little.',
+      'In the end, the best Pokémon is the one you play well. Any of them can beat Mewtwo.',
+    ],
   },
 
   traits: {
@@ -220,7 +311,7 @@ export const siteEn: SiteMessages = {
   guide: {
     title: 'How to play Pokémon Survivors: complete guide',
     description:
-      'Pokémon Survivors guide: keyboard, gamepad and phone controls, how a run works, levels, moves, move evolutions with held items, the special attack, types and status, bosses, shinies, map items, map events and the Kecleon Shop.',
+      'Pokémon Survivors guide: keyboard, gamepad and phone controls, how a run works, levels, moves, move evolutions with held items, the special attack, types and status, bosses, shinies, map items, map events, the Kecleon Shop and online co-op.',
     h1: 'How to play',
     intro:
       'Pokémon Survivors is a Vampire Survivors-style roguelite: you only move, and your Pokémon attacks on its own. This guide explains everything that happens in a run, with the game\'s numbers.',
@@ -241,6 +332,7 @@ export const siteEn: SiteMessages = {
       landmarks: 'Landmarks on the map',
       megas: 'Mega Evolution',
       legends: 'Legend Mode',
+      coop: 'Online co-op',
       shinies: 'Shinies',
       eggs: 'Eggs and the incubator',
       items: 'Map items',
@@ -318,7 +410,7 @@ export const siteEn: SiteMessages = {
         'A run starts with a draft: with the clock stopped, you pick your 2nd move out of 3 from your Pokémon’s list.',
         'Every base move splits into two paths at Lv 4 and Lv 7: the card says "2 paths" and, once picked, opens into both. Each path changes how the move plays (bouncing, exploding, leaving a trail, echoing…), not just its numbers.',
         `Every card rolls a rarity: a rare one (${n(rarePercent)}% chance, blue frame) gives 2 levels at once, and a shiny one (1 in ${shinyOneIn}, twice as often with the Shiny Charm) is a free pick, followed by another.`,
-        'Forget takes an offer out of the run: the card flies off, the slot is rerolled and that move or item never comes back. Charges come from the Kecleon Shop’s Escape Rope, every boss beaten and every evolution.',
+        'Forget takes an offer out of the run: the card flies off, the slot is rerolled and that move, item or duo move never comes back. Charges come from the Kecleon Shop’s Escape Rope, every boss beaten and every evolution.',
         'The move list grows with your Pokémon: each evolution unlocks new moves (a toast shows which), and they show up more often for the next 3 level ups. There are more moves than slots, so every run leaves some out.',
         'Beaten bosses drop a TM with a move from outside the learnset, the Move Tutor teaches moves that suit your type, and clearing a rift offers the legendary’s own move (one per run). With every slot full, learning one asks you to forget a move.',
       ],
@@ -342,7 +434,7 @@ export const siteEn: SiteMessages = {
       neverEvolves: 'Signature, TM, legendary and duo moves don’t evolve: they are already a final move and grow along their own paths.',
       duoTitle: 'Duo moves',
       duoParagraphs: [
-        'Take two moves to max level (or evolve them) and, if their types make one of the recipes below, a golden card offers to fuse them into a duo move: it takes the first one’s slot, frees the second’s and grows up to Lv 5. The two moves it used never come back.',
+        'Take two moves to max level (or evolve them) and, if their types make one of the recipes below, a golden card offers to fuse them into a duo move: it takes the first one’s slot, frees the second’s and grows up to Lv 5. The two moves it used never come back. Don’t want the fusion? Forget takes the card away, and that recipe won’t come back this run.',
         'Recipes go by type, so they work with any Pokémon. A run fits only 1 duo move, and the Poké Ball never fuses moves on its own.',
       ],
       duoTypesHead: 'Types',
@@ -389,6 +481,18 @@ export const siteEn: SiteMessages = {
       flute: 'Poké Flute (map item)',
       itemsNote: 'King\'s Rock raises the status chance, Toxic Orb raises burn and poison damage, and Light Clay makes statuses last longer.',
     },
+    coop: {
+      paragraphs: (m) => [
+        `In the lobby, Co-op opens team play: up to ${m.players} trainers in the same run, each with their own Pokémon. Create a room and bring your friends with the link (opening it goes straight into the room), the 5-character code or your Friends list, which shows who's online, in a room or playing, and sends the invite right away. Everyone picks their Pokémon and gets ready, and the host picks the difficulty and starts. Co-op uses your account: the team sees your @name, and the ₽ you earn is saved to it.`,
+        `EXP belongs to the team: every Exp. Candy reaches everyone, so the whole team levels up together and picks at the same time (past ${m.pick}s, the game picks for you). One player's evolution, Ability, TM or Poké Ball doesn't stop the others' run, and bosses and rifts drop each player their own TM, Poké Ball, Alpha prize and Mega Stone.`,
+        `Whoever faints turns into a Poké Ball on the ground: a teammate standing next to it for ${m.revive}s revives them with ${m.reviveHp}% HP. The run ends when nobody can carry on; after Mewtwo, the team has ${m.vote}s to vote on going into endless mode. If your connection drops, the game reconnects and you pick up where you left off. At the end, the team's ₽ is split among the players who started the run.`,
+        'For now co-op plays the standard mode: places (the cave, the graveyard and the sky) don\'t open, landmarks are scenery only, rift legendaries fight in the old arena instead of their domain, and Legend Mode, the Bag, the shop\'s TMs, evolution items and Bottle Caps, the daily Outbreak, Halloween Night, the Daily Challenge and the ranking stay out.',
+      ],
+      scaleTitle: 'The horde grows with the team',
+      whatHead: 'What',
+      perHead: 'Per extra player',
+      scale: { spawn: 'Horde spawn rate', cap: 'Horde size cap', hp: 'Enemy HP', bossHp: 'Boss, Alpha and legendary HP', coins: 'Poké Dollars collected' },
+    },
     legends: {
       paragraphs: (m: { count: number; awaken: readonly number[] }) => [
         `All ${m.count} legendaries in the game can be caught and played in Legend Mode. To catch one, beat it as a boss, in any mode: every win before the catch, it breaks free of the Poké Ball and the game keeps count (Kyogre broke free… 2/3); on the win that completes it, it's caught and shows up in the Legendaries tab of the partner select. Beating a shiny one on the catching win, or on any win after, unlocks its shiny.`,
@@ -402,7 +506,9 @@ export const siteEn: SiteMessages = {
       opensHead: 'Legendary move',
       pressureTitle: 'Difficulties in Legend Mode',
       pressure: 'Pressure stacks on every difficulty: these are Legend Mode’s multipliers.',
-      where: { rift: 'Legendary rift', trio: 'Legendary trio', mythical: 'Beside Mewtwo (1 in 10)', finale: 'Final boss', endless: 'Endless mode, last of all' },
+      where: { rift: 'Legendary rift', trio: 'Legendary trio', mythical: 'Beside Mewtwo (1 in 10)', finale: 'Final boss', endless: 'Endless mode, last of all', event: 'Halloween Night 2026 (event)', festival: 'Lantern Festival 2026 (prize)' },
+      /** The event legends (`EVENT_LEGENDS`), after the table. */
+      eventNote: 'On Halloween Night 2026 (October 24 to November 2), Darkrai comes as an event legend: it only shows up in the Nightmare rift, which can take a rift\'s place in a haunted run, and 2 wins catch it. It plays with Dark Void, which puts crowds to sleep, and the innate Bad Dreams, which hurts whoever sleeps near it. After the event it returns to the shadows, but whoever caught it keeps playing it. It doesn\'t count toward Arceus.',
     },
     megas: {
       paragraphs: (m) => [
@@ -420,7 +526,7 @@ export const siteEn: SiteMessages = {
         `Stepping in is optional: stand inside the tear for ${n(r.enter)}s. Each legendary has its own domain (table below), and first comes the crossing: a place bigger than the screen, heading north, with the Pokémon that serve the legendary coming at you and a threat closing in from behind (the tide, a wall of lava, floors crumbling away, time coming apart) that hurts whoever lags. At the end, the way back seals, the camera travels to the legendary and it arrives with a title card and its own theme.`,
         `The battle has three phases, marked on the HP bar. Each phase transforms the arena (the cavern floods into islands, lava rises in channels, the top of the Sky Pillar falls into the sky) and builds to an ultimate, always telegraphed and with a marked safe spot: behind a rock, on an island, in the gap between beams, under Ho-Oh's wings. Standing still doesn't work: attacks land where you stand. Latias and Latios fight together, and Deoxys swaps Formes every phase. If the battle runs past about ${n(r.battle)} minutes, the domain collapses and throws you back with no reward.`,
         `Once beaten, the legendary kneels and you throw the Poké Ball: every win counts toward catching it (see Legend Mode). Fainting inside doesn't end the run: the rift casts you back onto the map with ${r.fallHp}% HP, no reward, and your Revive stays in the Bag. The run clock stops inside; the horde outside freezes and nothing new spawns until you come back.`,
-        `The reward is worth the risk: lots of EXP, two bags of ₽ on top of the boss shower, extra Poké Balls, a Rare Candy, a Super Potion and half your HP back. In 1 of ${r.shiny} rifts the legendary is shiny and pays double ₽ plus another Poké Ball.`,
+        `The reward is worth the risk: lots of EXP, a bag of ₽ on top of the boss shower, extra Poké Balls, a Rare Candy, a Super Potion and half your HP back. In 1 of ${r.shiny} rifts the legendary is shiny and pays double ₽ plus another Poké Ball.`,
       ],
       domainHead: 'Domain',
       legendHead: 'Legendary',
@@ -528,14 +634,16 @@ export const siteEn: SiteMessages = {
       seeAll: 'See every shiny in the Pokédex',
     },
     eggs: {
-      paragraphs: (starters, families, slots, perRun, stepPx, shiny, weight) => [
+      incubator: (m) =>
+        `The Incubator tab at Kecleon's shop sells more slots, yours for good: ${m.slots.map((s) => `slot ${s.n} for ${s.price} (with the shop at ${s.level})`).join(' and ')}, up to ${m.max} slots. It also sells the Quick Incubator (${m.quick}): in the incubator, tap an egg to use it, and that egg walks ${m.speed}x as fast until it hatches.`,
+      paragraphs: (starters, families, slots, perRun, stepPx, shiny, weight, pity) => [
         `Besides the ${starters} starters, ${families} playable Pokémon families hatch from eggs, from every type and generation: ${starters + families} Pokémon to play in all. Each one has its own starting move, special, mid-run evolution and stats.`,
         `Bosses, locked chests and rifts sometimes leave an egg, at most ${perRun} per run. It goes to the incubator, which has ${slots} slots. Every ${stepPx} px walked in a run counts as a step, and every egg in the incubator walks along. An egg found mid-run already counts the steps taken after it.`,
-        `Once an egg is ready, it hatches when you leave the run or in the incubator (in the main menu and in the Eggs tab of the Pokémon select). Families you don't have yet come out ${weight}x more often. The hatchling has a 1 in ${shiny} chance to be shiny, and then it stays shiny in every run.`,
+        `Once an egg is ready, it hatches when you leave the run or in the incubator (in the main menu and in the Eggs tab of the Pokémon select). Families you don't have yet come out ${weight}x more often. The hatchling has a 1 in ${shiny} chance to be shiny, and then it stays shiny in every run. Guarantee: after ${pity} eggs of a kind with no new Pokémon, the next one is sure to bring one (the incubator shows the count).`,
         'A duplicate, or an egg found with the incubator full, becomes Poké Dollars. A player who never had an egg is sure to get the first one.',
         "The Friendship Egg never drops in runs: it comes as a Mystery Gift when you sign up through someone's invite, and when a friend you invited finishes 3 runs. Only Munchlax hatches from it. At 3 friends you get the Ambassador title and an exclusive frame, at 5 an Ultra rare egg, and at 10 a shiny Dratini. Your link and each friend's progress are on the Invite friends card, on the home screen.",
         "The Haunted Egg never drops in runs either: only Duskull's stall sells it, at the plaza, during Halloween Night (Oct 24 to Nov 2), one a day. Only Litwick, Phantump, Drifloon and Sandygast come out of it, 25% each, owned or not. After the event, it's back next year.",
-        "The Kecleon Egg never drops in runs either: it's a fixed card in the shop's Showcase, ₽10,000, one a day. Only Porygon, Exeggcute, Scraggy and Smeargle come out of it, 25% each. Porygon2 needs the Up-Grade, Porygon-Z the Dubious Disc and Exeggutor the Leaf Stone; Smeargle never evolves, but its Sketch copies the nearest foe's move. 100 stamps on the loyalty card bring a Kecleon Egg sure to hatch shiny.",
+        "The Kecleon Egg never drops in runs either: it's a fixed card in the shop's Showcase: the day's first costs ₽10,000 and each one after costs double the last, up to 6 a day (₽320,000 for the sixth). Only Porygon, Exeggcute, Scraggy and Smeargle come out of it, 25% each. Porygon2 needs the Up-Grade, Porygon-Z the Dubious Disc and Exeggutor the Leaf Stone; Smeargle never evolves, but its Sketch copies the nearest foe's move. 100 stamps on the loyalty card bring a Kecleon Egg sure to hatch shiny.",
       ],
       tierHead: 'Egg',
       stepsHead: 'Steps',
@@ -631,7 +739,8 @@ export const siteEn: SiteMessages = {
       paragraphs: (coins: readonly number[], minute: number, kills: number, victory: number) => [
         `Fainted enemies sometimes drop Poké Dollars: a coin, a stack or a bag (${list(coins.map((c) => `₽${n(c)}`))}). Tougher ones drop them more often, and bosses and shinies always pay out.`,
         `A bonus comes at the end of the run: ₽${minute} per minute survived, ₽1 per ${kills} fainted foes and ₽${n(victory)} for winning. Quitting from the pause menu keeps the coins but forfeits the bonus.`,
-        'Spend it all in the Kecleon Shop, on the plaza east of your partner\'s home in the lobby. Today\'s Showcase is the same for everyone and turns over at midnight Brasília time: a free gift every day, the Kecleon Egg (one a day), a deal at 30% off, consumables for your Bag, the day\'s egg and a style. Kecleon\'s purple brother sells TMs (buy one once, arm it before a run and the first TM that drops is that one) and evolution items: a path that needs an item only opens with it (no Dawn Stone, no Gallade), and a boss may also drop one in a run, for that run only. Training holds the permanent upgrades: the Refund button gives back everything you spent on them, so you can try other builds. It also sells Bottle Caps: +3% to everything per level, up to 3, only for the Pokémon that gets them. In Expansion you invest to grow the shop (Cart, Tent, Shop, Kecleon Mart and Department Store), with more items in the Showcase and the Bag. Friday to Sunday, from the Kecleon Mart on, Meowth\'s caravan stops on the plaza with an ultra egg, the Gold Bottle Cap and exclusive TMs; with 7 stamps on your loyalty card (one per day you visit the shop) he gives you 20% off. Without an account, progress is saved only in this browser.',
+        'Spend it all in the Kecleon Shop, on the plaza east of your partner\'s home in the lobby. Today\'s Showcase is the same for everyone and turns over at midnight Brasília time: a free gift every day, the Kecleon Egg (up to 6 a day, each for double the last), a deal at 30% off, consumables for your Bag, the day\'s egg and a style. Kecleon\'s purple brother sells TMs (buy one once, arm it before a run and the first TM that drops is that one) and evolution items: a path that needs an item only opens with it (no Dawn Stone, no Gallade), and a boss may also drop one in a run, for that run only. Training holds the permanent upgrades: the Refund button gives back everything you spent on them, so you can try other builds. It also sells Bottle Caps: +3% to everything per level, up to 3, only for the Pokémon that gets them. In Expansion you invest to grow the shop (Cart, Tent, Shop, Kecleon Mart and Department Store), with more items in the Showcase and the Bag. The Incubator tab sells extra incubator slots (for good) and the Quick Incubator, which makes one egg walk twice as fast. Friday to Sunday, from the Kecleon Mart on, Meowth\'s caravan stops on the plaza with an ultra egg, the Gold Bottle Cap and exclusive TMs; with 7 stamps on your loyalty card (one per day you visit the shop) he gives you 20% off. Without an account, progress is saved only in this browser.',
+        'Plaza Festival: about once a month, for 14 days, the fountain on the Kecleon plaza becomes a community pot. With an account (with a @handle and 3 finished runs), you toss ₽ into the fountain, from ₽100 up to ₽200k a day. Every milestone the pot passes becomes a Gift for every player, even guests and those who didn\'t give, and waits in the gift box until 7 days after the end. Giving ₽50k in one festival earns the Patron title, and the 10 biggest donors show on the fountain\'s plaque (you can hide your name). The first is the Lantern Festival, from Nov 3 to 16.',
       ],
       upgradeHead: 'Upgrade',
       effectHead: 'Effect',
@@ -662,7 +771,7 @@ export const siteEn: SiteMessages = {
         ['Sound', 'Turns all sound on or off (shortcut: M).'],
         ['Damage numbers', 'Shows or hides damage numbers on screen.'],
         ['Screen shake', 'Turns screen shake on explosions and big hits on or off.'],
-        ['Language', 'Switches between English, Portuguese and Spanish.'],
+        ['Language', 'Switches between English, Portuguese, Spanish, French, Traditional Chinese and Turkish.'],
       ],
     },
     cta: 'Ready? Pick your partner and play.',
@@ -712,9 +821,20 @@ export const siteEn: SiteMessages = {
         'A companion that follows them in runs.',
         'Their name on the wall below and in the victory thanks.',
         'A vote on the next egg Pokémon.',
-        'Gold, with R$ 50 or US$ 10 in all: a golden card background, PC Box wallpaper and badge.',
+        'Gold and Diamond are monthly now, on Patreon (see below): one-time donations don’t add up to Gold.',
       ],
       note: 'All cosmetic: nothing changes a run or the ranking. Rewards need an account in the game (signing in with Google is free).',
+    },
+    monthly: {
+      title: 'Monthly support on Patreon',
+      lead: 'Want to support every month? On Patreon, your tier follows the amount you keep active. Then link Patreon to your account from the game’s Hall of Fame.',
+      tiers: [
+        '<b>Supporter, US$ 5/month:</b> everything donors get, the Supporter role and the exclusive Discord channel, and the Hall of Fame while your support lasts.',
+        '<b>Gold, US$ 10/month:</b> everything a Supporter gets, the Gold badge and role, a golden card background and wallpaper, and the Hall of Fame for good.',
+        '<b>Diamond, US$ 20/month:</b> everything Gold gets, the Diamond badge and role, a legendary you captured as your companion (shiny if caught shiny), a monthly vote on a new ultra-rare Pokémon and diamond decorations on the Hall of Fame.',
+      ],
+      cta: 'Support on Patreon',
+      note: 'Everyone who donated before Patreon is an OG Supporter: they keep everything they have, for good, with their own section on the Hall of Fame.',
     },
     wall: { title: 'Supporters wall', empty: 'Nobody here yet. Your name could be the first!' },
     pick: 'Choose how to pay',
@@ -769,7 +889,10 @@ export const siteEn: SiteMessages = {
       cries: 'Cries (Pokémon sounds)',
       criesText: 'PokéAPI/cries.',
       fonts: 'Fonts',
-      fontsText: 'Press Start 2P and VT323, under the SIL Open Font License (OFL). Served by this site.',
+      fontsText: 'Press Start 2P and VT323, under the SIL Open Font License (OFL), and Cubic 11 (俐方體11號) for Chinese, free to use. Served by this site.',
+      translation: 'Translation',
+      languages: { pt: 'Portuguese', en: 'English', es: 'Spanish', fr: 'French', zh: 'Chinese', tr: 'Turkish' },
+      reviewedBy: (language: string, name: string, discord: string) => `${language} translation reviewed by ${name}, a moderator of our Discord (${discord}). In-game profile:`,
       inspiration: 'Inspiration',
       inspirationText: 'Vampire Survivors, by poncle.',
       nonCommercial: 'Because the sprites are CC BY-NC, the game as a whole can\'t be used commercially.',
@@ -797,8 +920,7 @@ export const siteEn: SiteMessages = {
     privacyAfter: [
       'To delete this data, clear the site data in your browser settings.',
       'Sprites, sounds and fonts are served by this site, with no calls to third-party services. The site is hosted on Vercel which, like any web server, may log technical access data (such as IP addresses) to run and protect the service.',
-      'To know how many people visit and play, the site uses Vercel Web Analytics and its own Umami instance, on our own server. They count visits anonymously and in aggregate (page, country, browser, device and referring site) and, in Umami\'s case, a summary of each run (starter Pokémon, the minute and level you reached and whether you won), with no cookies and without identifying you or following you across sites.',
-      'In the game we also use PostHog (posthog.com, with data stored in the United States) to understand how it is played and to fix bugs. It receives a summary of each run (Pokémon, difficulty, moves, items, the minute and level you reached and how it ended), which menu screens you open and, when the game hits an error, the error message and the replay of the run in progress (its seed and your inputs, nothing personal). All of it is tied to the random id in ph_ps and, if you signed in, to your account id and username, never to your email or name. PostHog uses no cookies here and does not follow you across sites.',
+      'In the game we use PostHog (posthog.com, with data stored in the United States) to understand how it is played and to fix bugs. It receives a summary of each run (Pokémon, difficulty, moves, items, the minute and level you reached and how it ended), which menu screens you open and, when the game hits an error, the error message and the replay of the run in progress (its seed and your inputs, nothing personal). All of it is tied to the random id in ph_ps and, if you signed in, to your account id and username, never to your email or name. PostHog uses no cookies here and does not follow you across sites.',
       'Donations are paid on AbacatePay\'s pages (abacatepay.com: Pix and Brazilian cards) or Stripe\'s (stripe.com: cards from other countries, Apple Pay and Google Pay). Your payment details go straight to them, and the game never sees your card. They show us the amount and, as they would to anyone receiving a payment, details of who paid (such as name and email), which we use for nothing but recording the donation. If you give an @ (or redeem the donation\'s code), it\'s tied to that game account so the rewards reach it; the amount is never shown publicly, only the supporter badge, which you can hide.',
     ],
     contact: [
@@ -807,5 +929,207 @@ export const siteEn: SiteMessages = {
     ],
     issues: 'Open an issue on GitHub',
     source: 'View the source code',
+  },
+  creators: {
+    title: 'Creators: Pokémon Survivors videos and streams',
+    description:
+      'Pokémon Survivors videos and streams made by players, on YouTube and TikTok. Make yours, share it on Discord and get the Content Creator title and the creator frame in the game.',
+    h1: 'Creators',
+    lead: 'Videos and streams from people who play Pokémon Survivors. Watch them right here and follow who makes them.',
+    videos: 'Videos',
+    people: 'Who makes them',
+    play: (title: string) => `Watch: ${title}`,
+    watchOn: (platform: string) => `Watch on ${platform}`,
+    videoAbout: (name: string) => `A Pokémon Survivors video by ${name}.`,
+    langs: { pt: 'In Portuguese', en: 'In English', es: 'In Spanish', fr: 'In French', zh: 'In Chinese', tr: 'In Turkish' },
+    join: {
+      title: 'Do you make videos of the game?',
+      lead: 'Gameplay, a stream, a guide, a Short or a TikTok, in any language: every video of the game can be here.',
+      steps: [
+        'Post your video on YouTube, TikTok or wherever you like.',
+        'Share the link in the #screenshots-and-clips channel of our Discord.',
+        'Tell us your in-game @: you get the Content Creator title and the creator frame.',
+      ],
+      cta: 'Share my video on Discord',
+    },
+  },
+  compare: {
+    title: 'Pokémon Survivors vs PokéSurvivor: are they the same game? The differences',
+    description:
+      'Pokémon Survivors (pokemonsurvivors.com) and PokéSurvivor (pokesurvivor.com) are two free Vampire Survivors-style Pokémon fan games by different people. Side by side: Pokémon, co-op, languages, rankings and source code.',
+    h1: 'Are Pokémon Survivors and PokéSurvivor the same game?',
+    lead: [
+      'No. They are two free Vampire Survivors-style Pokémon fan games with almost the same name, made by different people. Pokémon Survivors (pokemonsurvivors.com, this site) is made by Pedro Barretto in Brazil. PokéSurvivor (pokesurvivor.com) is made by JPTER78.',
+      'Both came out in October 2026, run in the browser and are free, so search engines and AI chats sometimes mix them up. Here is what sets them apart.',
+    ],
+    table: { title: 'Side by side', feature: 'Feature' },
+    rows: (f) => [
+      ['Made by', 'Pedro Barretto (Brazil)', 'JPTER78'],
+      ['Website', 'pokemonsurvivors.com', 'pokesurvivor.com'],
+      ['Where to play', 'Browser on PC and phone, portrait or landscape. Installs as an app.', 'Browser on PC and phone, landscape. Installs as an app.'],
+      ['Account', 'Optional: solo play needs no sign-up. An account adds cloud saves, the rankings and co-op.', 'Optional: guest or account (name and password, or Google). An account adds cloud saves, the rankings and co-op.'],
+      ['How you attack', `Every move fires on its own, up to ${f.moves} at once.`, 'You pick the active move (keys 1 to 4). Each legendary beaten lets you fuse moves into one slot.'],
+      ['Playable Pokémon', `${f.starters} starters with their full evolution lines, plus ${f.eggs} families that hatch from eggs and ${f.legends} legendaries in Legend Mode.`, '966 Pokémon from all 9 generations.'],
+      ['How you unlock Pokémon', 'Eggs that hatch with the steps you take in runs. Legendaries are caught by beating them as bosses.', 'A gacha per region, with tickets earned by playing.'],
+      ['A run', `${f.minutes} minutes up to Mewtwo, with legendary bosses and epic rifts on the way. Then an endless mode until Arceus.`, 'Timed hordes, with rifts that lead to an arena against a legendary.'],
+      ['Co-op', `Online, up to ${f.players} players. Rooms by link, code or friends list.`, 'Online, up to 4 players. Rooms by inviting friends.'],
+      ['Languages', `${f.languages}: Portuguese, English, Spanish, French, Traditional Chinese and Turkish.`, '7: Spanish, English, French, Italian, Portuguese, and Simplified and Traditional Chinese.'],
+      ['Rankings', 'By time survived. Runs on the boards are checked: the server re-simulates each one from its replay.', 'By time survived, solo or as a group.'],
+      ['Source code', 'Open source, MIT license.', 'Public, PolyForm Noncommercial license (MIT until 2026-10-14).'],
+      ['Ads and purchases', 'None. Optional donations.', 'None. Optional donations.'],
+    ],
+    names: {
+      title: 'Similar names',
+      items: [
+        { name: 'Pokémon Survivors', text: 'This game, at pokemonsurvivors.com. "Survivors", plural.' },
+        { name: 'PokéSurvivor (or Poke Survivor)', text: "JPTER78's game, at pokesurvivor.com." },
+        { name: 'Poke Survivors (Android)', text: 'An unofficial Android port of PokéSurvivor, made in Godot. Not this game.' },
+        { name: 'pokesurvivor.games and pokesurvival.com', text: 'Fan sites with guides that send you to PokéSurvivor.' },
+        { name: 'Pokémon Survivor Burst', text: 'Another fan game, downloaded on PC, made by ClessioTV with Pokémon Essentials.' },
+      ],
+    },
+    pickOurs: {
+      title: 'Play Pokémon Survivors if you…',
+      items: (f) => [
+        `want a run with a beginning, middle and end: ${f.minutes} minutes up to Mewtwo, then the endless mode against Arceus;`,
+        'like theorycrafting: moves that fork into two paths at Lv 4 and Lv 7, Abilities, items, duo moves and Mega Evolution;',
+        `want to play as the legendaries: catch all ${f.legends} by beating them as bosses and play them in Legend Mode;`,
+        'want to play on your phone held upright, one-handed;',
+        'want a ranking where the top runs are checked by the server;',
+        'want open source under the MIT license, to study and reuse.',
+      ],
+    },
+    pickTheirs: {
+      title: 'Play PokéSurvivor if you…',
+      items: [
+        'want to collect: 966 Pokémon and a gacha per region;',
+        'would rather pick the attacking move yourself;',
+        'play in Italian or Simplified Chinese;',
+        'want the bigger community and more YouTube videos.',
+      ],
+    },
+    faq: {
+      title: 'FAQ',
+      items: (f) => [
+        {
+          q: 'Are Pokémon Survivors and PokéSurvivor the same game?',
+          a: 'No. They are two different free fan games by different people, released the same month with almost the same name. Pokémon Survivors is at pokemonsurvivors.com and made by Pedro Barretto. PokéSurvivor is at pokesurvivor.com and made by JPTER78.',
+        },
+        {
+          q: 'I searched for "Pokémon Survivors" and got PokéSurvivor. Did I get the name wrong?',
+          a: 'No. Pokémon Survivors, with "Survivors" in the plural, is this game, at pokemonsurvivors.com. Search engines and AI chats sometimes mix the two up.',
+        },
+        {
+          q: 'Which one is better?',
+          a: `It depends on what you want. PokéSurvivor has more Pokémon (966) and a gacha to collect them. Pokémon Survivors has ${f.minutes}-minute runs with legendary bosses, playable legendaries, Mega Evolution, moves that fork into paths and a server-checked ranking. Both are free, so you can play both.`,
+        },
+        {
+          q: 'Are both free and official?',
+          a: 'Both are free, with no ads or purchases, and run in the browser. Neither is official: they are fan games with no ties to Nintendo, The Pokémon Company, GAME FREAK or Creatures.',
+        },
+        {
+          q: 'Can I play Pokémon Survivors with friends?',
+          a: `Yes. Online co-op brings up to ${f.players} players into the same run, each with their own Pokémon. Create a room and invite friends by link, code or friends list. It needs an account.`,
+        },
+      ],
+    },
+    checked: (date) => `The facts about PokéSurvivor were checked on ${date} on its website and in its source code, and may have changed since.`,
+    report: 'Spotted something wrong? Tell us on GitHub',
+    alternatives: 'More Pokémon games like Vampire Survivors',
+    cta: 'Play Pokémon Survivors free',
+  },
+  alternatives: {
+    title: 'Pokémon games like Vampire Survivors: the free fan games (2026)',
+    description:
+      'The free Vampire Survivors-style Pokémon fan games: Pokémon Survivors, PokéSurvivor and Pokémon Survivor Burst, plus the roguelite PokeRogue. Where they run, co-op, how many Pokémon and who each one is for.',
+    h1: 'Pokémon games like Vampire Survivors',
+    lead: "There is no official Pokémon Vampire Survivors, but fans have made a few. These are the free Pokémon survivors-like (or bullet heaven) fan games, where you only move and your Pokémon attacks hordes on its own, plus a turn-based Pokémon roguelite if you'd like a different pace.",
+    disclosure: (date) =>
+      `Written by the maker of Pokémon Survivors, first on the list, so keep that in mind. The other games' facts were checked on ${date} on their own sites and may have changed.`,
+    glance: { title: 'At a glance', game: 'Game', plays: 'Where to play', style: 'Style', coop: 'Co-op', roster: 'Pokémon' },
+    madeBy: 'Made by',
+    bestFor: 'Best for',
+    visit: (name) => `Open ${name}`,
+    games: {
+      ours: {
+        plays: 'Browser, PC and phone',
+        style: 'Survivors-like',
+        coop: 'Up to 4 online',
+        roster: (f) => `${f.starters} starters, ${f.eggs} egg families, ${f.legends} legendaries`,
+        about: (f) => [
+          `Pick one of ${f.starters} starters from Kanto to Paldea and survive ${f.minutes} minutes of hordes: every move attacks on its own, you pick moves and items each level and evolve mid-run, until you face Mewtwo. Legendary bosses, epic rifts into each legendary's domain, Mega Evolution and an endless mode against Arceus.`,
+          `Eggs hatch ${f.eggs} more families, the legendaries you beat become playable in Legend Mode, and online co-op brings up to ${f.players} players together. In ${f.languages} languages, open source (MIT).`,
+        ],
+        bestFor: 'short runs with bosses, varied builds and playable legendaries, on PC or on a phone held upright.',
+      },
+      pokesurvivor: {
+        plays: 'Browser, PC and phone (landscape)',
+        style: 'Survivors-like',
+        coop: 'Up to 4 online',
+        roster: '966 Pokémon',
+        about: [
+          'The biggest cast in the genre: 966 Pokémon from all 9 generations, unlocked through a gacha per region with tickets earned by playing. You pick the attacking move, and rifts lead to an arena against a legendary. It has missions, achievements, rankings and co-op for up to 4 players, in 7 languages.',
+          'There is also an unofficial Android port called Poke Survivors, made in Godot.',
+        ],
+        bestFor: 'collecting as many Pokémon as possible.',
+      },
+      burst: {
+        plays: 'Download, Windows and Mac',
+        style: 'Survivors-like',
+        coop: 'No',
+        roster: 'Grows with each version',
+        about: [
+          'Made in Pokémon Essentials (RPG Maker XP), you download it and play on a computer. It has Classic, Rush and Tower modes, bosses and online leaderboards, in several languages. Its maker notes the phone version is untested.',
+        ],
+        bestFor: 'a downloaded game that looks like a classic Pokémon game.',
+      },
+      pokerogue: {
+        plays: 'Browser, PC and phone',
+        style: 'Turn-based roguelite',
+        coop: 'No',
+        roster: 'Every generation',
+        about: [
+          "Not a survivors-like: battles are turn-based, like the main series, wave after wave, catching Pokémon to build your team. It's the best-known Pokémon roguelite, free and open source.",
+        ],
+        bestFor: 'a Pokémon roguelite with turn-based battles instead of hordes.',
+      },
+    },
+    faq: {
+      title: 'FAQ',
+      items: (f) => [
+        {
+          q: 'Is there an official Pokémon Vampire Survivors?',
+          a: 'No. Pokémon has never released a game in this style. The ones that exist are free, unofficial fan games, like Pokémon Survivors, PokéSurvivor and Pokémon Survivor Burst.',
+        },
+        {
+          q: 'Which Pokémon game like Vampire Survivors has co-op?',
+          a: `Pokémon Survivors and PokéSurvivor, both with online co-op for up to ${f.players} players, in the browser.`,
+        },
+        {
+          q: 'Which one can I play on my phone without downloading anything?',
+          a: 'Pokémon Survivors, PokéSurvivor and PokeRogue run in the phone browser. Pokémon Survivors also plays with the phone held upright. Pokémon Survivor Burst is a download for computers.',
+        },
+      ],
+    },
+    compareLink: 'Pokémon Survivors and PokéSurvivor side by side',
+    cta: 'Play Pokémon Survivors free',
+  },
+  notFound: {
+    title: 'Page not found · Pokémon Survivors',
+    eyebrow: 'ERROR 404 · ROUTE 404',
+    h1: 'You got lost on Route 404.',
+    lead: 'This page doesn’t exist, but the Zubat do. Walk to a sign to get out.',
+    url: 'You looked for:',
+    mean: { before: 'Did you mean ', after: '?' },
+    hint: 'Arrow keys or WASD to walk. On a phone, touch and drag. Attacks fire on their own.',
+    game: 'Mini game: walk along Route 404 to a sign',
+    start: 'Walk to start',
+    go: 'Go to',
+    over: '{name} fainted on Route 404.',
+    time: 'Time',
+    ko: 'KOs',
+    best: 'Best',
+    retry: 'Try again',
+    notes: { play: 'A real run', pokedex: 'Every Pokémon in the game', guide: 'How to play' },
   },
 }

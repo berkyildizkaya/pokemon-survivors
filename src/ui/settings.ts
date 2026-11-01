@@ -1,31 +1,46 @@
 import { playSfx, setMix } from '../engine/audio'
-import { STICK_MODES, type Input } from '../engine/input'
+import { BUTTON_SIDES, STICK_EDGES, STICK_HEIGHTS, STICK_MODES, type Input } from '../engine/input'
 import { clamp } from '../engine/math'
 import { locale, LOCALE_IDS, LOCALES, setLocale, t, type Locale } from '../i18n'
+import { TRANSLATORS } from '../data/translators'
 import { bugReportsEnabled } from '../bugReport'
 import { bugReportForm } from './bugReport'
 import { openControls } from './controls'
+import { AIM_ASSISTS } from './arenaAim'
+import { PRIORITIES } from '../game/versusKit'
 import { h, later } from './dom'
 import { DAMAGE_NUMBERS } from '../render/damageNumbers'
 import { FLASH_MODES } from '../render/flashes'
-import { loadSettings, writeSettings, type Settings } from './save'
+import { FOG_MODES } from '../render/weather'
+import { RUN_TOASTS } from './toastQueue'
+import { loadSettings, MIN_ATTACK_OPACITY, MINIMAP_MODES, writeSettings, type Settings } from './save'
+import { coopUrl } from '../coopShell'
 import { hint, menu, type Screen } from './screens'
 import { backButton, shellBody, tabStrip, topBar, segmented } from './shell'
 import { REPO_URL, ROUTES, SOCIAL_IDS, SOCIALS } from '../site/routes'
 import { applyUiScale, maxUiZoom, UI_SCALES, uiZoom, type UiScale } from './uiScale'
+import { applyTheme, THEMES } from './theme'
+import { safeModeOn, setSafeMode } from '../safeMode'
 import { currentInstallOffer, installHelpScreen, onInstallChange, promptInstall } from './install'
 
 /* ---------------- Live settings ---------------- */
 
 /**
  * Pushes settings out to where they act: the audio mix, `data-stick` for the
- * HUD's CSS (the status box moves off the fixed stick) and `data-flashes`
- * (reduced hides the shell's white screen flash), and the UI size.
+ * HUD's CSS (the status box moves off the fixed stick), `data-hand`,
+ * `data-stick-height` and `data-stick-edge` (the touch buttons' side and the
+ * fixed stick's place), `data-flashes` (reduced hides the shell's white screen
+ * flash), the theme (`data-theme`) and the UI size.
  */
 const apply = (s: Settings) => {
   setMix(s)
-  document.documentElement.dataset.stick = s.joystick
-  document.documentElement.dataset.flashes = s.flashes
+  const root = document.documentElement.dataset
+  root.stick = s.joystick
+  root.hand = s.buttonSide
+  root.stickHeight = s.stickHeight
+  root.stickEdge = s.stickEdge
+  root.flashes = s.flashes
+  applyTheme(s.theme)
   applyUiScale(s.uiScale)
 }
 
@@ -60,14 +75,17 @@ type Row = { el: HTMLElement; adjust: (dir: -1 | 1) => void; activate: () => voi
 
 const SLIDER_STEPS = 10
 
-/** Volume bar of growing pixel cells. Tap a cell or drag across it; ← → step by 10%. */
-const slider = (label: string, key: 'musicVolume' | 'sfxVolume', preview?: () => void): Row => {
+/** The settings a slider sets: fractions from 0 to 1. */
+type SliderKey = 'musicVolume' | 'sfxVolume' | 'attackOpacity' | 'teamAttackOpacity'
+
+/** A bar of growing pixel cells (volumes, opacities). Tap a cell or drag across it; ← → step by 10%, never under `min` cells. */
+const slider = (label: string, key: SliderKey, preview?: () => void, min = 0): Row => {
   const cells = Array.from({ length: SLIDER_STEPS }, (_, i) => h('span', { class: 'slider-cell', style: `--h:${40 + i * 6}%` }))
   const value = h('b', { class: 'setting-value' })
   const bar = h('div', { class: 'slider', role: 'slider', 'aria-label': label, 'aria-valuemin': 0, 'aria-valuemax': 100 }, ...cells)
   const level = () => Math.round(current[key] * SLIDER_STEPS)
   const set = (next: number) => {
-    const steps = clamp(next, 0, SLIDER_STEPS)
+    const steps = clamp(next, min, SLIDER_STEPS)
     if (steps === level()) return
     const patch: Partial<Settings> = {}
     patch[key] = steps / SLIDER_STEPS
@@ -94,28 +112,36 @@ const slider = (label: string, key: 'musicVolume' | 'sfxVolume', preview?: () =>
   }
 }
 
-const toggle = (label: string, read: (s: Settings) => boolean, write: (on: boolean) => Partial<Settings>): Row => {
+/** An ON/OFF switch over any boolean: Enter, a tap or ← → flips it. */
+const switchRow = (label: string, read: () => boolean, set: (on: boolean) => void): Row => {
   const pill = h('b', { class: 'setting-pill' })
   const el = h('button', { class: 'setting-row', role: 'switch' }, h('span', { class: 'setting-label' }, label), pill)
   const flip = () => {
-    updateSettings(write(!read(current)))
+    set(!read())
     playSfx('select')
+    sync()
   }
-  return {
-    el,
-    adjust: flip,
-    activate: flip,
-    sync: () => {
-      const on = read(current)
-      pill.textContent = on ? t().settings.on : t().settings.off
-      pill.classList.toggle('off', !on)
-      el.setAttribute('aria-checked', String(on))
-    },
+  const sync = () => {
+    const on = read()
+    pill.textContent = on ? t().settings.on : t().settings.off
+    pill.classList.toggle('off', !on)
+    el.setAttribute('aria-checked', String(on))
   }
+  return { el, adjust: flip, activate: flip, sync }
 }
 
-/** `◀ Reduced ▶`: ← → step through `options`, Enter or a tap goes to the next one (wrapping). */
-const choiceRow = <K extends keyof Settings>(label: string, key: K, options: readonly Settings[K][], name: (v: Settings[K]) => string): Row => {
+/** The page in the browser's fullscreen, where it has the Fullscreen API (Android, computers; not iPhone Safari). */
+const canFullscreen = () => document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === 'function'
+const isFullscreen = () => document.fullscreenElement !== null
+/** Fullscreen on or off; the browser may refuse (no gesture, a policy), and the switch then stays as it was (`fullscreenchange` syncs it). */
+const setFullscreen = (on: boolean) => void (on ? document.documentElement.requestFullscreen({ navigationUI: 'hide' }) : document.exitFullscreen()).catch(() => {})
+
+/** A switch over one of the settings. */
+const toggle = (label: string, read: (s: Settings) => boolean, write: (on: boolean) => Partial<Settings>): Row =>
+  switchRow(label, () => read(current), (on) => updateSettings(write(on)))
+
+/** `◀ Reduced ▶`: ← → step through `options`, Enter or a tap goes to the next one (wrapping). `changed` runs after each step. */
+const choiceRow = <K extends keyof Settings>(label: string, key: K, options: readonly Settings[K][], name: (v: Settings[K]) => string, changed?: () => void): Row => {
   const value = h('b', { class: 'setting-choice' })
   const el = h('button', { class: 'setting-row' }, h('span', { class: 'setting-label' }, label), value)
   const step = (dir: -1 | 1) => {
@@ -124,6 +150,7 @@ const choiceRow = <K extends keyof Settings>(label: string, key: K, options: rea
     patch[key] = options[(options.indexOf(current[key]) + dir + n) % n]
     updateSettings(patch)
     playSfx('select')
+    changed?.()
   }
   return {
     el,
@@ -191,6 +218,9 @@ const installRows = (label: string, openHelp: () => void): Row[] => {
   return [{ el, adjust: (dir) => dir > 0 && go(), activate: go, sync: () => {} }]
 }
 
+/** A touchscreen without a mouse: the on-screen buttons and the stick show. Same query as `finePointer` in main.ts. */
+const touchControls = () => !matchMedia('(hover: hover) and (pointer: fine)').matches
+
 const TABS = ['sound', 'game', 'controls', 'about'] as const
 
 type Tab = (typeof TABS)[number]
@@ -200,8 +230,9 @@ let lastTab: Tab = 'sound'
 
 /**
  * Settings in four tabs: Som (music and effects volume, mute), Jogo
- * (language, damage numbers, screen shake, flashes, UI size), Controles (touch joystick and the
- * remap screen) and Sobre (installing the app, what the game is, legal and
+ * (language, theme, damage numbers, screen shake, flashes, fog, run alerts, the mini map, move opacity, UI size, safe mode), Controles
+ * (touch joystick, the buttons' side and the fixed stick's place on touchscreens, and the remap screen) and Sobre
+ * (installing the app, what the game is, legal and
  * credits, GitHub, the official profiles, and the bug report form when there's an API to send it to).
  * Changes apply and persist immediately.
  *
@@ -253,13 +284,43 @@ export const openSettings = (root: HTMLElement, input: Input, onClose: () => voi
       case 'game':
         return [
           languageRow(pickLanguage),
+          choiceRow(m.theme, 'theme', THEMES, (mode) => m.themes[mode]),
           choiceRow(m.damageNumbers, 'damageNumbers', DAMAGE_NUMBERS, (mode) => m.damageModes[mode]),
           toggle(m.screenShake, (s) => s.screenShake, (on) => ({ screenShake: on })),
           choiceRow(m.flashes, 'flashes', FLASH_MODES, (mode) => m.flashModes[mode]),
+          choiceRow(m.fog, 'fog', FOG_MODES, (mode) => m.fogModes[mode]),
+          choiceRow(m.runToasts, 'runToasts', RUN_TOASTS, (mode) => m.runToastModes[mode]),
+          choiceRow(m.minimap, 'minimap', MINIMAP_MODES, (mode) => m.minimapModes[mode]),
+          toggle(m.quickChat, (s) => s.quickChat, (on) => ({ quickChat: on })),
+          slider(m.attackOpacity, 'attackOpacity', undefined, MIN_ATTACK_OPACITY * SLIDER_STEPS),
+          // Teammates' moves only matter in a build with co-op.
+          ...(coopUrl() ? [slider(m.teamAttackOpacity, 'teamAttackOpacity', undefined, MIN_ATTACK_OPACITY * SLIDER_STEPS)] : []),
           ...uiScaleRows(m.uiScale, m.uiScaleAuto),
+          // The browser's fullscreen is the page's, not a setting: Esc (or the phone's back) leaves it too.
+          ...(canFullscreen() ? [switchRow(m.fullscreen, isFullscreen, setFullscreen)] : []),
+          // Safe mode is the device's, not a setting (`safeMode.ts`): a crash turns it on by itself.
+          switchRow(m.safeMode, safeModeOn, (on) => setSafeMode(on ? 'on' : 'off')),
         ]
       case 'controls':
-        return [choiceRow(m.joystick, 'joystick', STICK_MODES, (mode) => m.joystickModes[mode]), openRow(t().controls.open, () => showSub(openControls))]
+        return [
+          // The joystick mode shows or hides the fixed stick's place: rebuild after this key dispatch.
+          choiceRow(m.joystick, 'joystick', STICK_MODES, (mode) => m.joystickModes[mode], () => later(() => build(nav?.index ?? 0, false))),
+          ...(touchControls()
+            ? [
+                choiceRow(m.buttonSide, 'buttonSide', BUTTON_SIDES, (side) => m.buttonSides[side]),
+                ...(current.joystick === 'fixed'
+                  ? [
+                      choiceRow(m.stickHeight, 'stickHeight', STICK_HEIGHTS, (step) => m.stickHeights[step]),
+                      choiceRow(m.stickEdge, 'stickEdge', STICK_EDGES, (step) => m.stickEdges[step]),
+                    ]
+                  : []),
+              ]
+            : []),
+          // The Arena's aim: how a cast picks where it goes, and which rival the basic attack and the assist go for.
+          choiceRow(m.aimAssist, 'aimAssist', AIM_ASSISTS, (mode) => m.aimAssists[mode]),
+          choiceRow(m.targetPriority, 'targetPriority', PRIORITIES, (prio) => m.priorities[prio]),
+          openRow(t().controls.open, () => showSub(openControls)),
+        ]
       case 'about':
         return [
           ...(bugReportsEnabled ? [openRow(m.reportBug, () => showSub(bugReportForm))] : []),
@@ -293,7 +354,9 @@ export const openSettings = (root: HTMLElement, input: Input, onClose: () => voi
           h(
             'div',
             { class: 'box settings-rows', role: 'tabpanel' },
-            tab === 'about' ? h('p', { class: 'settings-about' }, m.about, h('small', {}, t().title.credits)) : null,
+            tab === 'about'
+              ? h('p', { class: 'settings-about' }, m.about, h('small', {}, t().title.credits), ...TRANSLATORS.map((tr) => h('small', {}, m.reviewedBy(m.languages[tr.locale], tr.name, tr.handle))))
+              : null,
             ...content.map((r) => r.el),
           ),
           hint(m.hintKeys, m.hintTouch),
@@ -331,12 +394,15 @@ export const openSettings = (root: HTMLElement, input: Input, onClose: () => voi
 
   // A prompt arriving or the app getting installed while Sobre is open shows or hides its row.
   const offInstall = onInstallChange(() => !away && tab === 'about' && build(nav?.index ?? 0, false))
+  // Fullscreen lands a moment after the switch asks for it, and the browser can leave it on its own.
+  document.addEventListener('fullscreenchange', sync)
 
   const dispose = () => {
     sub?.dispose()
     nav?.off()
     offKeys()
     offInstall()
+    document.removeEventListener('fullscreenchange', sync)
     el.remove()
     if (refresh === sync) refresh = null
   }

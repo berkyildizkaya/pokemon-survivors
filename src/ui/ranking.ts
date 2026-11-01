@@ -3,8 +3,8 @@ import { playSfx } from '../engine/audio'
 import type { Input } from '../engine/input'
 import { formatTime } from '../engine/math'
 import { HATCHLING_IDS, PLAYABLE, type PlayableId } from '../data/hatchlings'
-import { LEGEND_IDS } from '../data/legends'
 import { REGIONS } from '../data/starters'
+import { shownLegends } from '../game/festival'
 import { dailyChallenge } from '../game/challenge'
 import { brasiliaDay, previousDay, type DayKey } from '../game/day'
 import { DIFFICULTY_IDS, type Difficulty } from '../game/difficulty'
@@ -17,7 +17,7 @@ import { flagIcon } from '../render/art'
 import { jackIcon } from '../render/halloweenArt'
 import { today } from './save'
 import { h, later, rich } from './dom'
-import { profileScreen, runForm, runPortrait, supporterBadge } from './profile'
+import { profileScreen, runForm, runPortrait, supporterBadges } from './profile'
 import { reportDialog } from './report'
 import { shopIcon } from './shopIcons'
 import { hint, menu, type Screen } from './screens'
@@ -44,7 +44,7 @@ const entryRow = (e: BoardEntry, me: boolean) => {
     { class: `rank-row${me ? ' me' : ''}${e.rank <= 3 ? ` top${e.rank}` : ''}${lit ? ' pumpkin' : ''}` },
     h('span', { class: 'rank-pos' }, `#${e.rank}`),
     h('img', { src: runPortrait(e), alt: runForm(e).name, title: runForm(e).name }),
-    h('span', { class: 'rank-who' }, h('b', {}, e.name, supporterBadge(e.supporter, e.supporterSince)), h('small', {}, `@${e.handle}`, me && ` · ${t().ranking.you}`)),
+    h('span', { class: 'rank-who' }, h('b', {}, e.name, ...supporterBadges(e.supporter, e.supporterSince, e.og)), h('small', {}, `@${e.handle}`, me && ` · ${t().ranking.you}`)),
     runBag(e.bag) ?? h('span', {}),
     h('span', { class: 'rank-time' }, h('b', {}, formatTime(e.time)), h('small', {}, t().ranking.outcomes[e.outcome])),
     lit && h('img', { class: 'rank-jack', src: jackIcon(), alt: '' }),
@@ -68,7 +68,7 @@ const pokemonSelect = (mode: RunMode, value: PlayableId | null, onPick: (id: Pla
   const option = (id: PlayableId) => h('option', { value: id, selected: id === value }, PLAYABLE[id].name)
   const groups =
     mode === 'legend'
-      ? [h('optgroup', { label: m.legendGroup }, ...LEGEND_IDS.map(option))]
+      ? [h('optgroup', { label: m.legendGroup }, ...shownLegends(brasiliaDay(today())).map(option))]
       : [...REGIONS.map((r) => h('optgroup', { label: r.name }, ...r.starters.map(option))), h('optgroup', { label: m.eggGroup }, ...HATCHLING_IDS.map(option))]
   const select = h('select', { class: 'rank-select', 'aria-label': m.pokemon }, h('option', { value: '' }, m.allPokemon), ...groups)
   select.addEventListener('change', () => {

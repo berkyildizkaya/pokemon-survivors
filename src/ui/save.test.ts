@@ -24,13 +24,40 @@ describe('parseSettings', () => {
     expect(parseSettings(JSON.stringify({ joystick: 'left' })).joystick).toBe('floating')
   })
 
+  it('reads the buttons side and the fixed stick place, falling back step by step', () => {
+    const stored = JSON.stringify({ buttonSide: 'left', stickHeight: 'high', stickEdge: 'corner' })
+    expect(parseSettings(stored)).toMatchObject({ buttonSide: 'left', stickHeight: 'high', stickEdge: 'near' })
+    expect(parseSettings(JSON.stringify({ buttonSide: true })).buttonSide).toBe('right')
+  })
+
   it('reads the flashes mode, normal unless it says reduced', () => {
     expect(parseSettings(JSON.stringify({ flashes: 'reduced' })).flashes).toBe('reduced')
     expect(parseSettings(JSON.stringify({ flashes: false })).flashes).toBe('normal')
   })
 
+  it('reads the fog mode, light unless it says normal or off', () => {
+    expect(parseSettings(JSON.stringify({ fog: 'off' })).fog).toBe('off')
+    expect(parseSettings(JSON.stringify({ fog: false })).fog).toBe('light')
+  })
+
+  it('reads the run toasts level, all unless it says important or none', () => {
+    expect(parseSettings(JSON.stringify({ runToasts: 'important' })).runToasts).toBe('important')
+    expect(parseSettings(JSON.stringify({ runToasts: 'few' })).runToasts).toBe('all')
+  })
+
+  it('reads the mini map mode, square unless it says round or off', () => {
+    expect(parseSettings(JSON.stringify({ minimap: 'round' })).minimap).toBe('round')
+    expect(parseSettings(JSON.stringify({ minimap: 'off' })).minimap).toBe('off')
+    expect(parseSettings(JSON.stringify({ minimap: true })).minimap).toBe('square')
+  })
+
   it('clamps volumes to 0..1', () => {
     expect(parseSettings(JSON.stringify({ musicVolume: 4, sfxVolume: -1 }))).toMatchObject({ musicVolume: 1, sfxVolume: 0 })
+  })
+
+  it('clamps move opacities to 0.1..1, so a move never vanishes outright', () => {
+    expect(parseSettings(JSON.stringify({ attackOpacity: 0, teamAttackOpacity: 3 }))).toMatchObject({ attackOpacity: 0.1, teamAttackOpacity: 1 })
+    expect(parseSettings(JSON.stringify({ attackOpacity: 'faint' })).attackOpacity).toBe(1)
   })
 
   it('falls back to the given defaults (the legacy mute flag)', () => {

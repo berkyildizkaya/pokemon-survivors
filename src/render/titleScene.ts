@@ -12,8 +12,10 @@ import { drawMeadowJacks, drawMeadowNight } from './halloweenArt'
 import {
   celebratePlaza,
   createPlaza,
+  drawPlazaDusk,
   drawPlazaGround,
   drawPlazaMarker,
+  drawPlazaOverhead,
   drawPlazaParty,
   greetKeepers,
   KECLEON_DEX,
@@ -28,13 +30,33 @@ import {
   type Piece,
   type Plaza,
   type PlazaNpc,
+  type ViewBox,
 } from './plaza'
+import { createDojo, dojoFrame, dojoPieces, dojoTapped, drawDojoGround, drawDojoMarker, greetSensei, pushOutDojo, SENSEI, senseiSpot, senseiTalk, stepDojo, type Dojo } from './dojo'
+import {
+  createStadium,
+  drawStadiumGround,
+  drawStadiumMarker,
+  greetJudge,
+  judgeSpot,
+  JUDGE,
+  pushOutStadium,
+  stadiumFrame,
+  stadiumPieces,
+  stadiumTalk,
+  stadiumTapped,
+  stepStadium,
+  type Stadium,
+  type StadiumNpc,
+} from './stadium'
 
 /**
  * Attract-mode backdrop behind the menus: the meadow around the partner's
- * home, under a gently swaying camera, with wild Pokémon strolling around
+ * home, under a camera that stands still, with wild Pokémon strolling around
  * (and, rarely, a shiny). East of home stands the Kecleon plaza
- * (`render/plaza.ts`), the shop as a place. On the lobby the partner can hop
+ * (`render/plaza.ts`), the shop as a place, west of it the Dojo
+ * (`render/dojo.ts`), Machoke's training hall, and south of it the Estádio
+ * (`render/stadium.ts`), the Arena's, Ninjask judging at its gate. On the lobby the partner can hop
  * off its stage and take a walk among them (`meetPartner`, `steerPartner`):
  * bumping into one makes it react, and some tag along for a while. A trip
  * (`visitPlaza`) pans the camera to the plaza or back home, the partner
@@ -108,8 +130,11 @@ export type Partner = {
   trail: Vec[]
 }
 
-/** Where the camera rests when nobody strolls: the partner's home or the Kecleon plaza. */
-export type Place = 'home' | 'plaza'
+/** Where the camera rests when nobody strolls: the partner's home, the Kecleon plaza, the Dojo or the Estádio. */
+export type Place = 'home' | 'plaza' | 'dojo' | 'stadium'
+
+/** Who the partner can talk to in the meadow: the plaza's keepers and visitors, Machoke at the Dojo, or Ninjask and the boards at the Estádio. */
+export type LobbyNpc = PlazaNpc | 'sensei' | StadiumNpc
 
 /** A camera trip to a place, eased over `time` seconds, the partner hopping from `from` to its spot there. */
 type Trip = { to: Place; t: number; time: number; cam: Vec; from: Vec }
@@ -127,6 +152,10 @@ export type TitleScene = {
   placed: boolean
   /** The Kecleon plaza, east of home. */
   plaza: Plaza
+  /** The Dojo, west of home. */
+  dojo: Dojo
+  /** The Estádio, south of home. */
+  stadium: Stadium
   wanderers: Wanderer[]
   nextSpawn: number
   /** Species whose shiny form is loading for the next shiny roll. */
@@ -143,12 +172,16 @@ export type TitleScene = {
   puffs: { x: number; y: number; at: number }[]
   /** The Noite das Bruxas (set by the shell): night falls, jack-o'-lanterns light the meadow and ghosts roam it. */
   haunted: boolean
+  /** Passear (`exploreMeadow`): the lobby's cards are away, the partner stays out in the meadow however long it idles. */
+  exploring: boolean
+  /** A phone's lobby, its cards up: the partner's stage on screen (view px), where the shop's marker keeps to (`drawPlazaMarker`); null otherwise. */
+  stageBox: ViewBox | null
 }
 
 /** Every species that may roam: wild Pokémon and the starter lines (evolutions show up once a run has loaded them). */
 const POOL: readonly Dex[] = [
-  // Kecleon keeps the shop: a wild one would pass for a third shopkeeper.
-  ...Object.values(ENEMIES).flatMap((e) => ('boss' in e || e.dex === KECLEON_DEX ? [] : [e.dex])),
+  // Kecleon keeps the shop and Ninjask judges the Estádio: a wild one would pass for a third shopkeeper or a second judge.
+  ...Object.values(ENEMIES).flatMap((e) => ('boss' in e || e.dex === KECLEON_DEX || e.dex === JUDGE.dex ? [] : [e.dex])),
   ...STARTER_IDS.flatMap(starterDex),
 ]
 
@@ -157,8 +190,6 @@ const GHOSTS: readonly Dex[] = Object.values(ENEMIES).flatMap((e) => (!('boss' i
 /** Share of a haunted meadow's newcomers that are ghosts, when any is loaded. */
 const HAUNTED_SHARE = 0.65
 
-/** The camera's idle sway around its rest, world px. */
-const SWAY = { x: 5, y: 3 }
 /** Off-screen band (world px) where wanderers enter; past it they're recycled. */
 const MARGIN = 40
 /** How far outside the view (world px) newcomers appear. */
@@ -174,6 +205,8 @@ const PARTNER_SPEED = 60
 const REST = 12
 /** The camera follows the partner when it gets this close (a fraction of the view) to an edge. */
 const FOLLOW_EDGE = 0.22
+/** During Passear the camera keeps it nearer the middle, clear of the thumb on the stick and of the screen's edges. */
+const EXPLORE_EDGE = 0.36
 /** Feet this close (world px) say hello. */
 const GREET_RANGE = 16
 const GREET_COOLDOWN = 8
@@ -205,6 +238,8 @@ export const createTitleScene = (seed: number): TitleScene => {
     trip: null,
     placed: false,
     plaza: createPlaza(home),
+    dojo: createDojo(home),
+    stadium: createStadium(home),
     wanderers: [],
     nextSpawn: 0,
     nextShiny: null,
@@ -215,12 +250,15 @@ export const createTitleScene = (seed: number): TitleScene => {
     quietUntil: 0,
     puffs: [],
     haunted: false,
+    exploring: false,
+    stageBox: null,
   }
 }
 
 /** The lobby's partner takes its place on the stage, with the supporter's companion if one walks along (`null`: the lobby closed, both are gone). */
 export const meetPartner = (s: TitleScene, partner: { dex: Dex; shiny: boolean } | null, companion: CompanionView | null = null) => {
   for (const wd of s.wanderers) wd.followUntil = 0
+  s.exploring = false
   // A new lobby starts at home: any trip it didn't finish is called off.
   if (partner) {
     s.trip = null
@@ -252,16 +290,58 @@ export const steerPartner = (s: TitleScene, move: Vec, tap: Vec | null, home: Ve
   if (tap) p.target = tap
 }
 
-/** The camera's top-left resting at `place` for a `w`×`h` view (home sways a little). */
+/** The partner hops off its stage (or off the counter) into the meadow, a puff of dust where it takes off. */
+const hopOut = (s: TitleScene, p: Partner) => {
+  if (p.state === 'home') {
+    p.x = p.home.x
+    p.y = p.home.y
+  }
+  p.state = 'out'
+  p.idle = 0
+  p.hopAt = s.time
+  p.trail.length = 0
+  s.puffs.push({ x: p.x, y: p.y, at: s.time })
+}
+
+/**
+ * Passear on (`on`) or off for a `w`×`h` view. On, the partner hops into the
+ * meadow (off its stage, or off the counter after a talk) and stays out: the
+ * camera follows it wherever it walks. Off, the view heads home: a walk back
+ * to the stage when close, a trip when it's far (out at the plaza, or at the
+ * counter after a talk).
+ */
+export const exploreMeadow = (s: TitleScene, on: boolean, w: number, h: number) => {
+  s.exploring = on
+  const p = s.partner
+  if (!p || s.trip) return
+  if (on) {
+    if (p.state === 'home' || p.state === 'shop') hopOut(s, p)
+    return
+  }
+  if (Math.hypot(p.x - s.home.x, p.y - s.home.y) > 200) return visitPlaza(s, 'home', w, h)
+  s.rest = 'home'
+  if (p.state === 'out' || p.state === 'shop') p.state = 'back'
+}
+
+/**
+ * The camera's top-left resting at `place` for a `w`×`h` view, on whole
+ * world pixels: a rest that drifts below a pixel shows on the pixel-art
+ * meadow as the whole scene ticking a pixel at a time.
+ */
 const restCam = (s: TitleScene, place: Place, w: number, h: number): Vec =>
-  place === 'plaza'
-    ? plazaFrame(s.plaza, w, h)
-    : { x: s.home.x - w / 2 + Math.sin(s.time * 0.21) * SWAY.x, y: s.home.y - h / 2 + Math.sin(s.time * 0.13) * SWAY.y }
+  place === 'plaza' ? plazaFrame(s.plaza, w, h)
+  : place === 'dojo' ? dojoFrame(s.dojo, w, h)
+  : place === 'stadium' ? stadiumFrame(s.stadium, w, h)
+  : { x: Math.round(s.home.x - w / 2), y: Math.round(s.home.y - h / 2) }
 
 const easeInOut = (k: number) => (k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2)
 
-/** Where the partner ends a trip to `place`: the shop's counter, or its stage. */
-const tripGoal = (s: TitleScene, p: Partner, place: Place) => (place === 'plaza' ? shopSpot(s.plaza) : p.home)
+/** Where the partner ends a trip to `place`: the shop's counter, before Machoke, before Ninjask, or its stage. */
+const tripGoal = (s: TitleScene, p: Partner, place: Place) =>
+  place === 'plaza' ? shopSpot(s.plaza)
+  : place === 'dojo' ? senseiSpot(s.dojo)
+  : place === 'stadium' ? judgeSpot(s.stadium)
+  : p.home
 
 /**
  * Starts a trip of the camera to `to` (the Kecleon plaza or home), eased
@@ -298,8 +378,17 @@ const arrive = (s: TitleScene, to: Place) => {
   const p = s.partner
   if (p) {
     p.moving = false
-    p.state = to === 'plaza' ? 'shop' : 'home'
-    if (to === 'plaza') p.dir = 4
+    // Back home during Passear, it walks on instead of taking its stage, which is away with the cards.
+    p.state = to !== 'home' ? 'shop' : s.exploring ? 'out' : 'home'
+    if (to !== 'home') p.dir = 4
+  }
+  if (to === 'dojo') {
+    greetSensei(s.dojo, s.time)
+    cry(s, SENSEI.dex)
+  }
+  if (to === 'stadium') {
+    greetJudge(s.stadium, s.time)
+    cry(s, JUDGE.dex)
   }
   // A camouflaged Kecleon keeps still and quiet until it's talked to (`revealShopkeeper`).
   if (to === 'plaza' && !s.plaza.hidden) {
@@ -348,14 +437,16 @@ const stepTrip = (s: TitleScene, trip: Trip, dt: number, w: number, h: number) =
   if (trip.t >= trip.time) arrive(s, trip.to)
 }
 
-/** Above the head of whoever at the plaza the strolling partner stands close enough to talk to (world px, and who), or null. */
-export const talkSpot = (s: TitleScene): (Vec & { who: PlazaNpc }) | null => {
+/** Above the head of whoever at the plaza, the Dojo or the Estádio the strolling partner stands close enough to talk to (world px, and who), or null. */
+export const talkSpot = (s: TitleScene): (Vec & { who: LobbyNpc }) | null => {
   const p = s.partner
-  return p && p.state === 'out' && !s.trip ? talkAnchor(s.plaza, p) : null
+  if (!p || p.state !== 'out' || s.trip) return null
+  const sensei = senseiTalk(s.dojo, p)
+  return sensei ? { ...sensei, who: 'sensei' } : (stadiumTalk(s.stadium, p) ?? talkAnchor(s.plaza, p))
 }
 
-/** Who a tap (world px) on the plaza is for: the shop (its shopkeepers, building or edge marker), Meowth or a stall; null for none. */
-export const tapsPlaza = (s: TitleScene, at: Vec) => plazaTapped(s.plaza, at)
+/** Who a tap (world px) is for: the shop (its shopkeepers, building or edge marker), Meowth or a stall (or its edge marker), the Dojo (Machoke, the hall or its marker), the Estádio (a board, Ninjask, the stadium or its marker); null for none. */
+export const tapsPlaza = (s: TitleScene, at: Vec): LobbyNpc | null => (dojoTapped(s.dojo, at) ? 'sensei' : (stadiumTapped(s.stadium, at) ?? plazaTapped(s.plaza, at)))
 
 /** Starts a stroll along one of the 8 sprite directions (towards `target` if given) or a short rest. */
 const nextLeg = (rng: Rng, w: Wanderer, target?: Vec) => {
@@ -460,20 +551,14 @@ const partnerVelocity = (p: Partner, dt: number): Vec => {
   return { x: 0, y: 0 }
 }
 
-/** Walks the partner: off the stage on the first order, back to it after `REST` idle seconds, the camera keeping it in view. */
+/** Walks the partner: off the stage on the first order, back to it after `REST` idle seconds (not during Passear), the camera keeping it in view. */
 const stepPartner = (s: TitleScene, p: Partner, dt: number, w: number, h: number) => {
   const ordered = p.move.x !== 0 || p.move.y !== 0 || p.target !== null
   if (ordered) {
     p.idle = 0
-    if (p.state === 'home') {
-      p.x = p.home.x
-      p.y = p.home.y
-      p.hopAt = s.time
-      p.trail.length = 0
-      s.puffs.push({ x: p.x, y: p.y, at: s.time })
-    }
+    if (p.state === 'home') hopOut(s, p)
     p.state = 'out'
-  } else if ((p.idle += dt) > REST && p.state === 'out') {
+  } else if ((p.idle += dt) > REST && p.state === 'out' && !s.exploring) {
     // Far from home (out at the plaza), it hops back along a trip instead of a long walk.
     if (Math.hypot(p.x - p.home.x, p.y - p.home.y) > 200) return visitPlaza(s, 'home', w, h)
     p.state = 'back'
@@ -495,6 +580,8 @@ const stepPartner = (s: TitleScene, p: Partner, dt: number, w: number, h: number
     p.x += v.x * dt
     p.y += v.y * dt
     pushOut(s.plaza, p)
+    pushOutDojo(s.dojo, p)
+    pushOutStadium(s.stadium, p)
     p.dir = dir8(v.x, v.y)
     const last = p.trail.at(-1)
     if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= TRAIL_STEP) {
@@ -504,8 +591,9 @@ const stepPartner = (s: TitleScene, p: Partner, dt: number, w: number, h: number
   }
   // Out in the meadow, the camera eases along whenever the partner nears an edge (on its way back, the stage stays put).
   if (p.state === 'out') {
-    const mx = w * FOLLOW_EDGE
-    const my = h * FOLLOW_EDGE
+    const edge = s.exploring ? EXPLORE_EDGE : FOLLOW_EDGE
+    const mx = w * edge
+    const my = h * edge
     const want = { x: clamp(s.cam.x, p.x - w + mx, p.x - mx), y: clamp(s.cam.y, p.y - h + my, p.y - my) }
     const k = Math.min(1, dt * 6)
     s.cam.x += (want.x - s.cam.x) * k
@@ -593,7 +681,7 @@ export const stepTitleScene = (s: TitleScene, dt: number, w: number, h: number) 
     Object.assign(s.cam, restCam(s, s.rest, w, h))
   }
   if (p && p.state !== 'trip') stepPartner(s, p, dt, w, h)
-  // On a trip the camera eases there; else it rests (swaying a little) unless the partner is out in the meadow, where it follows.
+  // On a trip the camera eases there; else it rests unless the partner is out in the meadow, where it follows.
   if (s.trip) stepTrip(s, s.trip, dt, w, h)
   else if (!p || (p.state !== 'out' && p.state !== 'back')) {
     const rest = restCam(s, s.rest, w, h)
@@ -602,6 +690,8 @@ export const stepTitleScene = (s: TitleScene, dt: number, w: number, h: number) 
     s.cam.y += (rest.y - s.cam.y) * k
   }
   stepPlaza(s.plaza, p && p.state !== 'home' ? p : null)
+  stepDojo(s.dojo, p && p.state !== 'home' ? p : null)
+  stepStadium(s.stadium, p && p.state !== 'home' ? p : null)
   // The companion waits behind the stage while the partner stands on it, and follows it out.
   const c = s.companion
   if (c && p && p.state === 'home') Object.assign(c, createCompanion(c.dex, c.shiny, p, c.sparkles))
@@ -619,6 +709,8 @@ export const stepTitleScene = (s: TitleScene, dt: number, w: number, h: number) 
     wd.x += wd.vx * dt
     wd.y += wd.vy * dt
     pushOut(s.plaza, wd)
+    pushOutDojo(s.dojo, wd)
+    pushOutStadium(s.stadium, wd)
     if (roaming && !wd.greet && !following(s, wd) && s.time >= wd.calmAt && s.time - wd.bornAt > FADE_IN && Math.hypot(wd.x - roaming.x, wd.y - roaming.y) < GREET_RANGE) {
       greet(s, roaming, wd)
     }
@@ -659,6 +751,8 @@ export const drawTitleScene = (ctx: CanvasRenderingContext2D, s: TitleScene, w: 
   const camY = Math.round(s.cam.y)
   drawGround(ctx, camX, camY, w, h)
   drawPlazaGround(ctx, s.plaza, camX, camY, w, h)
+  drawDojoGround(ctx, s.dojo, camX, camY, w, h)
+  drawStadiumGround(ctx, s.stadium, camX, camY, w, h)
   if (s.haunted) drawMeadowJacks(ctx, camX, camY, w, h, s.time)
   drawPuffs(ctx, s, camX, camY)
   const p = s.partner?.state === 'home' ? null : s.partner
@@ -685,6 +779,8 @@ export const drawTitleScene = (ctx: CanvasRenderingContext2D, s: TitleScene, w: 
   if (p) pending.push({ y: p.y, draw: drawPartner })
   if (c) pending.push({ y: c.y, draw: drawFollower })
   for (const piece of plazaPieces(s.plaza)) pending.push(piece)
+  for (const piece of dojoPieces(s.dojo)) pending.push(piece)
+  for (const piece of stadiumPieces(s.stadium)) pending.push(piece)
   pending.sort(byFeet)
   let next = 0
   const flush = (y: number) => {
@@ -704,7 +800,9 @@ export const drawTitleScene = (ctx: CanvasRenderingContext2D, s: TitleScene, w: 
     if (wd.shiny) drawSparkles(ctx, x, y - sprite.bodyH / 2, Math.max(sprite.bodyW, sprite.bodyH), s.time - wd.bornAt, wd.id)
   }
   flush(Infinity)
+  drawPlazaOverhead(ctx, s.plaza, camX, camY)
   drawPlazaParty(ctx, s.plaza, camX, camY, s.time)
+  drawPlazaDusk(ctx, s.plaza, camX, camY, w, h, s.time)
   if (s.haunted) drawMeadowNight(ctx, camX, camY, w, h, s.time)
   // Emotes over everyone's heads, bobbing a pixel.
   const bubbles = EMOTES()
@@ -716,5 +814,8 @@ export const drawTitleScene = (ctx: CanvasRenderingContext2D, s: TitleScene, w: 
     blitCentered(ctx, bubbles[REACTIONS[wd.greet.kind].emote], Math.round(wd.x) - camX, top - 8 - bob)
   }
   // While the lobby rests at home (or the partner strolls), a card at the edge points the way to the shop.
-  drawPlazaMarker(ctx, s.plaza, camX, camY, w, h, s.time, s.partner !== null && !s.trip && s.rest === 'home')
+  const home = s.partner !== null && !s.trip && s.rest === 'home'
+  drawPlazaMarker(ctx, s.plaza, camX, camY, w, h, s.time, home, s.stageBox)
+  drawDojoMarker(ctx, s.dojo, camX, camY, w, h, s.time, home, s.stageBox)
+  drawStadiumMarker(ctx, s.stadium, camX, camY, w, h, s.time, home, s.stageBox)
 }

@@ -1,10 +1,10 @@
 import { accountState, accountsEnabled, giftInbox, onAccountChange, onInbox, onSaveSynced, type AccountState } from '../account'
-import { track } from '../analytics'
+import { lobbyPress } from '../analytics'
 import { playSfx } from '../engine/audio'
 import { ACTIONS } from '../engine/bindings'
 import { joystick, type Input, type Stick } from '../engine/input'
 import { formatTime, type Vec } from '../engine/math'
-import { blitCentered, context2d, ellipse } from '../engine/pixelart'
+import { blitPacked, context2d, ellipse } from '../engine/pixelart'
 import { ENEMIES } from '../data/enemies'
 import { HATCHLINGS, PLAYABLE } from '../data/hatchlings'
 import { isReady } from '../game/eggs'
@@ -12,31 +12,33 @@ import { DISCORD_GIFT } from '../game/gifts'
 import { nextMilestone } from '../game/referral'
 import { dayKey, missionStatus } from '../game/missions'
 import { pendingPicks, playsShiny } from '../game/shinyPicks'
-import { supporterCount, type WallEntry } from '../game/supporters'
+import type { ArenaHubTab } from './arenaHub'
+import { pollToVote, supporterCount, tierRank, type WallEntry } from '../game/supporters'
 import { formatNumber, locale, t } from '../i18n'
-import { bulbIcon, coinIcon, coopIcon, discordIcon, eggIcon, giftIcon, heartIcon, medalIcon, newsIcon, pokeballIcon, ribbonIcon, socialIcon, sparkleIcon, supporterIcon, surveyIcon } from '../render/art'
+import { arenaIcon, bulbIcon, coinIcon, coopIcon, discordIcon, eggIcon, giftIcon, heartIcon, itemIcon, medalIcon, newsIcon, pawIcon, pokeballIcon, ribbonIcon, socialIcon, sparkleIcon, supporterIcon, surveyIcon } from '../render/art'
 import { logoScale, titleLogo } from '../render/logo'
 import { drawPokemon, loadedSprites, loadSpecies, type Dex } from '../render/sprites'
-import type { Place } from '../render/titleScene'
-import type { PlazaNpc } from '../render/plaza'
+import type { LobbyNpc, Place } from '../render/titleScene'
+import { isBoard, type BoardId } from '../render/stadium'
 import { stallGoods } from '../game/stalls'
 import type { VisitorShelf } from './shop'
-import { dialogue, type Dialogue } from './dialogue'
-import { stallSpeaker, stallToday } from './visitors'
+import { dialogue, type Dialogue, type Speaker } from './dialogue'
+import { judgeSpeaker, lanturnSpeaker, senseiSpeaker, stallSpeaker, stallToday } from './visitors'
 import { inviterName } from '../ranking'
 import { ROUTES, SOCIAL_IDS, SOCIALS, type SocialId } from '../site/routes'
-import { fetchWall } from '../supporters'
+import { fetchWall, knownStatus } from '../supporters'
 import { h, later, rich } from './dom'
 import { boundKey } from './inputLabels'
 import { challengeToday, halloweenToday, loadAttempt, loadSave, outbreakToday, today } from './save'
-import { halloweenCard, halloweenCardShows } from './halloween'
+import { festivalCard, festivalCardShows, festivalTile, type FestivalTab } from './festival'
+import { fillHalloweenCard, halloweenCard, halloweenCardShows, halloweenTile } from './halloween'
 import { contentLine } from './gifts'
 import { countedFriends, loadInvites } from './invites'
 import { isUnread, latestUpdate } from './news'
-import { hallFace, hallPortrait } from './supporters'
+import { hallFace, hallPortrait, type HallOpen } from './supporters'
 import { surveyWaiting, takeSurveyOffer } from './survey'
 import type { Screen } from './screens'
-import { gearButton, helpButton, iconButton, shellBody, topBar, walletChip } from './shell'
+import { gearButton, helpButton, iconButton, railTile, shellBody, topBar, walletChip } from './shell'
 import { nearestInDirection, type Direction } from './spatial'
 import { toast } from './toasts'
 import { trainerChip } from './trainer'
@@ -51,6 +53,7 @@ export type LobbyFocus =
   | 'help'
   | 'settings'
   | 'halloween'
+  | 'festival'
   | 'outbreak'
   | 'challenge'
   | 'missions'
@@ -61,10 +64,13 @@ export type LobbyFocus =
   | 'pokedex'
   | 'eggs'
   | 'mart'
+  | 'dojo'
   | 'ranking'
   | 'ideas'
   | 'coop'
+  | 'arena'
   | 'play'
+  | 'explore'
   | SocialId
 
 /**
@@ -88,10 +94,14 @@ export type Meadow = {
   visit: (to: Place, instant?: boolean) => void
   /** Where the meadow rests, or `moving` during a trip. */
   at: () => Place | 'moving'
+  /** Passear on or off: on, the partner hops into the meadow and stays out, the camera following it; off, it heads back to its stage. */
+  explore: (on: boolean) => void
   /** Above whoever at the plaza the strolling partner stands close enough to talk to (and who), or null. */
-  talkSpot: () => (Vec & { who: PlazaNpc }) | null
-  /** Who a tap is for: the shop (its shopkeepers, building or the edge marker pointing to it), Meowth or a stall; null for none. */
-  tapsShop: (at: Vec) => PlazaNpc | null
+  talkSpot: () => (Vec & { who: LobbyNpc }) | null
+  /** Who a tap is for: the shop (its shopkeepers, building or the edge marker pointing to it), Meowth, a stall (or its edge marker), the festival's fountain or plaque; null for none. */
+  tapsShop: (at: Vec) => LobbyNpc | null
+  /** On a phone with the lobby's cards up, the partner's stage (CSS px): the shop's edge marker keeps to it, since the cards cover the view's edges; null otherwise. */
+  stageBox: (box: DOMRect | null) => void
 }
 
 export type TitleActions = {
@@ -126,26 +136,40 @@ export type TitleActions = {
    * talks beside it, `ui/shop.ts`); its Back must call `close`, which pans
    * back home and brings the lobby back in. `shelf`: open on Meowth's caravan or a seasonal stall's shelf (a talk with its keeper).
    */
-  mart: (close: () => void, shelf?: VisitorShelf) => Screen
+  mart: (close: () => void, shelf?: VisitorShelf, festival?: () => void) => Screen
+  /**
+   * Opens the Festival da Praça's sheet over the Kecleon plaza once the camera
+   * got there (`openFestival` in `ui/festival.ts`), on `tab`; `close` goes on
+   * from it (home, or back to the shop it was opened from).
+   */
+  festival: (close: () => void, tab?: FestivalTab) => Screen
   /** Opens the Trainer Card over the title (the Trainer chip, `C`, the invite banner), like `settings`. */
   trainer: (focus: LobbyFocus) => Screen
   /** Opens the boards over the title, like `settings`. No action (no API), no tile. */
   ranking?: (focus: LobbyFocus) => Screen
   /** Opens Ideias (the idea board) over the title, like `settings`. No action (no API), no tile. */
   ideas?: (focus: LobbyFocus) => Screen
-  /** Opens Apoiadores over the title (the Hall da Fama card), like `settings`; `pick` goes straight to the shiny picker. */
-  supporters: (focus: LobbyFocus, open: 'pick' | null) => Screen
+  /** Opens Apoiadores over the title (the Hall da Fama card), like `settings`; `open` goes straight to the shiny picker or a poll. */
+  supporters: (focus: LobbyFocus, open: HallOpen | null) => Screen
   /** Opens Convide amigos over the title (its card under the Hall), like `settings`. */
   invites: (focus: LobbyFocus) => Screen
-  /** Jogar junto (co-op): the hub. No action (no relay, or the beta's gate closed), no tile. */
+  /** Jogar junto (co-op): the hub. No action (no relay in this build), no tile. */
   coop?: () => void
+  /** Arena (Versus): its screen. Always there: against bots it needs no relay nor account. */
+  arena: () => void
+  /** The Arena's hub on one of its tabs: the Estádio's boards (all but Jogar, which is `arena`). */
+  arenaHub: (tab: ArenaHubTab) => void
+  /** The Dojo, once Machoke said hello: who trains (the partner select in its Dojo guise, `game/training.ts`). */
+  dojo: () => void
   meadow: Meadow
 }
+
 
 /**
  * The lobby's three layouts, in sync with the media queries of the lobby's
  * section in `style.css`: phones in landscape (two columns), narrow screens
- * (a column with a tab bar) and the rest (rails either side of the partner).
+ * (rails of tiles either side of the partner, over a tab bar) and the rest
+ * (rails of cards either side of the partner).
  */
 const LANDSCAPE = '(max-height: 500px) and (orientation: landscape)'
 const NARROW = '(max-width: 759px) and (min-height: 501px), (max-width: 759px) and (orientation: portrait)'
@@ -191,13 +215,12 @@ const todayCard = (key: LobbyFocus, label: string, badge: Node | null, hotkey: s
 /** A red count, or a green ✓ when nothing's left. */
 const badge = (n: number) => (n > 0 ? h('em', { class: 'lobby-badge' }, formatNumber(n)) : h('em', { class: 'lobby-badge done' }, '✓'))
 
-/** Surto do dia: the day's species walking, normal and shiny. `tick` animates them. */
-const outbreakCard = () => {
+/** The day's outbreak species walking on canvases (`shiny`: its shiny form beside it), which `tick` animates. */
+const outbreakWalkers = (shiny: boolean) => {
   const def = ENEMIES[outbreakToday()]
-  const sprite = (shiny: boolean) => h('canvas', { class: shiny ? 'lobby-walker shiny' : 'lobby-walker', width: 30, height: 32, 'aria-hidden': 'true' })
-  const walkers = [sprite(false), sprite(true)] as const
-  void Promise.allSettled([loadSpecies(def.dex), loadSpecies(def.dex, true)])
-  const el = todayCard('outbreak', t().home.outbreak, null, null, ...walkers, h('b', {}, def.name), h('img', { class: 'lobby-sparkle', src: sparkleIcon(), alt: '' }))
+  const sprite = (form: boolean) => h('canvas', { class: form ? 'lobby-walker shiny' : 'lobby-walker', width: 30, height: 32, 'aria-hidden': 'true' })
+  const walkers = shiny ? [sprite(false), sprite(true)] : [sprite(false)]
+  void Promise.allSettled([loadSpecies(def.dex), ...(shiny ? [loadSpecies(def.dex, true)] : [])])
   const tick = (time: number) => {
     const k = Math.max(1, Math.round(uiDpr() * (layout() === 'wide' ? 1.5 : 1)))
     walkers.forEach((canvas, i) => {
@@ -208,15 +231,35 @@ const outbreakCard = () => {
       if (s) drawPokemon(ctx, s, 'Walk', 0, time + i * 0.3, canvas.width / 2, canvas.height - 2)
     })
   }
+  return { def, walkers, tick }
+}
+
+/** Surto do dia: the day's species walking, normal and shiny. `tick` animates them. */
+const outbreakCard = () => {
+  const { def, walkers, tick } = outbreakWalkers(true)
+  const el = todayCard('outbreak', t().home.outbreak, null, null, ...walkers, h('b', {}, def.name), h('img', { class: 'lobby-sparkle', src: sparkleIcon(), alt: '' }))
   return { el, tick }
+}
+
+/** Surto do dia as a rail tile: the species walking, a sparkle on its corner for the shiny it may bring. */
+const outbreakTile = () => {
+  const m = t().home
+  const { def, walkers, tick } = outbreakWalkers(false)
+  const el = railTile('outbreak', walkers[0]!, m.rail.outbreak, `${m.outbreak}: ${def.name}`, h('img', { class: 'rail-sparkle', src: sparkleIcon(), alt: '' }))
+  return { el, tick }
+}
+
+/** Today's Desafio do dia, and this device's official attempt at it once made. */
+const challengeState = () => {
+  const c = challengeToday()
+  const attempt = loadAttempt()
+  return { c, done: attempt?.day === c.day ? attempt : null }
 }
 
 /** Desafio do dia: today's attempt time once made (with the ribbon it plays for), else the day's Pokémon and a "!". */
 const challengeCard = () => {
   const m = t().home
-  const c = challengeToday()
-  const attempt = loadAttempt()
-  const done = attempt?.day === c.day ? attempt : null
+  const { c, done } = challengeState()
   const el = todayCard(
     'challenge',
     m.challenge,
@@ -229,22 +272,47 @@ const challengeCard = () => {
   return el
 }
 
+/** Desafio do dia as a rail tile: the ribbon, with a "!" until today's attempt is made (a ✓ after). */
+const challengeTile = () => {
+  const m = t().home
+  const { done } = challengeState()
+  return railTile(
+    'challenge',
+    h('img', { class: 'lobby-icon', src: ribbonIcon('gold'), alt: '' }),
+    m.rail.challenge,
+    `${m.challenge}: ${done ? m.challengeDone(formatTime(done.time)) : m.challengeOpen}`,
+    done ? badge(0) : h('em', { class: 'lobby-badge' }, '!'),
+  )
+}
+
+/** Today's daily missions: how many are done, out of how many. */
+const dailyMissions = () => {
+  const daily = missionStatus(loadSave().missions, today()).filter((s) => s.period === 'daily')
+  const done = daily.filter((s) => s.done).length
+  return { done, total: daily.length, left: daily.length - done }
+}
+
 /** Missões: today's missions done out of all, with a badge of those left. */
 const missionsCard = () => {
   const m = t().home
-  const daily = missionStatus(loadSave().missions, today()).filter((s) => s.period === 'daily')
-  const done = daily.filter((s) => s.done).length
-  const left = daily.length - done
+  const { done, total, left } = dailyMissions()
   const el = todayCard(
     'missions',
     m.missions,
     badge(left),
     'M',
-    h('span', { class: 'lobby-progress' }, h('span', { style: `width:${daily.length ? Math.round((done / daily.length) * 100) : 0}%` })),
-    h('b', {}, `${done}/${daily.length}`),
+    h('span', { class: 'lobby-progress' }, h('span', { style: `width:${total ? Math.round((done / total) * 100) : 0}%` })),
+    h('b', {}, `${done}/${total}`),
   )
   el.setAttribute('aria-label', `${m.missions}: ${m.missionsLeft(left)}`)
   return el
+}
+
+/** Missões as a rail tile: done out of all over the label, with a badge of those left. */
+const missionsTile = () => {
+  const m = t().home
+  const { done, total, left } = dailyMissions()
+  return railTile('missions', h('b', { class: 'rail-count' }, `${done}/${total}`), m.rail.missions, `${m.missions}: ${m.missionsLeft(left)}`, badge(left))
 }
 
 /* ---------------- Novidades ---------------- */
@@ -317,6 +385,23 @@ const discordCard = () => {
   return el
 }
 
+/** Discord as a rail tile: a green ✓ once linked, or, while linking can bring it, the gift it brings bobbing on its corner. */
+const discordTile = () => {
+  const m = t().discord
+  const done = h('em', { class: 'lobby-badge done' }, '✓')
+  const prize = h('img', { class: 'lobby-invites-prize rail-prize', src: contentLine({ content: DISCORD_GIFT }).src, alt: '' })
+  const el = railTile('discord', h('img', { class: 'lobby-discord-icon', src: discordIcon(), alt: '' }), t().home.rail.discord, m.title)
+  followAccount(el, (s) => {
+    const linked = s.kind === 'signedIn' && s.discord
+    done.remove()
+    prize.remove()
+    if (linked) el.append(done)
+    else if (accountsEnabled) el.append(prize)
+    el.setAttribute('aria-label', `${m.title}: ${linked ? `✓ @${s.discord}` : accountsEnabled ? m.cardGift(HATCHLINGS[DISCORD_GIFT.family].name) : m.join}`)
+  })
+  return el
+}
+
 /** An official profile (`SOCIALS`) in the top bar, beside Discord (landscape phones). */
 const socialButton = (id: SocialId, onClick: () => void) => iconButton(socialIcon(id), t().socials.follow(SOCIALS[id].name), onClick)
 
@@ -327,7 +412,8 @@ const socialCard = (id: SocialId) => {
     'button',
     { class: `lobby-invites lobby-social ${id} box`, type: 'button', 'aria-label': t().socials.follow(s.name), title: t().socials.follow(s.name) },
     h('img', { class: 'lobby-social-icon', src: socialIcon(id), alt: '' }),
-    h('span', { class: 'lobby-invites-text' }, h('b', {}, s.name), h('span', { class: 'lobby-invites-row' }, s.handle)),
+    // The brand name is English: `lang` keeps the uppercase from turning TikTok into TİKTOK on a Turkish page.
+    h('span', { class: 'lobby-invites-text' }, h('b', { lang: 'en' }, s.name), h('span', { class: 'lobby-invites-row' }, s.handle)),
   )
 }
 
@@ -361,10 +447,21 @@ const giftButton = () => {
   return el
 }
 
+/** Passear, on the partner's stage across from the gift box: a paw print over its label. */
+const exploreButton = () => {
+  const m = t().home
+  return h(
+    'button',
+    { class: 'lobby-explore box', type: 'button', 'aria-label': m.exploreLabel, title: m.exploreLabel },
+    h('img', { src: pawIcon(), alt: '' }),
+    h('b', {}, m.explore),
+  )
+}
+
 /* ---------------- Hall da Fama ---------------- */
 
-/** Who the Hall card shows first: gold before supporters, then who came first. */
-const byStanding = (a: WallEntry, b: WallEntry) => (a.tier === b.tier ? a.since.localeCompare(b.since) : a.tier === 'gold' ? -1 : 1)
+/** Who the Hall card shows first: Diamond, then Gold, then supporters, then who came first. */
+const byStanding = (a: WallEntry, b: WallEntry) => tierRank(b.tier) - tierRank(a.tier) || a.since.localeCompare(b.since)
 
 /**
  * A supporter's round face, ringed in their tier's color: the portrait of
@@ -381,18 +478,38 @@ const wallFace = (e: WallEntry) => {
 }
 
 /**
+ * What the Hall da Fama calls the player to, opening straight onto it: a
+ * waiting shiny ticket's pick, else a poll they may vote in and haven't (as
+ * the device last heard from the API). Null for nothing, and without accounts.
+ */
+const hallCall = (): HallOpen | null => {
+  if (!accountsEnabled) return null
+  if (pendingPicks(loadSave()).length > 0) return 'pick'
+  const poll = pollToVote(knownStatus())
+  return poll ? { poll } : null
+}
+
+/** The Hall's label, with what it calls the player to. */
+const hallLabel = (call: HallOpen | null) => {
+  const m = t().supporters
+  return call === null ? t().home.hall : `${t().home.hall} · ${call === 'pick' ? m.banner : m.voteWaiting}`
+}
+
+/**
  * The Hall da Fama card: gold, slowly turning rays, the first supporters'
  * faces and "+N", and a ticker with the newest one (the wall's last entry).
  * Before the wall comes back, offline or with nobody on it, it just asks for
- * support. It sparkles while a shiny ticket waits for its pick. Without
- * accounts it's a link to the support page.
+ * support. It sparkles while it calls the player to something (`hallCall`);
+ * for a poll, the ticker says so instead. Without accounts it's a link to the
+ * support page.
  */
 const hallCard = (open: () => void) => {
   const m = t().home
-  const waiting = accountsEnabled && pendingPicks(loadSave()).length > 0
+  const call = hallCall()
+  const voting = call !== null && call !== 'pick'
   const stack = h('span', { class: 'hall-stack' })
-  const ticker = h('span', { class: 'hall-ticker' }, h('img', { src: heartIcon(), alt: '' }), h('span', {}, m.support))
-  const label = waiting ? `${m.hall} · ${t().supporters.banner}` : m.hall
+  const ticker = h('span', { class: 'hall-ticker' }, ...(voting ? [h('img', { src: giftIcon(), alt: '' }), h('span', {}, t().supporters.voteWaiting)] : [h('img', { src: heartIcon(), alt: '' }), h('span', {}, m.support)]))
+  const label = hallLabel(call)
   const kids = [
     h('span', { class: 'hall-rays', 'aria-hidden': 'true' }),
     h('span', { class: 'hall-top' }, h('img', { src: supporterIcon('gold'), alt: '' }), h('b', {}, m.hall), h('img', { class: 'hall-sparkle', src: sparkleIcon(), alt: '' })),
@@ -400,7 +517,7 @@ const hallCard = (open: () => void) => {
     ticker,
     h('span', { class: 'key-hint' }, 'H'),
   ]
-  const attrs = { class: waiting ? 'lobby-hall waiting' : 'lobby-hall', 'aria-label': label, title: label }
+  const attrs = { class: call ? 'lobby-hall waiting' : 'lobby-hall', 'aria-label': label, title: label }
   const el = accountsEnabled
     ? h('button', { ...attrs, type: 'button', onclick: open }, ...kids)
     : h('a', { ...attrs, href: ROUTES.support[locale()], target: '_blank', rel: 'noopener', onclick: () => playSfx('select') }, ...kids)
@@ -411,9 +528,21 @@ const hallCard = (open: () => void) => {
     // Supporters off the wall count too, so the number never drops when one hides.
     const more = supporterCount(wall) - shown.length
     stack.replaceChildren(...shown.map(wallFace), ...(more > 0 ? [h('em', {}, `+${formatNumber(more)}`)] : []))
-    ticker.replaceChildren(h('img', { src: heartIcon(), alt: '' }), h('span', {}, m.hallJoined(newest.handle, dayKey(new Date(newest.since)) === dayKey(today()))))
+    if (!voting) ticker.replaceChildren(h('img', { src: heartIcon(), alt: '' }), h('span', {}, m.hallJoined(newest.handle, dayKey(new Date(newest.since)) === dayKey(today()))))
     el.classList.add('filled')
   })
+  return el
+}
+
+/** The Hall da Fama as a rail tile: gold, its rays turning, sparkling while it calls the player to something (`hallCall`). Without accounts it opens the support page. */
+const hallTile = (open: () => void) => {
+  const m = t().home
+  const call = hallCall()
+  const el = railTile('hall', h('img', { src: supporterIcon('gold'), alt: '' }), m.rail.hall, hallLabel(call))
+  el.prepend(h('span', { class: 'hall-rays', 'aria-hidden': 'true' }))
+  if (call) el.append(h('img', { class: 'rail-sparkle', src: sparkleIcon(), alt: '' }))
+  el.classList.toggle('waiting', call !== null)
+  el.addEventListener('click', accountsEnabled ? open : () => (playSfx('select'), window.open(ROUTES.support[locale()], '_blank', 'noopener')))
   return el
 }
 
@@ -466,6 +595,19 @@ const invitesCard = () => {
   return el
 }
 
+/** Convide amigos as a rail tile: the Friendship Egg, and in full for screen readers how far the next milestone is. */
+const invitesTile = () => {
+  const m = t().invites
+  const el = railTile('invites', h('img', { class: 'lobby-invites-icon', src: eggIcon('friend'), alt: '' }), t().home.rail.invites, `${m.title}: ${m.cardFirst}`)
+  void loadInvites().then((list) => {
+    const friends = countedFriends(list)
+    if (friends === 0) return
+    const next = nextMilestone(friends)
+    el.setAttribute('aria-label', `${m.title}: ${next ? m.cardNext(friends, next.friends) : m.cardAll(friends)}`)
+  })
+  return el
+}
+
 /* ---------------- The partner on stage ---------------- */
 
 /** Art px of the stage canvas, and where the partner's feet stand in it. */
@@ -508,7 +650,6 @@ const partnerStage = (onPlay: () => void) => {
   const hint = hasStrolled() ? null : strollHint()
   const partner = h('button', { class: 'lobby-partner', type: 'button', 'aria-label': `${form.name} · ${t().home.change}`, onclick: onPlay }, hint, canvas, hit, plate)
   const el = h('div', { class: 'lobby-stage' }, partner)
-  const shadow = ellipse(13, 3, 'rgba(16, 24, 16, 0.3)')
   const tick = (time: number) => {
     const dpr = uiDpr()
     const s = loadedSprites(form.dex, shiny)
@@ -522,7 +663,7 @@ const partnerStage = (onPlay: () => void) => {
     pixelSize(canvas, k)
     const ctx = context2d(canvas)
     ctx.clearRect(0, 0, sw, sh)
-    blitCentered(ctx, shadow, sw / 2, feet)
+    blitPacked(ctx, ellipse(13, 3, 'rgba(16, 24, 16, 0.3)'), sw / 2, feet)
     if (!s) return
     drawPokemon(ctx, s, 'Idle', 0, time, sw / 2, feet)
     // The tappable body: the sprite's, a few art px wider, over the canvas.
@@ -566,10 +707,101 @@ const dockTile = (key: LobbyFocus, icon: string, label: string, hotkey: string, 
     h('span', { class: 'key-hint' }, hotkey),
   )
 
-/** Jogar junto's tile, tagged as a beta. */
+/** Set once the player opens Co-op on this device: the tile's NOVO tag goes for good. */
+const COOP_SEEN = 'ps:coopSeen'
+
+const coopSeen = () => {
+  try {
+    return localStorage.getItem(COOP_SEEN) !== null
+  } catch {
+    return true
+  }
+}
+
+const markCoopSeen = () => {
+  try {
+    localStorage.setItem(COOP_SEEN, '1')
+  } catch {
+    // Private modes may refuse: the tag just shows again next time.
+  }
+}
+
+/** Jogar junto's tile, tagged NOVO until the player first opens it. */
 const coopTile = () => {
   const el = dockTile('coop', coopIcon(), t().coop.entry, 'J')
-  el.append(h('em', { class: 'lobby-beta' }, t().coop.beta))
+  if (!coopSeen()) el.append(h('em', { class: 'lobby-new' }, t().coop.fresh))
+  return el
+}
+
+/** Set once the player opens the Arena on this device: the tile's NOVO tag goes for good. */
+const ARENA_SEEN = 'ps:arenaSeen'
+
+const arenaSeen = () => {
+  try {
+    return localStorage.getItem(ARENA_SEEN) !== null
+  } catch {
+    return true
+  }
+}
+
+/** Set once the player first trains at the Dojo on this device: the tile's NOVO tag and Machoke's long hello go for good. */
+const DOJO_SEEN = 'ps:dojoSeen'
+
+const dojoSeen = () => {
+  try {
+    return localStorage.getItem(DOJO_SEEN) !== null
+  } catch {
+    return true
+  }
+}
+
+const markArenaSeen = () => {
+  try {
+    localStorage.setItem(ARENA_SEEN, '1')
+  } catch {
+    // Private modes may refuse: the tag just shows again next time.
+  }
+}
+
+/** The Arena's tile, tagged NOVO until the player first opens it. */
+const arenaTile = () => {
+  const el = dockTile('arena', arenaIcon(), t().versus.entry, 'V')
+  if (!arenaSeen()) el.append(h('em', { class: 'lobby-new arena-new' }, t().versus.fresh))
+  return el
+}
+
+const markDojoSeen = () => {
+  try {
+    localStorage.setItem(DOJO_SEEN, '1')
+  } catch {
+    // Private modes may refuse: the tag and the long hello just show again next time.
+  }
+}
+
+/** Set once Ninjask first greets the player at the Estádio on this device: its long hello goes for good. */
+const STADIUM_SEEN = 'ps:stadiumSeen'
+
+const stadiumSeen = () => {
+  try {
+    return localStorage.getItem(STADIUM_SEEN) !== null
+  } catch {
+    return true
+  }
+}
+
+const markStadiumSeen = () => {
+  try {
+    localStorage.setItem(STADIUM_SEEN, '1')
+  } catch {
+    // Private modes may refuse: the long hello just plays again next time.
+  }
+}
+
+/** The Dojo's tile (a Black Belt for an icon), tagged NOVO until the player first trains; a rail tile on phones held upright. */
+const dojoTile = (rails: boolean) => {
+  const icon = itemIcon('blackBelt')
+  const el = rails ? railTile('dojo', h('img', { src: icon, alt: '' }), t().home.dojo, t().home.dojoLabel) : dockTile('dojo', icon, t().home.dojo, 'T', 0, t().home.dojoLabel)
+  if (!dojoSeen()) el.append(h('em', { class: 'lobby-new' }, t().coop.fresh))
   return el
 }
 
@@ -584,9 +816,12 @@ const TAP_SLOP = 12
 /** Whether a press on `target` lands on the meadow rather than on a button, a card or a link. */
 const onMeadow = (target: EventTarget | null) => target instanceof Element && !target.closest('button, a, input, select, .box')
 
-/** The movement keys held (WASD, or as rebound), normalized. */
-const heldMove = (input: Input): Vec => {
-  const held = (a: 'up' | 'down' | 'left' | 'right') => (input.isHeld(ACTIONS[a].key) ? 1 : 0)
+/** The arrow that walks the same way as each movement key, during Passear (where the arrows have no buttons to move between). */
+const ARROWS = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' } as const
+
+/** The movement keys held (WASD, or as rebound; the arrows too with `arrows`), normalized. */
+const heldMove = (input: Input, arrows: boolean): Vec => {
+  const held = (a: keyof typeof ARROWS) => (input.isHeld(ACTIONS[a].key) || (arrows && input.isHeld(ARROWS[a])) ? 1 : 0)
   const x = held('right') - held('left')
   const y = held('down') - held('up')
   const len = Math.hypot(x, y)
@@ -594,39 +829,51 @@ const heldMove = (input: Input): Vec => {
 }
 
 /** Shortcuts, shown as key hints on what they press (`C` belongs to the Trainer chip; P, E and Space are taken by the run's controls, and E talks to a shopkeeper the partner stands by). */
-const HOTKEYS: Readonly<Record<string, LobbyFocus>> = { KeyJ: 'coop', KeyG: 'gifts', KeyN: 'news', KeyX: 'pokedex', KeyO: 'eggs', KeyL: 'mart', KeyR: 'ranking', KeyI: 'ideas', KeyM: 'missions', KeyH: 'hall' }
+const HOTKEYS: Readonly<Record<string, LobbyFocus>> = { KeyF: 'festival', KeyJ: 'coop', KeyV: 'arena', KeyG: 'gifts', KeyN: 'news', KeyX: 'pokedex', KeyO: 'eggs', KeyL: 'mart', KeyT: 'dojo', KeyR: 'ranking', KeyI: 'ideas', KeyM: 'missions', KeyH: 'hall' }
 
-/** The "Falar · E" bubble over a shopkeeper while the strolling partner stands close (a tap on it talks too). */
-const talkPrompt = (onTalk: () => void) =>
-  h(
-    'button',
-    { class: 'plaza-talk box hidden', type: 'button', onclick: onTalk },
-    h('b', {}, t().plaza.talk),
-    h('span', { class: 'key-hint' }, 'E'),
-  )
+/** The "Falar · E" bubble over a shopkeeper while the strolling partner stands close (a tap on it talks too); `label` holds its word (`talkLabel`). */
+const talkPrompt = (onTalk: () => void, label: HTMLElement) => h('button', { class: 'plaza-talk box hidden', type: 'button', onclick: onTalk }, label, h('span', { class: 'key-hint' }, 'E'))
+
+/** What the talk bubble says over `who`: Falar, or an Estádio board's name. */
+const talkLabel = (who: LobbyNpc) => (isBoard(who) ? t().stadium.boards[who] : t().plaza.talk)
+
+/** Where an Estádio board leads: Jogar to the Arena's screen, the rest to that tab of its hub. */
+const BOARD_TABS = { play: null, ranking: 'ranking', season: 'season', history: 'history', rules: 'rules' } as const satisfies Record<BoardId, ArenaHubTab | null>
 
 /**
  * How the lobby goes to the Kecleon's shop: `shop` (the dock's Loja, a talk,
- * `?loja`) greets and opens the shop, `look` (dev, `ps.plaza()`) only goes
- * there, for a look; Esc or Enter brings it back.
+ * `?loja`) greets and opens the shop, `festival` (the festival's Hoje card,
+ * `ps.festival('open')`, a talk at the fountain) opens the Festival da Praça's
+ * sheet there (`plaque`, a talk at the donors' plaque, on its plaque tab),
+ * `look` (dev, `ps.plaza()`) only goes there, for a look; Esc or Enter brings it back.
+ * `dojo` and `stadium` go west to the Dojo and south to the Estádio instead, where Machoke or Ninjask says hello.
  */
-export type ShopTrip = 'shop' | 'look'
+export type ShopTrip = 'shop' | 'festival' | 'plaque' | 'look' | 'dojo' | 'stadium'
+
+/** The place a trip goes to. */
+const tripPlace = (mode: ShopTrip): Place => (mode === 'dojo' || mode === 'stadium' ? mode : 'plaza')
 
 /**
  * Title screen over the live meadow: the pixel logo and a blinking "press
  * start", then the lobby. The top bar holds the Trainer chip, the wallet,
  * the survey while it waits for an answer (it opens by itself once), Novidades, `?` (how to play) and the gear. Hoje has the day's cards (Surto, Desafio,
  * Missões), the Hall da Fama card sits beside them (Convide amigos, Discord and the official profiles
- * under it; on landscape phones Discord and the profiles move to the top bar), the saved partner stands
+ * under it; on landscape phones Discord and the profiles move to the top bar; on phones held upright
+ * every card shrinks to a tile on the side rails, the gift box and Passear join them and the profiles
+ * move to the Discord screen), the saved partner stands
  * in the middle, and JOGAR goes with the collection dock (Pokédex, Ovos,
- * Loja, Ranking, Ideias, and Co-op where the beta lets it in). Arrows move between all of them by where they are on
+ * Loja, Ranking, Ideias, and Co-op where the build has it). Arrows move between all of them by where they are on
  * screen; Enter presses the highlighted one, JOGAR at first. The movement
  * keys, a tap on the grass or a drag (a joystick) send the partner off its
- * stage for a walk in the meadow (`Meadow`), where it greets the wild Pokémon.
+ * stage for a walk in the meadow (`Meadow`), where it greets the wild Pokémon
+ * (a mouse's click or drag only in Passear, so a click on a computer never sets it off).
  * Loja (or a talk with Kecleon on a walk) is a trip to the Kecleon plaza east
  * of home (`visitShop`), and `shop` starts on one once the lobby is up
  * (`instant`: already there; `back`: leaving the shop calls it instead of
  * walking home).
+ * Passear (the paw beside the partner) puts the cards away and leaves the
+ * meadow to walk in, with a back button: talks there open their sheets and
+ * come back to it.
  * `intro: false` opens straight on the lobby (coming back from another
  * screen, or after a language switch), highlighting `focus`.
  */
@@ -658,10 +905,10 @@ export const titleScreen = (
   let lobby: HTMLElement | null = null
   let tickers: ((time: number) => void)[] = []
   let stage: ReturnType<typeof partnerStage> | null = null
-  /** A press on the meadow: a tap until it travels `TAP_SLOP`, then a joystick. */
-  let drag: { id: number; origin: Vec; stick: Stick | null } | null = null
-  /** A tap on the meadow, for the next frame to send the partner to. */
-  let tap: Vec | null = null
+  /** A press on the meadow: a tap until it travels `TAP_SLOP`, then a joystick. `mouse` marks a mouse's, which walks only in Passear. */
+  let drag: { id: number; origin: Vec; stick: Stick | null; mouse: boolean } | null = null
+  /** A tap on the meadow, for the next frame to send the partner to (`walk`) or to go shopping on (a shopkeeper or the shop). */
+  let tap: { at: Vec; walk: boolean } | null = null
   let current: LobbyFocus = opts.focus ?? 'play'
   let offKeys: (() => void) | null = null
   let closeChip: (() => void) | null = null
@@ -672,15 +919,38 @@ export const titleScreen = (
   let leave: (() => void) | null = null
   /** A trip to the Kecleon's shop under way: going there, the shop open, or coming back. */
   let visit: { mode: ShopTrip; phase: 'going' | 'here' | 'shop' | 'back'; shelf?: VisitorShelf } | null = null
-  /** Who the talk prompt is over: a shopkeeper, Meowth or a stall's keeper. */
-  let talkWho: PlazaNpc = 'keeper'
+  /** Who the talk prompt is over: a shopkeeper, Meowth, a stall's keeper, the festival's fountain or plaque. */
+  let talkWho: LobbyNpc = 'keeper'
   /** A seasonal stall's keeper talking, over the plaza (the lobby's keys wait). */
   let chat: Dialogue | null = null
   /** A sync landed during a trip: the lobby is rebuilt once back home (`refresh`). */
   let stale = false
   /** The top bar's wallet, refreshed when the shop closes. */
   let wallet: HTMLElement | null = null
-  const talkButton = talkPrompt(() => talkTo(talkWho))
+  /** The Noite das Bruxas card (not the rail's tile), refreshed when the shop closes: the stall spends candies. */
+  let candyCard: HTMLElement | null = null
+  const talkText = h('b', {}, t().plaza.talk)
+  const talkButton = talkPrompt(() => talkTo(talkWho), talkText)
+  /** Passear: the lobby's cards are away and the partner walks the meadow and the plaza; only the back button, the hint and the talk prompt stay. */
+  let exploring = false
+  const exploreHint = h(
+    'p',
+    { class: 'explore-hint', 'aria-hidden': 'true' },
+    h('span', { class: 'keys-only' }, ...(['up', 'left', 'down', 'right'] as const).map((a) => h('span', { class: 'key-hint' }, boundKey(a))), h('b', {}, m.exploreKeys)),
+    h('span', { class: 'touch-only' }, m.exploreTouch),
+  )
+  const exploreHud = h(
+    'div',
+    { class: 'explore-hud' },
+    h(
+      'button',
+      { class: 'shell-btn shell-chip box explore-back', type: 'button', onclick: () => leaveExplore() },
+      h('span', { class: 'back-arrow', 'aria-hidden': 'true' }, '◀'),
+      h('b', {}, t().shell.back),
+      h('span', { class: 'key-hint' }, 'ESC'),
+    ),
+    exploreHint,
+  )
 
   /** Everything the arrows reach, wherever the layout puts it. */
   let navs: { el: HTMLElement; key: LobbyFocus }[] = []
@@ -706,6 +976,25 @@ export const titleScreen = (
     if (next) select(next.key)
   }
 
+  /**
+   * The lobby's cards are away (a trip to the shop, or Passear): out of reach
+   * of taps and screen readers until they're back. They only slide off and
+   * fade, still on the page, so without this a tap on the plaza would land on
+   * the invisible buttons under it (the social links, the Hall…).
+   */
+  const setAway = () => {
+    const away = exploring || (visit !== null && visit.phase !== 'back')
+    for (const node of [bar, lobby]) {
+      if (!node) continue
+      node.inert = away
+      if (away) node.setAttribute('aria-hidden', 'true')
+      else node.removeAttribute('aria-hidden')
+    }
+  }
+
+  /** The keys of whatever the lobby is doing when nothing else holds them: Passear's, or the lobby's own. */
+  const restKeys = () => input.onKey(exploring ? exploreKey : lobbyKey)
+
   /** Another screen replaces the title (only the meadow stays): its keys stay off until that one closes and the title is rebuilt. */
   const openOver = (open: (focus: LobbyFocus) => Screen) => {
     offKeys?.()
@@ -713,6 +1002,8 @@ export const titleScreen = (
     offKeys = closeChip = null
     el.classList.add('hidden')
     leaveMeadow()
+    // One screen over the title at a time: one left open under the new one would outlive the title (nothing would close it).
+    overScreen?.dispose()
     overScreen = open(current)
   }
 
@@ -723,6 +1014,7 @@ export const titleScreen = (
     news: () => openOver(actions.news),
     survey: () => openOver(actions.survey),
     halloween: () => openOver(actions.halloween),
+    festival: () => visitShop('festival'),
     discord: () => openOver(actions.discord),
     outbreak: () => toast(root, rich(`*${ENEMIES[outbreakToday()].name}*: ${t().outbreak.blurb}`), 3600, 'outbreak'),
     challenge: actions.challenge,
@@ -733,24 +1025,42 @@ export const titleScreen = (
     pokedex: () => openOver(actions.pokedex),
     eggs: actions.incubator,
     mart: () => visitShop('shop'),
+    dojo: () => visitShop('dojo'),
     ranking: () => ranking && openOver(ranking),
     ideas: () => ideas && openOver(ideas),
-    coop: () => coop?.(),
+    coop: () => (markCoopSeen(), coop?.()),
+    arena: () => visitShop('stadium'),
     play: actions.play,
+    explore: () => enterExplore(),
     tiktok: () => openSocial('tiktok'),
     youtube: () => openSocial('youtube'),
     instagram: () => openSocial('instagram'),
   }
-  /** A press on `key`: the select sound, then its action after this dispatch (or the next screen would get the same press). */
-  // JOGAR isn't counted: `run_start` already says it, and it's a third of the lobby's presses.
-  const press = (key: keyof typeof runs) => () => (select(key, false), playSfx('select'), key !== 'play' && track('lobby_press', { entry: key }), later(runs[key]))
+  /**
+   * A press on `key`: the select sound, then its action after this dispatch (or the next screen would get the same press).
+   * One per dispatch: Enter clicks the selected item and, when another lobby button holds the page's focus, the browser
+   * clicks that one too; both opened a screen, and the first stayed behind the title for good (its Back did nothing).
+   */
+  // JOGAR isn't counted: the run's `run_end` already says it, and it's a third of the lobby's presses.
+  let pressing = false
+  const press = (key: keyof typeof runs) => () => {
+    if (pressing) return
+    pressing = true
+    select(key, false)
+    playSfx('select')
+    if (key !== 'play') lobbyPress(key)
+    later(() => {
+      pressing = false
+      runs[key]()
+    })
+  }
   const pressable = <T extends HTMLElement>(node: T, key: keyof typeof runs) => (node.addEventListener('click', press(key)), navigable(node, key))
 
   const buildLobby = () => {
     const save = loadSave()
     const landscape = layout() === 'landscape'
     navs = []
-    const chip = trainerChip(input, { onOpen: () => (track('lobby_press', { entry: 'trainer' }), openOver(actions.trainer)) })
+    const chip = trainerChip(input, { onOpen: () => (lobbyPress('trainer'), openOver(actions.trainer)) })
     closeChip = chip.dispose
     navigable(chip.el, 'trainer')
     const nextBar = topBar({
@@ -767,39 +1077,52 @@ export const titleScreen = (
     bar.replaceWith(nextBar)
     bar = nextBar
 
-    const outbreak = outbreakCard()
+    // Phones held upright get rails: each card shrinks to a tile at the edges, so the partner keeps the middle.
+    const rails = layout() === 'narrow'
+    const outbreak = rails ? outbreakTile() : outbreakCard()
     const was = stage?.partner
     stage = partnerStage(press('play'))
-    stage.el.append(pressable(giftButton(), 'gifts'))
+    const explore = pressable(exploreButton(), 'explore')
+    const gift = pressable(giftButton(), 'gifts')
+    if (!rails) stage.el.append(explore, gift)
     // Rebuilt with the same partner (`refresh`), a walk it's taking goes on and this lobby keeps its `leave`.
     if (!leave || was?.dex !== stage.partner.dex || was.shiny !== stage.partner.shiny) leave = actions.meadow.meet(stage.partner)
     tickers = [outbreak.tick, stage.tick]
-    const hall = navigable(hallCard(() => (select('hall', false), playSfx('select'), track('lobby_press', { entry: 'hall' }), later(() => openOver((focus) => actions.supporters(focus, 'pick'))))), 'hall')
-    const side = h(
-      'div',
-      { class: 'lobby-side' },
-      hall,
-      ...(accountsEnabled ? [pressable(invitesCard(), 'friends')] : []),
-      ...(landscape ? [] : [h('div', { class: 'lobby-community' }, pressable(discordCard(), 'discord'), ...SOCIAL_IDS.map((id) => pressable(socialCard(id), id)))]),
-    )
-    inviteBanner(side, press('invite'), (banner) => navigable(banner, 'invite'))
+    const openHall = () => (select('hall', false), playSfx('select'), lobbyPress('hall'), later(() => openOver((focus) => actions.supporters(focus, hallCall()))))
+    const hall = navigable(rails ? hallTile(openHall) : hallCard(openHall), 'hall')
+    const invites = accountsEnabled ? [pressable(rails ? invitesTile() : invitesCard(), 'friends')] : []
+    // On the rails the profiles leave the lobby for the Discord screen (and Ajustes → Sobre); landscape phones hold them in the top bar.
+    const community = rails
+      ? [pressable(discordTile(), 'discord')]
+      : landscape
+        ? []
+        : [h('div', { class: 'lobby-community' }, pressable(discordCard(), 'discord'), ...SOCIAL_IDS.map((id) => pressable(socialCard(id), id)))]
+    const dojo = rails ? [pressable(dojoTile(true), 'dojo')] : []
+    const side = h('div', { class: 'lobby-side' }, ...(rails ? [gift] : []), hall, ...invites, ...dojo, ...community, ...(rails ? [explore] : []))
+    // A friend's invite needs the room of a banner: under the partner on the rails, under the Hall elsewhere.
+    const notice = rails ? h('div', { class: 'lobby-notice' }) : side
+    inviteBanner(notice, press('invite'), (banner) => navigable(banner, 'invite'))
 
     const ready = save.eggs.filter(isReady).length
     const tiles = [
       pressable(dockTile('pokedex', pokeballIcon(), m.pokedex, 'X'), 'pokedex'),
       pressable(dockTile('eggs', eggIcon('rare'), m.eggs, 'O', ready, ready > 0 ? `${m.eggs}: ${m.eggsReady(ready)}` : m.eggs), 'eggs'),
       pressable(dockTile('mart', coinIcon(2), m.mart, 'L'), 'mart'),
+      // Phones held upright have it on the rail: their tab bar is full.
+      ...(rails ? [] : [pressable(dojoTile(false), 'dojo')]),
       ...(ranking ? [pressable(dockTile('ranking', medalIcon('gold'), m.ranking, 'R'), 'ranking')] : []),
       ...(ideas ? [pressable(dockTile('ideas', bulbIcon(), m.ideas, 'I'), 'ideas')] : []),
     ]
     // Co-op sits right of JOGAR on wide screens (the right half's first tile), last on phones (`style.css`).
-    if (coop) tiles.splice(Math.ceil((tiles.length + 1) / 2), 0, pressable(coopTile(), 'coop'))
+    // The Arena sits right of JOGAR on wide screens (the right half's first tile), Co-op after it; on phones they're the tab bar's last two (`style.css`).
+    const right = Math.ceil((tiles.length + 1 + (coop ? 1 : 0)) / 2)
+    tiles.splice(right, 0, pressable(arenaTile(), 'arena'), ...(coop ? [pressable(coopTile(), 'coop')] : []))
     const play = pressable(h('button', { class: 'lobby-play', type: 'button' }, h('span', {}, m.play), h('span', { class: 'key-hint' }, 'ENTER')), 'play')
     // JOGAR sits in the middle of the dock on wide screens, between the two halves (centered however many tiles each has); the CSS moves it above the tab bar on phones.
     const half = Math.ceil(tiles.length / 2)
     const bottom = h(
       'div',
-      { class: 'lobby-bottom', style: `--tiles:${tiles.length}` },
+      { class: 'lobby-bottom', style: `--tiles:${tiles.length};--arena-col:${tiles.length - (coop ? 1 : 0)}` },
       h('div', { class: 'lobby-dock left' }, ...tiles.slice(0, half)),
       play,
       h('div', { class: 'lobby-dock right' }, ...tiles.slice(half)),
@@ -809,18 +1132,31 @@ export const titleScreen = (
       'section',
       { class: 'lobby-today', 'aria-label': m.today },
       h('h2', { class: 'lobby-rail-label' }, m.today),
-      ...(halloweenCardShows() ? [pressable(halloweenCard(), 'halloween')] : []),
+      ...(halloweenCardShows() ? [pressable(rails ? halloweenTile() : (candyCard = halloweenCard()), 'halloween')] : []),
+      ...(festivalCardShows() ? [pressable(rails ? festivalTile() : festivalCard(), 'festival')] : []),
       pressable(outbreak.el, 'outbreak'),
-      pressable(challengeCard(), 'challenge'),
-      pressable(missionsCard(), 'missions'),
+      pressable(rails ? challengeTile() : challengeCard(), 'challenge'),
+      pressable(rails ? missionsTile() : missionsCard(), 'missions'),
     )
-    const next = h('div', { class: tiles.length > 5 ? 'lobby dock6' : 'lobby' }, h('h1', { class: 'sr-only' }, 'Pokémon Survivors'), h('div', { class: 'lobby-logo' }, logo), todayEl, side, stage.el, bottom)
+    const kind = ['lobby', rails ? 'rails' : '', tiles.length > 6 ? 'dock7' : tiles.length > 5 ? 'dock6' : ''].join(' ').trim()
+    const next = h(
+      'div',
+      { class: kind },
+      h('h1', { class: 'sr-only' }, 'Pokémon Survivors'),
+      h('div', { class: 'lobby-logo' }, logo),
+      todayEl,
+      side,
+      stage.el,
+      rails && notice,
+      bottom,
+    )
     ;(lobby ?? intro).replaceWith(next)
     lobby = next
     if (logo.width > 1) fitLogo(logo, false)
 
     select(itemOf(current) ? current : 'play', false)
-    offKeys = input.onKey(lobbyKey)
+    offKeys = restKeys()
+    setAway()
   }
 
   function lobbyKey(key: string) {
@@ -848,42 +1184,73 @@ export const titleScreen = (
     offKeys?.()
     offKeys = input.onKey(visitKey)
     el.classList.add('visiting')
+    setAway()
     talkButton.classList.add('hidden')
     drag = null
     tap = null
     actions.meadow.stick(null)
     actions.meadow.steer({ x: 0, y: 0 }, null, stage.feet())
-    actions.meadow.visit('plaza', instant)
+    actions.meadow.visit(tripPlace(visit.mode), instant)
   }
 
-  /** A talk at the plaza: the shop with a shopkeeper, the caravan's shelf with Meowth, a few words with a stall's keeper. */
-  function talkTo(who: PlazaNpc) {
-    if (who === 'stall') return talkToStall()
+  /**
+   * A talk at the plaza, the Dojo or the Estádio: the shop with a shopkeeper, the caravan's shelf with Meowth, a few words with a stall's keeper or Lanturn, the festival's sheet at the fountain (its plaque tab at the plaque), the Dojo with its sensei,
+   * the Arena with Ninjask (its hello first) and a board's screen at an Estádio board.
+   * `beside`: the partner stands by `who`; from afar (a tap on the stall's edge marker), the stall skips its keeper's words.
+   */
+  function talkTo(who: LobbyNpc, beside = true) {
+    if (who === 'sensei') return visitShop('dojo')
+    if (who === 'judge') return visitShop('stadium')
+    if (isBoard(who)) return readBoard(who)
+    if (who === 'stall') return talkToStall(beside)
+    if (who === 'lanturn') return chatThen(lanturnSpeaker(), t().plaza.lanturn, () => visitShop('festival'))
+    if (who === 'fountain') return visitShop('festival')
+    if (who === 'plaque') return visitShop('plaque')
     visitShop('shop', false, who === 'meowth' ? 'caravan' : undefined)
   }
 
   /**
-   * The seasonal stall's keeper says its lines over the plaza; the lobby's
-   * keys wait. Its shelf in the shop follows when it sells something (Duskull's Haunted Egg).
+   * The seasonal stall's keeper has a few words; its shelf in the shop follows when it sells something (Duskull's Haunted Egg).
+   * Not `beside` it, the shelf opens straight away: the words would float over the lobby, far from the keeper.
    */
-  function talkToStall() {
+  function talkToStall(beside: boolean) {
     const id = stallToday()
-    if (!id || chat || visit || !stage) return
+    if (!id) return
+    const sells = stallGoods(id).length > 0
+    if (!beside && sells) return visitShop('shop', false, 'stall')
+    chatThen(stallSpeaker(id), t().plaza.stalls[id], () => (sells ? visitShop('shop', false, 'stall') : undefined))
+  }
+
+  /**
+   * A visitor says its `lines` over the plaza while the lobby's keys wait,
+   * then `next` runs (a trip that takes the keys); without one, the lobby's keys come back.
+   */
+  function chatThen(speaker: Speaker, lines: readonly string[], next: () => void) {
+    if (chat || visit || !stage) return
     offKeys?.()
     offKeys = null
     talkButton.classList.add('hidden')
     playSfx('select')
     chat = dialogue(root, input, {
-      speaker: stallSpeaker(id),
-      lines: t().plaza.stalls[id].map((text, i) => ({ text, emotion: i === 0 ? 'Happy' : 'Joyous' })),
+      speaker,
+      lines: lines.map((text, i) => ({ text, emotion: i === 0 ? 'Happy' : 'Joyous' })),
       onDone: () =>
         later(() => {
           chat?.dispose()
           chat = null
-          if (stallGoods(id).length > 0) return visitShop('shop', false, 'stall')
-          offKeys = input.onKey(lobbyKey)
+          next()
+          if (!visit) offKeys = restKeys()
         }),
     })
+  }
+
+  /** An Estádio board: Jogar opens the Arena's screen, the others their tab of its hub. */
+  function readBoard(id: BoardId) {
+    if (visit || chat || !stage) return
+    playSfx('select')
+    markArenaSeen()
+    const tab = BOARD_TABS[id]
+    later(() => (tab ? actions.arenaHub(tab) : actions.arena()))
   }
 
   /** Keys during a trip: Esc or Backspace turns back on the way; for a look, Enter or Space too once there. */
@@ -893,7 +1260,7 @@ export const titleScreen = (
     if ((visit.phase === 'going' && back) || (visit.phase === 'here' && (back || key === 'Enter' || key === 'Space'))) goHome()
   }
 
-  /** At the plaza: the shop opens, Kecleon talking beside it (a look just waits). */
+  /** At the plaza: the shop opens, Kecleon talking beside it (a look just waits). At the Dojo, Machoke says hello and the Dojo opens; at the Estádio, Ninjask and then the Arena. */
   const arrived = () => {
     if (!visit) return
     if (visit.mode === 'look') {
@@ -901,28 +1268,84 @@ export const titleScreen = (
       return
     }
     visit.phase = 'shop'
-    overScreen = actions.mart(goHome, visit.shelf)
+    if (visit.mode === 'dojo') return greetAtDojo()
+    if (visit.mode === 'stadium') return greetAtStadium()
+    if (visit.mode === 'festival' || visit.mode === 'plaque') overScreen = actions.festival(goHome, visit.mode === 'plaque' ? 'plaque' : 'fountain')
+    else openShop(visit.shelf)
   }
 
-  /** Back from the shop: the camera pans home, the partner hops back to its stage and the lobby slides in. */
+  /** Machoke's hello at the Dojo (the long one the first time), then who trains; Esc during it turns back home. */
+  function greetAtDojo() {
+    const m = t().training
+    const first = !dojoSeen()
+    const lines = first ? m.first : [m.hello[Math.floor(Math.random() * m.hello.length)]!]
+    chat = dialogue(root, input, {
+      speaker: senseiSpeaker(),
+      lines: lines.map((text, i) => ({ text, emotion: i === 0 ? 'Happy' : 'Joyous' })),
+      onDone: () =>
+        later(() => {
+          chat?.dispose()
+          chat = null
+          markDojoSeen()
+          actions.dojo()
+        }),
+    })
+  }
+
+  /** Ninjask's hello at the Estádio (the long one, explaining the Arena, the first time), then the Arena's screen. */
+  function greetAtStadium() {
+    const m = t().stadium
+    const first = !stadiumSeen()
+    const lines = first ? m.first : [m.hello[Math.floor(Math.random() * m.hello.length)]!]
+    chat = dialogue(root, input, {
+      speaker: judgeSpeaker(),
+      lines: lines.map((text, i) => ({ text, emotion: i === 0 ? 'Happy' : i === lines.length - 1 ? 'Joyous' : 'Normal' })),
+      onDone: () =>
+        later(() => {
+          chat?.dispose()
+          chat = null
+          markStadiumSeen()
+          markArenaSeen()
+          actions.arena()
+        }),
+    })
+  }
+
+  /** The shop over the plaza; its Festival button swaps it for the festival's sheet, whose Back brings the shop again. */
+  function openShop(shelf?: VisitorShelf) {
+    overScreen?.dispose()
+    overScreen = actions.mart(goHome, shelf, () => {
+      overScreen?.dispose()
+      overScreen = actions.festival(() => openShop())
+    })
+  }
+
+  /** Back from the shop: the camera pans home, the partner hops back to its stage and the lobby slides in (from Passear, the walk goes on at the plaza instead). */
   function goHome() {
     if (!visit || visit.phase === 'back') return
     overScreen?.dispose()
     overScreen = null
     // Opened from elsewhere (the partner select's wallet): back there instead of home.
     if (opts.back) return later(opts.back)
-    visit.phase = 'back'
     el.classList.remove('visiting')
     const fresh = walletChip(loadSave().wallet)
     wallet?.replaceWith(fresh)
     wallet = fresh
+    if (candyCard) fillHalloweenCard(candyCard)
+    if (exploring) {
+      actions.meadow.explore(true)
+      return landed()
+    }
+    visit.phase = 'back'
+    setAway()
     actions.meadow.visit('home')
   }
 
   const landed = () => {
     visit = null
     offKeys?.()
-    offKeys = input.onKey(lobbyKey)
+    offKeys = restKeys()
+    setAway()
     if (stale) {
       stale = false
       refresh()
@@ -936,8 +1359,42 @@ export const titleScreen = (
     meadow.steer({ x: 0, y: 0 }, null, stage.feet())
     stage.setOut(meadow.out())
     const at = meadow.at()
-    if (visit.phase === 'going' && at === 'plaza') arrived()
+    if (visit.phase === 'going' && at === tripPlace(visit.mode)) arrived()
     else if (visit.phase === 'back' && at === 'home') landed()
+  }
+
+  /* ---------------- Passear ---------------- */
+
+  /** Passear: the lobby's cards slide away and the partner hops into the meadow, the camera following it to the plaza and back; the back button (or Esc) brings them back. */
+  function enterExplore() {
+    if (exploring || visit || chat || !stage) return
+    exploring = true
+    el.classList.add('exploring')
+    exploreHint.classList.remove('hidden')
+    actions.meadow.explore(true)
+    offKeys?.()
+    offKeys = restKeys()
+    setAway()
+  }
+
+  /** Leaves Passear (a stall keeper's talk under way ends with it): the cards come back and the partner heads for its stage. */
+  function leaveExplore() {
+    if (!exploring) return
+    exploring = false
+    chat?.dispose()
+    chat = null
+    el.classList.remove('exploring')
+    talkButton.classList.add('hidden')
+    actions.meadow.explore(false)
+    offKeys?.()
+    offKeys = restKeys()
+    setAway()
+  }
+
+  /** Keys during Passear: Esc or Backspace comes back, E (or Enter) talks to whoever the partner stands by; the movement keys and the arrows walk (`stroll`). */
+  function exploreKey(key: string) {
+    if (key === 'Escape' || key === 'Backspace') return leaveExplore()
+    if ((key === 'KeyE' || key === 'Enter' || key === 'Space') && !talkButton.classList.contains('hidden')) talkButton.click()
   }
 
   /** The lobby goes away (another screen over it, or for good): so does the partner, and any press on the meadow. */
@@ -945,6 +1402,7 @@ export const titleScreen = (
     leave?.()
     leave = null
     actions.meadow.stick(null)
+    actions.meadow.stageBox(null)
     stage = null
     drag = null
     tap = null
@@ -953,16 +1411,17 @@ export const titleScreen = (
   const onDown = (e: PointerEvent) => {
     if (!stage || drag || visit || (e.pointerType === 'mouse' && e.button !== 0)) return
     if (!onMeadow(e.target)) return
-    drag = { id: e.pointerId, origin: { x: e.clientX, y: e.clientY }, stick: null }
+    drag = { id: e.pointerId, origin: { x: e.clientX, y: e.clientY }, stick: null, mouse: e.pointerType === 'mouse' }
   }
   const onMove = (e: PointerEvent) => {
-    if (!drag || e.pointerId !== drag.id) return
+    // On a computer the mouse leaves the partner home unless Passear is on: the keys walk it there.
+    if (!drag || e.pointerId !== drag.id || (drag.mouse && !exploring)) return
     const at = { x: e.clientX, y: e.clientY }
     if (drag.stick || Math.hypot(at.x - drag.origin.x, at.y - drag.origin.y) >= TAP_SLOP) drag.stick = joystick(drag.stick?.origin ?? drag.origin, at)
   }
   const onUp = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return
-    if (!drag.stick && e.type === 'pointerup') tap = drag.origin
+    if (!drag.stick && e.type === 'pointerup') tap = { at: drag.origin, walk: !drag.mouse || exploring }
     drag = null
   }
   el.addEventListener('pointerdown', onDown)
@@ -979,20 +1438,29 @@ export const titleScreen = (
   const stroll = () => {
     if (!stage) return
     const { meadow } = actions
-    // A tap on a shopkeeper, the shop or the marker pointing to it goes shopping (Meowth's caravan, or a stall's keeper talks).
-    const tapped = tap && meadow.tapsShop(tap)
+    // A tap on a shopkeeper, the shop or the marker pointing to it goes shopping (Meowth's caravan; a stall's keeper talks only with the partner beside it).
+    const tapped = tap && meadow.tapsShop(tap.at)
     if (tapped) {
       tap = null
-      return talkTo(tapped)
+      return talkTo(tapped, meadow.talkSpot()?.who === tapped)
     }
-    meadow.steer(drag?.stick?.vec ?? heldMove(input), tap, stage.feet())
+    const move = drag?.stick?.vec ?? heldMove(input, exploring)
+    const to = tap?.walk ? tap.at : null
+    // Passear's hint goes once the partner gets its first order.
+    if (exploring && (to || move.x !== 0 || move.y !== 0)) exploreHint.classList.add('hidden')
+    meadow.steer(move, to, stage.feet())
+    meadow.stageBox(!exploring && layout() !== 'wide' ? stage.el.getBoundingClientRect() : null)
     meadow.stick(drag?.stick ?? null)
     tap = null
     stage.setOut(meadow.out())
     // By a shopkeeper, the talk prompt floats over its head.
     const spot = meadow.talkSpot()
     talkButton.classList.toggle('hidden', !spot)
-    if (spot) talkWho = spot.who
+    if (spot) {
+      talkWho = spot.who
+      const label = talkLabel(spot.who)
+      if (talkText.textContent !== label) talkText.textContent = label
+    }
     if (spot) talkButton.style.cssText = `left:${Math.round(spot.x / uiZoom())}px;top:${Math.round(spot.y / uiZoom())}px`
   }
 
@@ -1020,6 +1488,10 @@ export const titleScreen = (
     buildLobby()
   }
   const offSynced = onSaveSynced(refresh)
+  // Each layout builds its own lobby (rails, cards, profiles in the top bar): a rotation or a resized window that switches it rebuilds.
+  const layouts = [LANDSCAPE, NARROW].map((q) => matchMedia(q))
+  for (const q of layouts) q.addEventListener('change', refresh)
+  const offLayouts = () => layouts.forEach((q) => q.removeEventListener('change', refresh))
 
   if (opts.intro) {
     // Any key, pad button or tap. `later` keeps that same press from also pressing JOGAR.
@@ -1038,7 +1510,7 @@ export const titleScreen = (
     enterLobby()
   }
 
-  el.append(talkButton)
+  el.append(talkButton, exploreHud)
   root.append(el)
   return {
     el,
@@ -1052,6 +1524,6 @@ export const titleScreen = (
       for (const tick of tickers) tick(time)
       if (logo.width > 1) fitLogo(logo, lobby === null)
     },
-    dispose: () => (overScreen?.dispose(), chat?.dispose(), offIntro?.(), offKeys?.(), closeChip?.(), offSynced(), offPointers(), leaveMeadow(), el.remove()),
+    dispose: () => (overScreen?.dispose(), chat?.dispose(), offIntro?.(), offKeys?.(), closeChip?.(), offSynced(), offLayouts(), offPointers(), leaveMeadow(), el.remove()),
   }
 }

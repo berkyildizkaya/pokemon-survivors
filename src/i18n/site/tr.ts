@@ -1,5 +1,5 @@
 import type { BlastSafe } from '../../data/bosses'
-import type { SiteMessages } from './pt'
+import type { SiteMessages, TierMethod } from './pt'
 
 /** Türkçe sayı formatı (`1.250`, `0,75`). */
 const n = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })
@@ -18,8 +18,12 @@ export const siteTr: SiteMessages = {
     pokedex: 'Pokédex',
     guide: 'Rehber',
     changelog: 'Yenilikler',
+    tierList: 'Tier list',
     legal: 'Yasal',
     support: 'Destek',
+    creators: 'İçerik üreticileri',
+    compare: 'Pokémon Survivors vs PokéSurvivor',
+    alternatives: 'Vampire Survivors benzeri oyunlar',
     language: 'Dil',
   },
   footer: {
@@ -29,6 +33,9 @@ export const siteTr: SiteMessages = {
     credits: 'Emeği geçenler',
     source: 'GitHub kaynak kodu',
     support: 'Projeyi destekle',
+    notThem: 'Pokémon Survivors (pokemonsurvivors.com), benzer isimli başka bir hayran oyunu olan PokéSurvivor (pokesurvivor.com) değildir.',
+    compare: 'Farkları gör',
+    alternatives: 'Vampire Survivors benzeri daha fazla Pokémon oyunu',
   },
   home: 'Ana Sayfa',
   playCta: 'Ücretsiz oyna',
@@ -59,6 +66,7 @@ export const siteTr: SiteMessages = {
     results: (count: number) => `${count} Pokémon bulundu`,
     empty: 'Bu filtrelere uygun Pokémon bulunamadı.',
     clear: 'Filtreleri temizle',
+    tierLink: 'En iyi Pokémon hangisi? Oyuncuların koşularından oluşan tier list’e bak',
     roles: { starter: 'Başlangıç', egg: 'Yumurta', enemy: 'Vahşi', boss: 'Boss', legendary: 'Efsanevi', event: 'Etkinlik' },
     roleFilter: { starter: 'Başlangıçlar', egg: 'Yumurtalar', enemy: 'Vahşiler', boss: 'Bosslar', legendary: 'Efsaneviler', event: 'Etkinlikler' },
     link: (name: string) => `${name} bağlantısı`,
@@ -78,6 +86,7 @@ export const siteTr: SiteMessages = {
     wildStats: { hp: 'Can', damage: 'Temas hasarı', speed: 'Hız', xp: 'TP' },
     eventNote: 'Harita etkinliği olarak belirir: senden kaçar ve her darbede para düşürür. Kaçmadan alt edersen Pay Day ödülünü alırsın.',
     companionNote: 'Hediye yoldaş: Cadılar Bayramı Gecesi boyunca destekçilerin hediye kutusuna gelir ve arkasında şeker izi bırakarak koşularda yanında yürür.',
+    cameoNote: 'Düşman değildir: Cadılar Bayramı Gecesi’nde Darkrai’nin yarığında bir anlığına belirir ve Lunar Wing ile kâbusu bozar.',
     wildNote: 'Temel değerlerdir. Sıradan düşmanlar her dakika güçlenir; bosslar güçlenmez.',
     appears: 'Çıktığı anlar',
     horde: (from: string, until: string) => `Sürüye katılabilir: ${from} - ${until} arası`,
@@ -90,6 +99,7 @@ export const siteTr: SiteMessages = {
     trio: (at: string, trio: string) => `${trio} üçlüsünün geldiği koşularda ${at} anında Boss (3'te 1 ihtimal)`,
     night: (at: string, percent: number) => `Cadılar Bayramı Gecesi boss'u: ${at} anında, etkinliğin hayaletli koşularında (%${n(percent)} ihtimal)`,
     rift: (from: string) => `Kendi diyarında, efsanevi yarığın ardında, ${from} anından itibaren (isteğe bağlı)`,
+    eventRift: (from: string) => `Yalnızca Cadılar Bayramı Gecesi 2026’da: hayaletli bir koşuda Kâbus yarığı bir yarığın yerini alabilir, ${from} itibarıyla (isteğe bağlı)`,
     place: (name: string, from: string) => `${name} içinde yaşar, ${from} anından itibaren (isteğe bağlı bölge)`,
     placeBoss: (name: string, from: string) => `${name} içindeki Odd Keystone'dan çıkar, ${from} anından itibaren`,
     places: { cave: 'Karanlık Mağara', graveyard: 'Hayaletli Mezarlık', sky: 'bulutların üzeri (yalnızca Uçan tipler)' },
@@ -104,9 +114,88 @@ export const siteTr: SiteMessages = {
     legendMode: 'Efsanevi Modu',
     capture: (need: number) => (need === 1 ? 'Herhangi bir modda boss olarak 1 kez yendiğinde Efsanevi Modunda oynanabilir hale gelir (kendi sıralaması, daha zorlu sürü, Sv 12 ve 28\'de uyanış).' : `Herhangi bir modda boss olarak ${need} kez yendiğinde Efsanevi Modunda oynanabilir hale gelir (kendi sıralaması, daha zorlu sürü, Sv 12 ve 28'de uyanış).`),
     captureLast: 'Son zafer: Ancak diğer 22 efsanevi yakalandıktan sonra, sonsuz modda yakalanabilir.',
+    captureEvent: (need: number) => `Etkinlik efsanevisi: Cadılar Bayramı Gecesi 2026 (24 Ekim – 2 Kasım) boyunca Kâbus yarığında ${need} kez yen, Efsanevi Modunda kalıcı olarak oynanabilir olsun. Arceus için sayılmaz.`,
     captureShiny: 'Yakalanacağı zaferde veya sonrasında shiny bir efsaneviyi yenmek shiny formunu açar.',
     innate: (name: string) => `Doğuştan yetenek (sürekli aktif): ${name}`,
     opens: (move: string) => `Başlangıç saldırısı: ${move}`,
+  },
+  dexPage: {
+    title: (names: readonly string[]) => `Pokémon Survivors’ta ${list(names)}: saldırılar, evrim ve yetenekler`,
+    legendTitle: (name: string) => `Pokémon Survivors’ta ${name}: nasıl yakalanır, saldırılar ve Efsanevi Modu`,
+    description: (name: string, signature: string) =>
+      `Ücretsiz Vampire Survivors tarzı Pokémon oyunu Pokémon Survivors’ta ${name}: istatistikler, evrim hattı, başlangıç saldırısı ${signature}, özel saldırı, öğrenme listesi ve Yetenekler.`,
+    legendDescription: (name: string) =>
+      `Ücretsiz Vampire Survivors tarzı Pokémon oyunu Pokémon Survivors’ta ${name}: ne zaman ortaya çıkar, boss saldırıları ve Efsanevi Modunda onunla oynamak için nasıl yakalanır.`,
+    h1: (names: readonly string[]) => `Pokémon Survivors’ta ${list(names)}`,
+    family: (name: string) => `${name} ve evrimleri`,
+    starter: (name: string, types: readonly string[], region: string, count: number) =>
+      `${name}, Pokémon Survivors’taki ${count} başlangıç Pokémon’undan biridir; ${region} bölgesinden ${list(types)} türünde.`,
+    egg: (name: string, types: readonly string[]) => `${name}, Pokémon Survivors’ta yumurtadan çıkan ailelerden biridir; ${list(types)} türünde.`,
+    legend: (name: string, types: readonly string[], count: number) => `${name}, Pokémon Survivors’taki ${count} efsaneviden biridir; ${list(types)} türünde.`,
+    eventLegend: (name: string, types: readonly string[]) => `${name}, Pokémon Survivors’ta Cadılar Bayramı Gecesi 2026’nın etkinlik efsanevisidir; ${list(types)} türünde.`,
+    faq: 'SSS',
+    unlockQ: (name: string) => `Pokémon Survivors’ta ${name} nasıl açılır?`,
+    starterA: (name: string) => `${name} bir başlangıç Pokémon’udur: ilk koşundan itibaren açıktır, hiçbir şey gerekmez.`,
+    eggA: (name: string, egg: string) =>
+      `Bir ${egg} çatlatarak. Bosslar, kilitli sandıklar ve yarıklar bazen yumurta düşürür; bunlar koşularda attığın adımlarla kuluçka makinesinde çatlar. ${name} çatladığında artık kalıcı olarak senindir.`,
+    evolveQ: (name: string) => `${name} nasıl evrimleşir?`,
+    evolveA: (steps: readonly string[]) => `Koşu sırasında, seviye atladıkça: ${list(steps)}.`,
+    step: (names: readonly string[], level: number) => `Sv ${level}’de ${either(names)}`,
+    evolveItem: 'Bazı formlar Kecleon Mağazasından alınan veya bosslardan düşen bir evrim eşyası gerektirir.',
+    signatureQ: (name: string) => `${name} hangi saldırıyla başlar?`,
+    signatureA: (name: string, move: string) => `${name} her koşuya ailenin imza saldırısı ${move} ile başlar. Diğer saldırılar hat evrimleştikçe seviye atlamalardan gelir.`,
+    megaQ: (name: string) => `${name} Mega Evrim geçirebilir mi?`,
+    megaA: (megas: readonly string[]) =>
+      `Evet: son aşamasında ${either(megas)} olur. Mega Taş, koşuda yendiğin ilk yarık efsanevisinden düşer ve Mega Evrim 20 saniye sürer.`,
+    catchQ: (name: string) => `Pokémon Survivors’ta ${name} nasıl yakalanır?`,
+    whereQ: (name: string) => `${name} nerede ortaya çıkar?`,
+    awakens: (form: string) => `Efsanevi Modunda ikinci uyanışı (Sv 28) onu ${form} yapar.`,
+    mega: 'Mega Evrim',
+    megaLine: (stone: string, ability: string) => `${stone} · Yetenek ${ability}`,
+    play: (name: string) => `${name} ile oyna`,
+    others: 'Diğer oynanabilir Pokémon’lar',
+    groups: { starter: 'Başlangıç', egg: 'Yumurtalar', legendary: 'Efsaneviler' },
+    back: 'Tüm Pokédex’e bak',
+    page: (name: string) => `${name} sayfası`,
+    tierQ: (name: string) => `${name}, Pokémon Survivors’ta iyi mi?`,
+    tierA: (name: string, tier: string, rate: number, runs: number, days: number) =>
+      `Oyuncuların koşularından oluşan tier list’te ${name} ${tier} kademesinde: son ${days} günde Normal’deki ${n(runs)} koşusunun %${rate}’inde Mewtwo’yu yendi.`,
+    tierNoneA: (name: string) => `${name} için tier list’te bir kademe almaya yetecek kadar koşu henüz yok. Zamanla güncellenir.`,
+    tierLine: (tier: string, rate: number) => `Tier list’te ${tier} kademesi · Normal’de %${rate} galibiyet`,
+    tierLineNone: 'Tier list’te henüz kademe yok: çok az koşu',
+  },
+  tierList: {
+    title: 'Pokémon Survivors tier list: gerçek koşulara göre en iyi Pokémon’lar',
+    description:
+      'Oyuncuların gerçek koşularından oluşan bir Pokémon Survivors tier list’i: Mewtwo’yu yenmek için en iyi Pokémon’lar, S’den D’ye; her başlangıç Pokémon’unun ve yumurta ailesinin Normal, Zor ve Kâbus’taki kazanma oranıyla.',
+    h1: 'Pokémon Survivors tier list',
+    best: (names: readonly string[], runs: number, days: number) =>
+      `Pokémon Survivors’taki en iyi Pokémon hangisi? Son ${days} gündeki ${n(runs)} koşuya göre şu anda ${list(names)}: oyuncular Mewtwo’yu onlarla her şeyden daha sık yeniyor.`,
+    intro: 'Başlangıç Pokémon’ları ve yumurta aileleri, üç zorlukta Mewtwo’yu ne sıklıkla yendiklerine göre S’den D’ye. Sayfasını açmak için bir Pokémon’a dokun; herkesin sayıları ve yöntem hemen aşağıda.',
+    updated: (date: string, days: number) => `${date} tarihine kadarki ${days} günün koşuları. Tier list zamanla güncellenir.`,
+    tiers: 'Kademeler, en iyiden en kötüye',
+    tier: (tier: string) => `${tier} kademesi`,
+    noData: 'Veri yok',
+    noDataNote: (min: number) => `Şimdiye kadar ${min} koşudan az: henüz kademe yok.`,
+    tableTitle: 'Tüm Pokémon’ların sayıları',
+    tableNote:
+      'Her zorlukta Mewtwo’yu yenen koşuların oranı (sonsuz mod galibiyet sayılır) ve parantez içinde kaç koşu olduğu. Skor, kazanma ihtimalini ortalamanınkiyle karşılaştırır: 1× ortalamadır.',
+    head: { rank: '#', pokemon: 'Pokémon', tier: 'Kademe', score: 'Skor', minute: 'Ort. dakika' },
+    methodTitle: 'Tier list nasıl hazırlanıyor',
+    method: (r: TierMethod) => [
+      `Normal modda (Günlük Meydan Okuma ve Efsanevi Modu hariç) son ${r.days} günde biten ${n(r.runs)} koşudan gelir; oyun bunları anonim olarak sayar. Galibiyet, Mewtwo’yu yenen koşudur.`,
+      `Her zorluk kendi başına sayılır. Az koşusu olan bir Pokémon şansla zirveye çıkamasın diye, her zorluktaki kazanma oranı o zorluğun ortalamasına doğru çekilir; sanki ortalamada ${r.prior} koşu daha oynamış gibi: 20 koşuyla sonuç ortalamaya epey yaklaşır, 500 koşuyla neredeyse hiç değişmez.`,
+      `Ardından skor, her Pokémon’un kazanma ihtimalini her zorlukta ortalamanınkiyle karşılaştırır ve üçünü harmanlar: Zor %${r.weights.hard}, Normal %${r.weights.normal}, Kâbus %${r.weights.nightmare} sayılır. Zor en çok sayılır çünkü bol koşusu vardır ve Pokémon’u ne olursa olsun çoğunlukla oyunu zaten bilenler oynar. Normal en çok oynanandır ama yeni başlayanların toplandığı yerdir; Kâbus en zorlu sınavdır ama galibiyeti azdır, bu yüzden daha çok dalgalanır. Yüzdeler yerine ihtimalleri karşılaştırmak, Kâbus’ta %5’ten %10’a çıkmayı Normal’de %55’ten %70’e çıkmak kadar değerli kılar.`,
+      `Kademeler skordan gelir: S ${n(r.cuts.S)}× ve üstü (ortalamanın neredeyse iki katı ihtimal), A ${n(r.cuts.A)}× ve üstü, B ${n(r.cuts.B)}× ve üstü (ortalama veya daha iyi), C ${n(r.cuts.C)}× ve üstü, D bunun altı. Üç zorluk toplamında ${r.minRuns} koşudan azı olanlar daha çok oynanana kadar “Veri yok” altında kalır.`,
+    ],
+    caveatsTitle: 'Tier list’in sana söylemedikleri',
+    caveats: (popular: string, runs: number) => [
+      `Kimin seçtiği önemli. Yeni oyuncular ünlü başlangıç Pokémon’larına yönelir (yalnızca ${popular}’ın Normal’de ${n(runs)} koşusu var), yumurta aileleri ise onları çatlatacak kadar oynamış kişilerin elindedir. Bu, Pokémon’lar o kadar daha iyi veya kötü olmadan yumurtaların kazanma oranını parlatır, popüler başlangıçlarınkini düşürür.`,
+      'Kecleon Mağazası da önemli: daha çok geliştirme almış oyuncular hangi Pokémon’la olursa olsun daha çok kazanır.',
+      'Oyun değişir. Saldırılar, bosslar ve zorluklar sık sık ayarlanır; bir değişiklikten önceki koşular pencereden çıkana kadar sayılmaya devam eder.',
+      'Ortalamaya çekilse bile az koşu oynak sayılar demektir: listenin ortasındaki iki Pokémon arasındaki bir kademe farkı çok az şey ifade eder.',
+      'Sonuçta en iyi Pokémon, iyi oynadığın Pokémon’dur. Hepsi Mewtwo’yu yenebilir.',
+    ],
   },
 
   traits: {
@@ -217,7 +306,7 @@ export const siteTr: SiteMessages = {
   guide: {
     title: 'Pokémon Survivors Nasıl Oynanır: Kapsamlı Rehber',
     description:
-      'Pokémon Survivors rehberi: Klavye, oyun kolu ve telefon kontrolleri, oyun akışı, seviyeler, saldırılar, taşınan eşyalarla saldırı evrimleri, özel saldırı, tipler ve durum etkileri, bosslar, shinyler, harita eşyaları, etkinlikler ve Kecleon Mağazası.',
+      'Pokémon Survivors rehberi: klavye, oyun kolu ve telefon kontrolleri, bir koşunun işleyişi, seviyeler, saldırılar, tutulan eşyalarla saldırı evrimleri, özel saldırı, türler ve durumlar, bosslar, shiny’ler, harita eşyaları, harita etkinlikleri, Kecleon Mağazası ve çevrimiçi co-op.',
     h1: 'Nasıl oynanır',
     intro:
       'Pokémon Survivors, Vampire Survivors tarzı bir roguelite oyunudur: Sen yalnızca hareket edersin, Pokémon\'un saldırıları kendi kendine yapar. Bu rehber, oyun içi sayısal verilerle bir koşuda başına gelecek her şeyi açıklar.',
@@ -238,6 +327,7 @@ export const siteTr: SiteMessages = {
       landmarks: 'Haritadaki önemli noktalar',
       megas: 'Mega Evrim',
       legends: 'Efsanevi Modu',
+      coop: 'Çevrimiçi co-op',
       shinies: 'Shiny Pokémon\'lar',
       eggs: 'Yumurtalar ve kuluçka makinesi',
       items: 'Harita eşyaları',
@@ -259,7 +349,7 @@ export const siteTr: SiteMessages = {
         ['Partner seç', 'Izgarada ok tuşları, Tab Başlangıç/Yumurta, 1-9 bölge, I detaylar, Enter başlatır', 'D-pad (son sırada ↓ Yumurtalara geçer) ve A', 'Görmek için dokun, oynamak için tekrar dokun (veya Başlat)'],
         ['Kecleon Mağazasına git', 'Lobide L (veya partner seçiminde), ya da meydana yürüyüp E\'ye bas', 'D-pad ile Mağazaya gel, A\'ya bas', 'Mağazaya, Kecleon\'a veya meydana işaret eden tabelaya dokun'],
         ['Ses aç / kapa', 'M', 'Ayarlar', 'Ayarlar'],
-        ['Dil', 'Başlık ekranında I veya Ayarlar', 'Ayarlar', 'Başlık ekranında PT | EN | ES | TR veya Ayarlar'],
+        ['Dil', 'Başlık ekranında I veya Ayarlar', 'Ayarlar', 'Başlık ekranındaki dil düğmesi veya Ayarlar'],
       ],
       notes: [
         'Oyun kolunda D-pad ve sol analog Pokémon\'unu hareket ettirir ve tüm menülerde gezinmeyi sağlar; A onaylar, B geri döner ve Start oyunu duraklatır. Koşuda A özel saldırıyı kullanır.',
@@ -312,12 +402,12 @@ export const siteTr: SiteMessages = {
         'Yenileme (yeni seçenekler açar) ve Pas Geçme (hiçbir şey seçmeden seviye atlamayı geçer, uygun seçenek olmadığında işe yarar) hakları Kecleon Mağazasından satın alınır.',
       ],
       choices: (rarePercent: number, shinyOneIn: number) => [
-        'Koşu bir seçimle başlar: Saat durur ve Pokémon\'unun listesinden sunulan 3 saldırı arasından 2. saldırını seçersin.',
-        'Her temel saldırı Sv 4 ve Sv 7\'de ikiye ayrılır: Kart üzerinde "2 yol" yazar ve seçildiğinde iki seçeneğe açılır. Her yol saldırının yalnızca rakamlarını değil, oynanış biçimini de değiştirir (sekme, patlama, iz bırakma, yankılanma…).',
-        `Her kartın bir nadirliği vardır: Nadir kartlar (%${n(rarePercent)} ihtimal, mavi çerçeve) aynı anda 2 seviye birden kazandırır; shiny kartlar ise (${shinyOneIn}'de 1, Shiny Charm ile iki kat sık) ücretsiz bir seçim hakkı verir ve ardından bir seçim daha sunar.`,
-        'Unutma seçeneği bir teklifi o koşudan tamamen çıkarır: Kart uçar, yuva yenilenir ve o saldırı veya eşya bir daha asla gelmez. Unutma hakları Kecleon Mağazası\'ndaki Escape Rope\'tan, yenilen her boss\'tan ve her evrimden kazanılır.',
-        'Saldırı listesi Pokémon\'unla birlikte büyür: Her evrim yeni saldırıların kilidini açar ve bu saldırılar sonraki 3 seviye atlamada daha sık belirir. Mevcut yuvalardan daha fazla saldırı olduğu için her koşuda bazıları dışarıda kalır.',
-        'Yenilen bosslar liste dışından bir saldırı içeren TM düşürür, Move Tutor tipine uygun saldırılar öğretir ve bir yarığı temizlemek efsanevinin kendi özel saldırısını sunar (koşu başına 1 adet). Tüm yuvalar doluyken yenisini öğrenmek bir saldırıyı unutmanı gerektirir.',
+        'Bir koşu bir seçimle başlar: saat durmuşken Pokémon’unun listesindeki 3 saldırıdan 2. saldırını seçersin.',
+        'Her temel saldırı Sv 4 ve Sv 7’de iki yola ayrılır: kartta "2 yol" yazar ve seçilince ikisine birden açılır. Her yol saldırının yalnızca sayılarını değil, nasıl oynandığını da değiştirir (sekme, patlama, iz bırakma, yankılanma…).',
+        `Her kart bir nadirlik atar: nadir olan (%${n(rarePercent)} ihtimal, mavi çerçeve) aynı anda 2 seviye verir; shiny olan (${shinyOneIn}’de 1, Shiny Charm ile iki kat sık) bedava bir seçimdir ve ardından bir seçim daha gelir.`,
+        'Unut, bir teklifi koşudan çıkarır: kart uçup gider, yuva yeniden çekilir ve o saldırı, eşya veya ikili saldırı bir daha gelmez. Haklar Kecleon Mağazası’nın Escape Rope’undan, yenilen her bosstan ve her evrimden gelir.',
+        'Saldırı listesi Pokémon’unla birlikte büyür: her evrim yeni saldırıların kilidini açar (bir bildirim hangilerini gösterir) ve sonraki 3 seviye atlamada daha sık çıkarlar. Yuvadan çok saldırı var, bu yüzden her koşu bazılarını dışarıda bırakır.',
+        'Yenilen bosslar öğrenme listesi dışından bir saldırı içeren TM düşürür, Saldırı Öğretmeni türüne uyan saldırılar öğretir, bir yarığı temizlemek de efsanevinin kendi saldırısını sunar (koşu başına bir tane). Tüm yuvalar doluyken yeni bir tane öğrenmek bir saldırıyı unutmanı ister.',
       ],
       abilities: 'İlk evrimde (hiç evrimleşmeyen Smeargle için Sv 12), Pokémon\'un bir Yetenek uyandırır: 3 yetenekten birini seçersin (üçüncüsü Gizli Yetenektir) ve tüm koşu boyunca sürer. Eevee, Snorunt, Scyther, Charcadet, Kirlia ve Poliwhirl birden fazla forma evrilebilir; her formun kendine has tipi, özeli, saldırıları ve Yetenekleri vardır. Resmi oyunlarda evrim taşı gerektiren formlar burada da taş ister (Gallade ve Froslass için Dawn Stone, Politoed için King\'s Rock, Scizor için Metal Coat, Kleavor için Black Augurite, Armarouge ve Ceruledge için zırhları, Eevee evrimleri için ilgili taşlar): Kecleon Mağazasından aldığında kalıcı olarak senin olur; boss\'tan düştüğünde o koşunun sonuna kadar geçerlidir. Eşya yoksa Eevee rastgele Vaporeon, Jolteon veya Flareon\'a evrilir; eşya varsa seçimi sen yaparsın. Scyther ve Charcadet eşyasız evrilemez ama %15 daha güçlü hale gelir. Bazı tek hatlı evrimler de eşya ister: Porygon2 için Up-Grade, Porygon-Z için Dubious Disc ve Exeggutor için Leaf Stone; eşya yoksa önceki form %15 daha güçlü kalarak devam eder.',
       evolution: (first: number, second: number) =>
@@ -339,8 +429,8 @@ export const siteTr: SiteMessages = {
       neverEvolves: 'Başlangıç saldırıları, TM\'ler, efsanevi ve ikili saldırılar evrimleşmez: Onlar zaten nihai saldırılardır ve kendi dallarında güçlenirler.',
       duoTitle: 'İkili saldırılar',
       duoParagraphs: [
-        'İki saldırıyı son seviyeye getir (veya evrimleştir); tipleri aşağıdaki tariflerden birini oluşturuyorsa altın bir kart bunları ikili bir saldırıda birleştirmeyi teklif eder: Birinci saldırının yuvasını alır, ikincininkini boşaltır ve Sv 5\'e kadar gelişir. Birleşimde kullanılan iki saldırı bir daha geri gelmez.',
-        'Tarifler tipe göredir, dolayısıyla her Pokémon\'la çalışabilir. Bir koşuya en fazla 1 ikili saldırı sığar ve Poké Ball saldırıları asla kendi kendine birleştirmez.',
+        'İki saldırıyı maksimum seviyeye çıkar (veya evrimleştir) ve türleri aşağıdaki tariflerden birini oluşturuyorsa altın bir kart onları ikili bir saldırıda birleştirmeyi önerir: ilkinin yuvasını alır, ikincisininkini boşaltır ve Sv 5’e kadar gelişir. Kullandığı iki saldırı bir daha gelmez. Birleştirme istemiyor musun? Unut kartı kaldırır ve o tarif bu koşuda bir daha gelmez.',
+        'Tarifler türe göre işler, yani her Pokémon’la çalışır. Bir koşuya yalnızca 1 ikili saldırı sığar ve Poké Ball saldırıları asla kendiliğinden birleştirmez.',
       ],
       duoTypesHead: 'Tipler',
       duoHead: 'İkili saldırı',
@@ -386,6 +476,18 @@ export const siteTr: SiteMessages = {
       flute: 'Poké Flute (harita eşyası)',
       itemsNote: 'King\'s Rock durum etkilerinin çıkma şansını artırır, Toxic Orb yanma ve zehir hasarını yükseltir, Light Clay ise durum etkilerinin süresini uzatır.',
     },
+    coop: {
+      paragraphs: (m) => [
+        `Lobide Co-op takım oyununu açar: aynı koşuda her biri kendi Pokémon’uyla ${m.players} eğitmene kadar. Bir oda kur ve arkadaşlarını bağlantıyla (açınca doğrudan odaya girer), 5 karakterli kodla veya kimin çevrimiçi, odada ya da oyunda olduğunu gösteren ve daveti hemen gönderen Arkadaşlar listenle getir. Herkes Pokémon’unu seçip hazır olur; oda kurucu zorluğu seçer ve başlatır. Co-op hesabını kullanır: takım @ adını görür ve kazandığın ₽ hesabına kaydedilir.`,
+        `EXP takımındır: her Exp. Candy herkese ulaşır, bu yüzden bütün takım birlikte seviye atlar ve aynı anda seçim yapar (${m.pick} sn geçince oyun senin yerine seçer). Bir oyuncunun evrimi, Yeteneği, TM’i veya Poké Ball’u diğerlerinin koşusunu durdurmaz; bosslar ve yarıklar her oyuncuya kendi TM’ini, Poké Ball’unu, Alfa ödülünü ve Mega Taşını düşürür.`,
+        `Bayılan oyuncu yerde bir Poké Ball’a dönüşür: yanında ${m.revive} sn duran bir takım arkadaşı onu %${m.reviveHp} Canla canlandırır. Kimse devam edemeyince koşu biter; Mewtwo’dan sonra takımın sonsuz moda geçmek için oylama yapmak üzere ${m.vote} sn’si olur. Bağlantın koparsa oyun yeniden bağlanır ve kaldığın yerden devam edersin. Sonunda takımın ₽’si koşuyu başlatan oyuncular arasında bölünür.`,
+        'Şimdilik co-op standart modu oynar: mekânlar (mağara, mezarlık ve gökyüzü) açılmaz, simge yapılar yalnızca dekordur, yarık efsanevileri kendi alemleri yerine eski arenada dövüşür; Efsanevi Modu, Çanta, mağazanın TM’leri, evrim eşyaları ve Bottle Cap’ler, Günün Salgını, Cadılar Bayramı Gecesi, Günlük Meydan Okuma ve sıralama dışarıda kalır.',
+      ],
+      scaleTitle: 'Sürü takımla birlikte büyür',
+      whatHead: 'Ne',
+      perHead: 'Her ek oyuncu başına',
+      scale: { spawn: 'Sürü doğma hızı', cap: 'Sürü boyutu sınırı', hp: 'Düşman Canı', bossHp: 'Boss, Alfa ve efsanevi Canı', coins: 'Toplanan Poké Dolar' },
+    },
     legends: {
       paragraphs: (m: { count: number; awaken: readonly number[] }) => [
         `Oyundaki ${m.count} efsanevinin tamamı yakalanabilir ve Efsanevi Modunda oynanabilir. Birini yakalamak için herhangi bir modda onu boss olarak yenmen gerekir: Yakalamadan önceki her zaferde Poké Ball\'dan kaçar ve oyun sayacı tutar (Kyogre kaçtı… 2/3); gereken sayıya ulaşılan zaferde ise yakalanır ve partner seçimindeki Efsaneviler sekmesinde belirir. Yakalandığı zaferde veya sonraki zaferlerde shiny bir tanesini yenmek shiny formunun kilidini açar.`,
@@ -399,7 +501,9 @@ export const siteTr: SiteMessages = {
       opensHead: 'Efsanevi saldırısı',
       pressureTitle: 'Efsanevi Modunda Zorluklar',
       pressure: 'Baskı etkisi tüm zorluk seviyelerinde katlanır; işte Efsanevi Modunun çarpanları.',
-      where: { rift: 'Efsanevi yarığı', trio: 'Efsanevi üçlüsü', mythical: 'Mewtwo\'nun yanı (10\'da 1)', finale: 'Son boss', endless: 'Sonsuz mod, en sonda' },
+      where: { rift: 'Efsanevi yarığı', trio: 'Efsanevi üçlüsü', mythical: 'Mewtwo\'nun yanı (10\'da 1)', finale: 'Son boss', endless: 'Sonsuz mod, en sonda', event: 'Cadılar Bayramı Gecesi 2026 (etkinlik)', festival: 'Fener Festivali 2026 (ödül)' },
+      /** The event legends (`EVENT_LEGENDS`), after the table. */
+      eventNote: 'Cadılar Bayramı Gecesi 2026’da (24 Ekim – 2 Kasım) Darkrai bir etkinlik efsanevisi olarak geliyor: yalnızca hayaletli bir koşuda bir yarığın yerini alabilen Kâbus yarığında çıkar ve 2 galibiyet onu yakalar. Sürüleri uyutan Dark Void ve yakınında uyuyanları yaralayan doğuştan Bad Dreams ile oynar. Etkinlikten sonra gölgelere döner, ama yakalayan onunla oynamaya devam eder. Arceus için sayılmaz.',
     },
     megas: {
       paragraphs: (m) => [
@@ -413,11 +517,11 @@ export const siteTr: SiteMessages = {
     },
     rifts: {
       paragraphs: (r) => [
-        `Her koşuda 2 efsanevi yarık bulunur: Biri ${r.first} civarında, diğeri ${r.second} civarında. Her biri bir alametle başlar: Efsanevinin hava durumu gökyüzünü kaplar (şiddetli yağmur, kavurucu güneş, fırtına, gökkuşağı, göktaşı yağmuru, zamanın tekleyişi) ve ekranın dışında, kenardaki mor bir okun işaret ettiği devasa bir yarık açılır. ${r.portal} sn boyunca açık kalır. Gelme vaktinde bir boss hayattaysa yarık boss\'un düşmesi için ${r.bossWait} sn\'ye kadar bekler; böylece bosslar uzasa bile iki yarık da mutlaka gelir.`,
-        `İçeri adım atmak isteğe bağlıdır: Yarığın içinde ${n(r.enter)} sn durman yeterlidir. Her efsanevinin kendine ait bir diyarı vardır (aşağıdaki tablo). Önce geçiş başlar: Ekrana sığmayan, kuzeye doğru uzanan, efsaneviye hizmet eden Pokémon\'ların üzerine geldiği ve geride kalanı hırpalayan bir tehlikenin arkadan bastırdığı (kabaran sular, lav duvarı, çöken zeminler, dağılan zaman) bir parkur. Sonda geriye dönüş mühürlenir, kamera efsaneviye kayar ve isim kartıyla kendi müziği eşliğinde sahneye çıkar.`,
-        `Savaş, Can çubuğunda işaretlenen üç aşamadan oluşur. Her aşama arenayı dönüştürür (mağara adalara bölünür, kanallarda lavlar yükselir, Sky Pillar\'ın tepesi göğe dökülür) ve mutlaka önceden gösterilen, güvenli alanı belli olan bir ultiye doğru ilerler: Bir kayanın arkası, bir adanın üzeri, ışınların arasındaki boşluk, Ho-Oh\'nun kanatlarının altı gibi. Sabit durmak işe yaramaz: Saldırılar durduğun yere iner. Latias ve Latios birlikte savaşır, Deoxys ise her aşamada form değiştirir. Savaş yaklaşık ${n(r.battle)} dakikayı aşarsa diyar çöker ve seni ödülsüz dışarı fırlatır.`,
-        `Yenildiğinde efsanevi dize gelir ve Poké Ball\'u fırlatırsın: Her zafer onu yakalama yolunda sayılır (bkz. Efsanevi Modu). İçeride canının tükenmesi koşuyu bitirmez: Yarık seni %${r.fallHp} Can ile ödülsüz haritaya geri atar ve Çantandaki Revive durur. İçerideyken koşu saati durur; dışarıdaki sürü donar ve sen dönene kadar yeni düşman doğmaz.`,
-        `Ödül riske değer: Bol miktarda TP, boss ganimetinin üzerine iki torba ₽, fazladan Poké Ball\'lar, bir Rare Candy, bir Super Potion ve Canının yarısının yenilenmesi. Her ${r.shiny} yarıktan 1\'inde efsanevi shiny olarak çıkar; iki kat ₽ ve fazladan bir Poké Ball daha kazandırır.`,
+        `Her koşuda 2 efsanevi yarık vardır: biri ${r.first} civarında, diğeri ${r.second} civarında. Her biri bir alametle başlar: efsanevinin havası gökyüzünü kaplar (sağanak yağmur, kavurucu güneş, fırtına, yıldırım, gökkuşağı, meteor yağmuru, tökezleyen zaman) ve ekran dışında havada kocaman bir yırtık açılır; kenardaki mor bir ok onu gösterir. ${r.portal} sn açık kalır. Zamanı geldiğinde hayatta bir boss varsa yarık bossun düşmesini ${r.bossWait} sn’ye kadar bekler; böylece bosslar uzun sürse bile iki yarık da gelir.`,
+        `İçeri girmek isteğe bağlıdır: yırtığın içinde ${n(r.enter)} sn dur. Her efsanevinin kendi alemi vardır (aşağıdaki tablo) ve önce geçit gelir: ekrandan büyük, kuzeye uzanan bir yer; efsaneviye hizmet eden Pokémon’lar üzerine gelir, arkadan da geride kalanı yaralayan bir tehdit yaklaşır (gelgit, lav duvarı, çöken zeminler, dağılan zaman). Sonunda dönüş yolu kapanır, kamera efsaneviye gider ve o bir başlık kartı ve kendi temasıyla gelir.`,
+        `Savaşın Can çubuğunda işaretli üç evresi vardır. Her evre arenayı dönüştürür (mağara su basıp adalara bölünür, lav kanallarda yükselir, Sky Pillar’ın tepesi gökyüzüne düşer) ve her zaman önceden belli edilen, güvenli noktası işaretli bir nihai saldırıya varır: bir kayanın arkası, bir ada, ışınlar arasındaki boşluk, Ho-Oh’un kanatlarının altı. Yerinde durmak işe yaramaz: saldırılar durduğun yere düşer. Latias ve Latios birlikte dövüşür, Deoxys her evrede Form değiştirir. Savaş yaklaşık ${n(r.battle)} dakikayı geçerse alem çöker ve seni ödülsüz geri fırlatır.`,
+        `Yenilince efsanevi diz çöker ve Poké Ball’u atarsın: her galibiyet onu yakalamaya sayılır (Efsanevi Modu’na bak). İçeride bayılmak koşuyu bitirmez: yarık seni ödülsüz, %${r.fallHp} Canla haritaya geri atar ve Revive’ın Çantada kalır. Koşu saati içeride durur; dışarıdaki sürü donar ve sen dönene kadar yeni bir şey doğmaz.`,
+        `Ödül riske değer: bol EXP, boss yağmurunun üstüne bir torba ₽, ekstra Poké Ball’lar, bir Rare Candy, bir Super Potion ve Canının yarısı geri. ${r.shiny} yarıktan 1’inde efsanevi shiny olur ve iki kat ₽ artı bir Poké Ball daha verir.`,
       ],
       domainHead: 'Diyar',
       legendHead: 'Efsanevi',
@@ -525,14 +629,16 @@ export const siteTr: SiteMessages = {
       seeAll: 'Pokédex\'teki tüm shinyleri gör',
     },
     eggs: {
-      paragraphs: (starters, families, slots, perRun, stepPx, shiny, weight) => [
-        `${starters} başlangıcın yanı sıra, tüm tip ve nesillerden yumurtalardan çıkan ${families} oynanabilir Pokémon ailesi bulunur: Toplamda oynanabilecek ${starters + families} Pokémon vardır. Her birinin kendi başlangıç saldırısı, özeli, koşu içi evrimi ve istatistikleri mevcuttur.`,
-        `Bosslar, kilitli sandıklar ve yarıklar bazen bir yumurta bırakır (koşu başına en fazla ${perRun} adet). Yumurta ${slots} yuvalı kuluçka makinesine gider. Koşuda yürünerek katedilen her ${stepPx} px bir adım sayılır ve kuluçkadaki her yumurta seninle birlikte yol alır. Koşu sırasında bulunan bir yumurta, bulunmasından sonra atılan adımları hemen saymaya başlar.`,
-        `Yumurta hazır olduğunda koşudan çıktığında veya kuluçka makinesinde çatlar (ana menüde ve Pokémon seçimindeki Yumurtalar sekmesinde). Henüz sahip olmadığın ailelerin çıkma şansı ${weight} kat daha fazladır. Yavrunun ${shiny}'de 1 ihtimalle shiny çıkma şansı vardır ve ardından sonraki tüm koşularda daima shiny kalır.`,
-        'Zaten sahip olduğun bir kopya ya da kuluçka doluyken bulunan bir yumurta Poké Dolarına dönüşür. Daha önce hiç yumurta almamış bir oyuncunun ilk yumurtayı bulması garantidir.',
-        "Friendship Egg koşularda asla düşmez: Birinin davet bağlantısıyla kaydolduğunda ve davet ettiğin bir arkadaşın 3 koşu tamamladığında Gizemli Hediye (Mystery Gift) olarak gelir. İçinden yalnızca Munchlax çıkar. 3 arkadaşta Elçi unvanı ve özel bir çerçeve, 5 arkadaşta Ultra nadir yumurta, 10 arkadaşta ise shiny Dratini kazanırsın. Davet bağlantın ve arkadaşların durumu ana ekrandaki Arkadaş Davet Et kartındadır.",
-        "Haunted Egg de koşularda asla düşmez: Yalnızca Cadılar Bayramı Gecesi boyunca (24 Ekim - 2 Kasım) meydandaki Duskull tezgahında, günde 1 adet satılır. İçinden sahip olunsun ya da olunmasın %25'er şansla yalnızca Litwick, Phantump, Drifloon ve Sandygast çıkar. Etkinlik bitince bir sonraki yılı bekler.",
-        "Kecleon Egg de koşularda asla düşmez: Mağazanın Vitrininde sabit bir karttır, günde 1 adet, ₽10.000. İçinden %25'er şansla yalnızca Porygon, Exeggcute, Scraggy ve Smeargle çıkar. Porygon2 için Up-Grade, Porygon-Z için Dubious Disc ve Exeggutor için Leaf Stone gerekir; Smeargle asla evrilmez ama Sketch saldırısıyla en yakındaki düşmanın saldırısını kopyalar. Sadakat kartındaki 100 damga, kesinlikle shiny çıkan bir Kecleon Egg kazandırır.",
+      incubator: (m) =>
+        `Kecleon’un mağazasındaki Kuluçka sekmesi kalıcı olarak senin olan ek yuvalar satar: ${m.slots.map((s) => `${s.n}. yuva ${s.price} (mağaza ${s.level} olunca)`).join(' ve ')}, en fazla ${m.max} yuvaya kadar. Ayrıca Hızlı Kuluçka da satar (${m.quick}): kuluçka makinesinde kullanmak için bir yumurtaya dokun; o yumurta çatlayana kadar ${m.speed}x hızlı yürür.`,
+      paragraphs: (starters, families, slots, perRun, stepPx, shiny, weight, pity) => [
+        `${starters} başlangıç Pokémon’unun yanında, her türden ve nesilden ${families} oynanabilir Pokémon ailesi yumurtadan çıkar: toplamda oynanacak ${starters + families} Pokémon. Her birinin kendi başlangıç saldırısı, özel saldırısı, koşu içi evrimi ve istatistikleri var.`,
+        `Bosslar, kilitli sandıklar ve yarıklar bazen bir yumurta bırakır, koşu başına en fazla ${perRun} tane. Yumurta ${slots} yuvalı kuluçka makinesine gider. Bir koşuda yürünen her ${stepPx} px bir adım sayılır ve kuluçka makinesindeki her yumurta birlikte yürür. Koşu ortasında bulunan bir yumurta, bulunduktan sonra atılan adımları zaten sayar.`,
+        `Yumurta hazır olunca koşudan çıktığında veya kuluçka makinesinde (ana menüde ve Pokémon seçiminin Yumurtalar sekmesinde) çatlar. Henüz sahip olmadığın aileler ${weight}x daha sık çıkar. Yavrunun shiny olma ihtimali ${shiny}’de 1’dir ve öyleyse her koşuda shiny kalır. Garanti: aynı türden ${pity} yumurta yeni Pokémon getirmezse sıradaki kesin getirir (kuluçka makinesi sayacı gösterir).`,
+        'Bir kopya ya da kuluçka makinesi doluyken bulunan bir yumurta Poké Dolar’a dönüşür. Hiç yumurtası olmamış bir oyuncu ilkini kesin alır.',
+        'Friendship Egg koşularda asla düşmez: birinin davetiyle kayıt olduğunda ve davet ettiğin bir arkadaş 3 koşu bitirdiğinde Gizemli Hediye olarak gelir. İçinden yalnızca Munchlax çıkar. 3 arkadaşta Elçi unvanını ve özel bir çerçeveyi, 5’te Ultra nadir bir yumurtayı, 10’da shiny bir Dratini’yi alırsın. Bağlantın ve her arkadaşın ilerlemesi ana ekrandaki Arkadaş davet et kartında.',
+        'Haunted Egg de koşularda asla düşmez: onu yalnızca Cadılar Bayramı Gecesi’nde (24 Ekim – 2 Kasım) meydandaki Duskull’ın tezgâhı günde bir tane satar. İçinden yalnızca Litwick, Phantump, Drifloon ve Sandygast çıkar, her biri %25, sahip olsan da olmasan da. Etkinlikten sonra seneye geri gelir.',
+        'Kecleon Egg de koşularda asla düşmez: mağazanın Vitrininde sabit bir karttır: günün ilki ₽10.000’dir ve sonraki her biri bir öncekinin iki katıdır, günde en fazla 6 tane (altıncısı ₽320.000). İçinden yalnızca Porygon, Exeggcute, Scraggy ve Smeargle çıkar, her biri %25. Porygon2 için Up-Grade, Porygon-Z için Dubious Disc, Exeggutor için Leaf Stone gerekir; Smeargle hiç evrimleşmez ama Sketch’i en yakın düşmanın saldırısını kopyalar. Sadakat kartındaki 100 damga kesin shiny çatlayacak bir Kecleon Egg getirir.',
       ],
       tierHead: 'Yumurta',
       stepsHead: 'Adım',
@@ -626,9 +732,10 @@ export const siteTr: SiteMessages = {
     },
     mart: {
       paragraphs: (coins: readonly number[], minute: number, kills: number, victory: number) => [
-        `Yenilen düşmanlar bazen Poké Doları düşürür: Tek para, deste veya torba (${list(coins.map((c) => `₽${n(c)}`))}). Güçlü düşmanlar daha sık düşürür; bosslar ve shinyler ise her zaman yüklü ödeme yapar.`,
-        `Koşu sonunda bir bonus verilir: Hayatta kalınan dakika başına ₽${minute}, alt edilen her ${kills} düşman için ₽1 ve zafer için ₽${n(victory)}. Duraklatma menüsünden çıkmak toplanan paraları korur ancak bonusu yakar.`,
-        'Kazandığın parayı lobideki partner evinin doğusunda yer alan meydandaki Kecleon Mağazasında harca. Bugünün Vitrini herkes için aynıdır ve gece yarısı Brasília saatiyle yenilenir: Her gün ücretsiz bir hediye, Kecleon Egg (günde bir), %30 indirimli bir fırsat, Çantan için tüketim eşyaları, günün yumurtası ve bir stil. Kecleon\'un mor kardeşi TM\'ler (bir kez satın al, koşudan önce kuşan; ilk düşen TM o olur) ve evrim eşyaları satar: Eşya gerektiren bir evrim yolu ancak o eşyayla açılır (Dawn Stone yoksa Gallade yok); bir boss da koşu içinde yalnızca o koşuluk bir eşya düşürebilir. Antrenman bölümünde kalıcı geliştirmeler bulunur: İade (Refund) butonu harcadığın tüm parayı geri verir, böylece farklı yapılar deneyebilirsin. Ayrıca Bottle Cap satılır: Seviye başına tüm değerlere +%3 (en fazla 3 seviye, yalnızca uygulanan Pokémon için). Genişleme bölümünde mağazayı büyütmek için yatırım yaparsın (Tezgah, Çadır, Dükkan, Kecleon Mart ve Büyük Mağaza); böylece Vitrinde ve Çantada daha fazla yuva açılır. Cuma\'dan Pazar\'a kadar Kecleon Mart seviyesinden itibaren Meowth\'un karavanı meydanda durur (ultra yumurta, Gold Bottle Cap ve özel TM\'ler getirir); sadakat kartındaki 7 damgayla (mağazayı ziyaret ettiğin her gün için bir tane) sana %20 indirim uygular. Bir hesap açmazsan ilerlemen yalnızca bu tarayıcıda saklanır.',
+        `Bayılan düşmanlar bazen Poké Dolar düşürür: bir bozukluk, bir deste veya bir torba (${list(coins.map((c) => `₽${n(c)}`))}). Daha güçlüler daha sık düşürür; bosslar ve shiny’ler her zaman öder.`,
+        `Koşunun sonunda bir bonus gelir: hayatta kalınan dakika başına ₽${minute}, her ${kills} bayılan düşman için ₽1 ve galibiyet için ₽${n(victory)}. Duraklat menüsünden çıkmak bozuklukları korur ama bonusu kaybettirir.`,
+        'Hepsini lobide yoldaşının evinin doğusundaki meydanda bulunan Kecleon Mağazası’nda harca. Günün Vitrini herkes için aynıdır ve Brasília saatiyle gece yarısı yenilenir: her gün bedava bir hediye, Kecleon Egg (günde 6’ya kadar, her biri bir öncekinin iki katı), %30 indirimli bir fırsat, Çantan için tüketim eşyaları, günün yumurtası ve bir stil. Kecleon’un mor kardeşi TM’ler (bir kez al, koşudan önce kuşan; düşen ilk TM o olur) ve evrim eşyaları satar: eşya gerektiren bir yol yalnızca onunla açılır (Dawn Stone yoksa Gallade yok) ve bir boss da koşuda, yalnızca o koşu için bir tane düşürebilir. Antrenman kalıcı geliştirmeleri barındırır: İade düğmesi onlara harcadığın her şeyi geri verir, böylece başka build’ler deneyebilirsin. Bottle Cap de satar: seviye başına her şeye +%3, en fazla 3, yalnızca onu alan Pokémon için. Genişleme’de mağazayı büyütmek için yatırım yaparsın (Araba, Çadır, Dükkân, Kecleon Mart ve Büyük Mağaza); Vitrinde ve Çantada daha çok eşya olur. Kuluçka sekmesi ek kuluçka yuvaları (kalıcı) ve bir yumurtayı iki kat hızlı yürüten Hızlı Kuluçka satar. Cuma’dan Pazar’a, Kecleon Mart’tan itibaren Meowth’un kervanı ultra bir yumurta, Gold Bottle Cap ve özel TM’lerle meydana uğrar; sadakat kartında 7 damga varsa (mağazayı ziyaret ettiğin her gün bir tane) sana %20 indirim yapar. Hesap olmadan ilerleme yalnızca bu tarayıcıda kaydedilir.',
+        'Meydan Festivali: ayda yaklaşık bir kez, 14 gün boyunca Kecleon meydanındaki çeşme bir topluluk kumbarasına dönüşür. Hesapla (bir @ad ve 3 bitmiş koşuyla) çeşmeye günde ₽100’den ₽200 bine kadar ₽ atarsın. Kumbaranın geçtiği her hedef, misafirler ve bağış yapmayanlar dahil her oyuncuya bir Hediye olur ve bitişten 7 gün sonrasına kadar hediye kutusunda bekler. Bir festivalde ₽50 bin vermek Hami unvanını kazandırır ve en büyük 10 bağışçı çeşmenin plaketinde görünür (adını gizleyebilirsin). İlki 3–16 Kasım arasındaki Fener Festivali.',
       ],
       upgradeHead: 'Geliştirme',
       effectHead: 'Etki',
@@ -659,7 +766,7 @@ export const siteTr: SiteMessages = {
         ['Ses', 'Tüm sesleri açar veya kapatır (kısayol: M).'],
         ['Hasar sayıları', 'Ekranda beliren hasar sayılarını gösterir veya gizler.'],
         ['Ekran sarsıntısı', 'Patlamalarda ve büyük darbelerde ekranın sarsılmasını açar veya kapatır.'],
-        ['Dil', 'Türkçe, İngilizce, Portekizce ve İspanyolca arasında geçiş yapar.'],
+        ['Dil', 'Türkçe, İngilizce, Portekizce, İspanyolca, Fransızca ve Geleneksel Çince arasında geçiş yapar.'],
       ],
     },
     cta: 'Hazır mısın? Partnerini seç ve oyna.',
@@ -703,15 +810,26 @@ export const siteTr: SiteMessages = {
     perks: {
       title: 'Bağışçıların kazandıkları',
       items: [
-        'Destekçi (Supporter) unvanı ve kart çerçevesi.',
-        'Sıralamada ve profilde @kullanıcı adının yanında ♥ rozeti.',
-        'Kendi seçtiğin bir shiny Pokémon: Herhangi bir başlangıç veya yumurta ailesi (henüz çıkmamış bir aileyle birlikte gelir).',
-        'Koşularda arkandan gelen bir yoldaş.',
-        'Aşağıdaki destekçi duvarında ve zafer teşekküründe ismin.',
-        'Bir sonraki yumurta Pokémon\'u oylamasında oy hakkı.',
-        'Toplamda 10$ veya 50 R$ ile Altın (Gold) destekçi: Altın kart arka planı, PC Kutusu duvar kağıdı ve altın rozet.',
+        'Destekçi unvanı ve kart çerçevesi.',
+        'Sıralamada ve profilinde @ adının yanında bir ♥ rozeti.',
+        'Seçtiği bir shiny: herhangi bir başlangıç Pokémon’u veya yumurta ailesi (henüz çatlamamış bir aile onunla birlikte gelir).',
+        'Koşularda onu takip eden bir yoldaş.',
+        'Aşağıdaki duvarda ve zafer teşekkürlerinde adı.',
+        'Bir sonraki yumurta Pokémon’u için bir oy.',
+        'Altın ve Elmas artık Patreon’da aylık (aşağıya bak): tek seferlik bağışlar Altın’a eklenmez.',
       ],
       note: 'Tamamı kozmetiktir: Koşuları veya sıralamayı değiştiren hiçbir etkisi yoktur. Ödüller oyun içi bir hesap gerektirir (Google ile giriş yapmak ücretsizdir).',
+    },
+    monthly: {
+      title: 'Patreon’da aylık destek',
+      lead: 'Her ay desteklemek mi istiyorsun? Patreon’da kademen aktif tuttuğun miktarı takip eder. Sonra oyundaki Şöhretler Salonu’ndan Patreon’u hesabına bağla.',
+      tiers: [
+        '<b>Destekçi, ayda 5 US$:</b> bağışçıların aldığı her şey, Destekçi rolü ve özel Discord kanalı, desteğin sürdükçe de Şöhretler Salonu.',
+        '<b>Altın, ayda 10 US$:</b> Destekçinin aldığı her şey, Altın rozeti ve rolü, altın kart arka planı ve duvar kağıdı, ayrıca kalıcı olarak Şöhretler Salonu.',
+        '<b>Elmas, ayda 20 US$:</b> Altının aldığı her şey, Elmas rozeti ve rolü, yoldaş olarak yakaladığın bir efsanevi (shiny yakaladıysan shiny), yeni bir ultra nadir Pokémon için aylık oylama ve Şöhretler Salonu’nda elmas süslemeler.',
+      ],
+      cta: 'Patreon’da destekle',
+      note: 'Patreon’dan önce bağış yapan herkes OG Destekçidir: sahip olduğu her şeyi kalıcı olarak korur ve Şöhretler Salonu’nda kendi bölümü vardır.',
     },
     wall: { title: 'Destekçiler duvarı', empty: 'Henüz kimse yok. İlk isim senin olabilir!' },
     pick: 'Ödeme yöntemini seç',
@@ -766,7 +884,10 @@ export const siteTr: SiteMessages = {
       cries: 'Haykırışlar (Pokémon sesleri)',
       criesText: 'PokéAPI/cries.',
       fonts: 'Yazı tipleri',
-      fontsText: 'Press Start 2P ve VT323, SIL Open Font License (OFL) altında. Bu site tarafından sunulmaktadır.',
+      fontsText: 'Press Start 2P ve VT323, SIL Open Font License (OFL) altında, ve Çince için Cubic 11 (俐方體11號), kullanımı ücretsiz. Bu site tarafından sunulur.',
+      translation: 'Çeviri',
+      languages: { pt: 'Portekizce', en: 'İngilizce', es: 'İspanyolca', fr: 'Fransızca', zh: 'Çince', tr: 'Türkçe' },
+      reviewedBy: (language: string, name: string, discord: string) => `${language} çevirisini Discord sunucumuzun moderatörü ${name} (${discord}) inceledi. Oyun içi profil:`,
       inspiration: 'İlham kaynağı',
       inspirationText: 'poncle tarafından geliştirilen Vampire Survivors.',
       nonCommercial: 'Sprite görselleri CC BY-NC lisanslı olduğundan oyunun bütünü ticari amaçlarla kullanılamaz.',
@@ -792,11 +913,10 @@ export const siteTr: SiteMessages = {
       'Çıkış yapmak ilerlemeni bu cihazda korur. Hesabını, profilini, dereceli koşularını ve saklanan ilerlemeni silmek istersen aşağıdaki iletişim kanalından talepte bulunabilirsin.',
     ],
     privacyAfter: [
-      'Bu verileri silmek için tarayıcı ayarlarından site verilerini temizlemen yeterlidir.',
-      'Sprite görselleri, sesler ve yazı tipleri doğrudan bu site üzerinden sunulur; üçüncü taraf hizmetlere çağrı yapılmaz. Site Vercel üzerinde barındırılır; her web sunucusu gibi hizmeti çalıştırmak ve korumak amacıyla teknik erişim verilerini (IP adresleri gibi) kaydedebilir.',
-      'Kaç kişinin ziyaret ettiğini ve oynadığını anlamak için site Vercel Web Analytics ve kendi sunucumuzdaki bağımsız Umami kurulumunu kullanır. Ziyaretleri anonim ve toplu olarak sayarlar (sayfa, ülke, tarayıcı, cihaz ve yönlendiren site) ve Umami için her koşunun bir özeti (başlangıç Pokémon\'u, ulaşılan dakika ve seviye, kazanıp kazanmadığın). Çerez kullanılmaz, kimliğin tespit edilmez veya siteler arası takip yapılmaz.',
-      'Oyun içinde ayrıca oyunun nasıl oynandığını anlamak ve hataları çözmek için PostHog (posthog.com, veriler ABD\'de saklanır) kullanıyoruz. Her koşunun bir özetini (Pokémon, zorluk, saldırılar, eşyalar, ulaşılan dakika ve seviye, nasıl bittiği), hangi menüleri açtığını ve bir hata oluştuğunda hata mesajı ile o sıradaki koşunun tekrar kaydını (tohum ve komutlar, kişisel veri içermez) alır. Bunların tümü ph_ps içindeki rastgele kimliğe ve oturum açtıysan hesap kimliğin ile kullanıcı adına bağlanır; asla e-postana veya gerçek adına bağlanmaz. PostHog burada çerez kullanmaz ve seni siteler arasında izlemez.',
-      'Bağışlar AbacatePay (abacatepay.com: Pix ve Brezilya kartları) veya Stripe (stripe.com: diğer ülkelerin kartları, Apple Pay ve Google Pay) sayfalarından ödenir. Ödeme bilgileriniz doğrudan onlara gider; oyun kart bilgilerinizi asla görmez. Bize ödenen tutarı ve ödeme alan herkese iletildiği gibi ödeyen kişinin bilgilerini (ad ve e-posta gibi) bildirirler; bunları yalnızca bağış kaydı için kullanırız. Bir @kullanıcı adı girersen (veya bağış kodunu kullanırsan), ödüllerin ulaşması için o oyun hesabına bağlanır; bağışlanan tutar asla herkese açık gösterilmez, yalnızca dilersen gizleyebileceğin destekçi rozeti görünür.',
+      'Bu verileri silmek için tarayıcı ayarlarından site verilerini temizle.',
+      'Sprite’lar, sesler ve yazı tipleri bu site tarafından sunulur; üçüncü taraf hizmetlere çağrı yapılmaz. Site Vercel’de barındırılır ve Vercel, her web sunucusu gibi, hizmeti çalıştırmak ve korumak için teknik erişim verilerini (IP adresleri gibi) kaydedebilir.',
+      'Oyunda nasıl oynandığını anlamak ve hataları düzeltmek için PostHog (posthog.com, veriler Amerika Birleşik Devletleri’nde saklanır) kullanıyoruz. PostHog her koşunun bir özetini (Pokémon, zorluk, saldırılar, eşyalar, ulaştığın dakika ve seviye, nasıl bittiği), açtığın menü ekranlarını ve oyun bir hatayla karşılaştığında hata mesajını ve devam eden koşunun tekrarını (tohumu ve girdilerin, kişisel hiçbir şey) alır. Hepsi ph_ps içindeki rastgele kimliğe ve giriş yaptıysan hesap kimliğine ve kullanıcı adına bağlıdır, asla e-postana veya adına değil. PostHog burada çerez kullanmaz ve seni siteler arasında takip etmez.',
+      'Bağışlar AbacatePay’in (abacatepay.com: Pix ve Brezilya kartları) veya Stripe’ın (stripe.com: diğer ülkelerin kartları, Apple Pay ve Google Pay) sayfalarında ödenir. Ödeme bilgilerin doğrudan onlara gider ve oyun kartını asla görmez. Bize tutarı ve, ödeme alan herkese gösterecekleri gibi, ödeyenin bilgilerini (ad ve e-posta gibi) gösterirler; bunları bağışı kaydetmekten başka hiçbir şey için kullanmayız. Bir @ verirsen (veya bağışın kodunu kullanırsan) ödüllerin ulaşması için o oyun hesabına bağlanır; tutar asla herkese açık gösterilmez, yalnızca gizleyebileceğin destekçi rozeti gösterilir.',
     ],
     contact: [
       'Burada kullanılan herhangi bir materyalin haklarına sahipseniz ve kaldırılmasını veya değiştirilmesini istiyorsanız GitHub üzerinde bir issue açabilirsiniz. En kısa sürede gereken yapılacaktır.',
@@ -804,5 +924,207 @@ export const siteTr: SiteMessages = {
     ],
     issues: 'GitHub üzerinde issue aç',
     source: 'Kaynak kodunu görüntüle',
+  },
+  creators: {
+    title: 'İçerik üreticileri: Pokémon Survivors videoları ve yayınları',
+    description:
+      'Oyuncuların YouTube ve TikTok’ta yaptığı Pokémon Survivors videoları ve yayınları. Seninkini yap, Discord’da paylaş ve oyunda İçerik Üreticisi unvanını ve üretici çerçevesini kazan.',
+    h1: 'İçerik üreticileri',
+    lead: 'Pokémon Survivors oynayan kişilerin videoları ve yayınları. Hemen burada izle ve yapanları takip et.',
+    videos: 'Videolar',
+    people: 'Yapanlar',
+    play: (title: string) => `İzle: ${title}`,
+    watchOn: (platform: string) => `${platform} üzerinde izle`,
+    videoAbout: (name: string) => `${name} tarafından bir Pokémon Survivors videosu.`,
+    langs: { pt: 'Portekizce', en: 'İngilizce', es: 'İspanyolca', fr: 'Fransızca', zh: 'Çince', tr: 'Türkçe' },
+    join: {
+      title: 'Oyunun videolarını mı yapıyorsun?',
+      lead: 'Oynanış, yayın, rehber, Short veya TikTok, hangi dilde olursa: oyunun her videosu burada olabilir.',
+      steps: [
+        'Videonu YouTube’a, TikTok’a veya istediğin yere yükle.',
+        'Bağlantıyı Discord sunucumuzun #screenshots-and-clips kanalında paylaş.',
+        'Oyun içi @ adını söyle: İçerik Üreticisi unvanını ve üretici çerçevesini kazanırsın.',
+      ],
+      cta: 'Videomu Discord’da paylaş',
+    },
+  },
+  compare: {
+    title: 'Pokémon Survivors vs PokéSurvivor: aynı oyun mu? Farklar',
+    description:
+      'Pokémon Survivors (pokemonsurvivors.com) ve PokéSurvivor (pokesurvivor.com), farklı kişilerin yaptığı iki ücretsiz Vampire Survivors tarzı Pokémon hayran oyunudur. Yan yana: Pokémon’lar, co-op, diller, sıralamalar ve kaynak kodu.',
+    h1: 'Pokémon Survivors ve PokéSurvivor aynı oyun mu?',
+    lead: [
+      'Hayır. Neredeyse aynı isme sahip, farklı kişilerin yaptığı iki ücretsiz Vampire Survivors tarzı Pokémon hayran oyunu. Pokémon Survivors’ı (pokemonsurvivors.com, bu site) Brezilya’dan Pedro Barretto yapıyor. PokéSurvivor’ı (pokesurvivor.com) JPTER78 yapıyor.',
+      'İkisi de Ekim 2026’da çıktı, tarayıcıda çalışıyor ve ücretsiz; bu yüzden arama motorları ve yapay zekâ sohbetleri bazen onları karıştırıyor. İşte onları ayıranlar.',
+    ],
+    table: { title: 'Yan yana', feature: 'Özellik' },
+    rows: (f) => [
+      ['Yapan', 'Pedro Barretto (Brezilya)', 'JPTER78'],
+      ['Web sitesi', 'pokemonsurvivors.com', 'pokesurvivor.com'],
+      ['Nerede oynanır', 'Bilgisayar ve telefonda tarayıcı, dikey veya yatay. Uygulama olarak yüklenir.', 'Bilgisayar ve telefonda tarayıcı, yatay. Uygulama olarak yüklenir.'],
+      ['Hesap', 'İsteğe bağlı: tek başına oynamak için kayıt gerekmez. Hesap bulut kaydı, sıralamaları ve co-op’u ekler.', 'İsteğe bağlı: misafir veya hesap (ad ve şifre ya da Google). Hesap bulut kaydı, sıralamaları ve co-op’u ekler.'],
+      ['Nasıl saldırılır', `Her saldırı kendiliğinden ateşlenir, aynı anda ${f.moves} taneye kadar.`, 'Aktif saldırıyı sen seçersin (1–4 tuşları). Yenilen her efsanevi, saldırıları tek bir yuvada birleştirmeni sağlar.'],
+      ['Oynanabilir Pokémon’lar', `Tam evrim hatlarıyla ${f.starters} başlangıç Pokémon’u, artı yumurtadan çıkan ${f.eggs} aile ve Efsanevi Modunda ${f.legends} efsanevi.`, '9 neslin tamamından 966 Pokémon.'],
+      ['Pokémon’lar nasıl açılır', 'Koşularda attığın adımlarla çatlayan yumurtalar. Efsaneviler boss olarak yenilerek yakalanır.', 'Bölge başına bir gacha; oynayarak kazanılan biletlerle.'],
+      ['Bir koşu', `Mewtwo’ya kadar ${f.minutes} dakika; yolda efsanevi bosslar ve epik yarıklar. Sonra Arceus’a kadar sonsuz mod.`, 'Süreli sürüler; bir efsaneviye karşı arenaya götüren yarıklarla.'],
+      ['Co-op', `Çevrimiçi, ${f.players} oyuncuya kadar. Bağlantı, kod veya arkadaş listesiyle odalar.`, 'Çevrimiçi, 4 oyuncuya kadar. Arkadaş davet ederek odalar.'],
+      ['Diller', `${f.languages}: Portekizce, İngilizce, İspanyolca, Fransızca, Geleneksel Çince ve Türkçe.`, '7: İspanyolca, İngilizce, Fransızca, İtalyanca, Portekizce, Basitleştirilmiş ve Geleneksel Çince.'],
+      ['Sıralamalar', 'Hayatta kalınan süreye göre. Tablolardaki koşular denetlenir: sunucu her birini tekrarından yeniden simüle eder.', 'Hayatta kalınan süreye göre, tek başına veya grup olarak.'],
+      ['Kaynak kodu', 'Açık kaynak, MIT lisansı.', 'Herkese açık, PolyForm Noncommercial lisansı (2026-10-14’e kadar MIT).'],
+      ['Reklam ve satın alma', 'Yok. İsteğe bağlı bağışlar.', 'Yok. İsteğe bağlı bağışlar.'],
+    ],
+    names: {
+      title: 'Benzer isimler',
+      items: [
+        { name: 'Pokémon Survivors', text: 'Bu oyun, pokemonsurvivors.com’da. Çoğul "Survivors".' },
+        { name: 'PokéSurvivor (veya Poke Survivor)', text: 'JPTER78’in oyunu, pokesurvivor.com’da.' },
+        { name: 'Poke Survivors (Android)', text: 'PokéSurvivor’ın Godot ile yapılmış resmi olmayan Android sürümü. Bu oyun değil.' },
+        { name: 'pokesurvivor.games ve pokesurvival.com', text: 'Seni PokéSurvivor’a yönlendiren rehberli hayran siteleri.' },
+        { name: 'Pokémon Survivor Burst', text: 'ClessioTV’nin Pokémon Essentials ile yaptığı, bilgisayara indirilen başka bir hayran oyunu.' },
+      ],
+    },
+    pickOurs: {
+      title: 'Şunları istiyorsan Pokémon Survivors oyna:',
+      items: (f) => [
+        `başı, ortası ve sonu olan bir koşu: Mewtwo’ya kadar ${f.minutes} dakika, sonra Arceus’a karşı sonsuz mod;`,
+        'build kurmayı seviyorsan: Sv 4 ve Sv 7’de iki yola ayrılan saldırılar, Yetenekler, eşyalar, ikili saldırılar ve Mega Evrim;',
+        `efsanevilerle oynamak: ${f.legends} efsanevinin hepsini boss olarak yenip yakala ve Efsanevi Modunda oyna;`,
+        'telefonunda dikey tutarak, tek elle oynamak;',
+        'en iyi koşuların sunucu tarafından denetlendiği bir sıralama;',
+        'incelemek ve yeniden kullanmak için MIT lisanslı açık kaynak.',
+      ],
+    },
+    pickTheirs: {
+      title: 'Şunları istiyorsan PokéSurvivor oyna:',
+      items: [
+        'koleksiyon yapmak: 966 Pokémon ve bölge başına bir gacha;',
+        'saldıran saldırıyı kendin seçmeyi tercih ediyorsan;',
+        'İtalyanca veya Basitleştirilmiş Çince oynuyorsan;',
+        'daha büyük topluluk ve daha çok YouTube videosu.',
+      ],
+    },
+    faq: {
+      title: 'SSS',
+      items: (f) => [
+        {
+          q: 'Pokémon Survivors ve PokéSurvivor aynı oyun mu?',
+          a: 'Hayır. Farklı kişilerin yaptığı, aynı ay neredeyse aynı isimle çıkan iki farklı ücretsiz hayran oyunu. Pokémon Survivors pokemonsurvivors.com’da ve Pedro Barretto tarafından yapılıyor. PokéSurvivor pokesurvivor.com’da ve JPTER78 tarafından yapılıyor.',
+        },
+        {
+          q: '"Pokémon Survivors" diye aradım ve PokéSurvivor çıktı. İsmi yanlış mı yazdım?',
+          a: 'Hayır. Çoğul "Survivors" ile Pokémon Survivors bu oyun, pokemonsurvivors.com’da. Arama motorları ve yapay zekâ sohbetleri bazen ikisini karıştırıyor.',
+        },
+        {
+          q: 'Hangisi daha iyi?',
+          a: `Ne istediğine bağlı. PokéSurvivor’da daha çok Pokémon (966) ve onları toplamak için bir gacha var. Pokémon Survivors’ta efsanevi bosslu ${f.minutes} dakikalık koşular, oynanabilir efsaneviler, Mega Evrim, yollara ayrılan saldırılar ve sunucu denetimli bir sıralama var. İkisi de ücretsiz, yani ikisini de oynayabilirsin.`,
+        },
+        {
+          q: 'İkisi de ücretsiz ve resmi mi?',
+          a: 'İkisi de reklamsız ve satın almasız ücretsizdir ve tarayıcıda çalışır. Hiçbiri resmi değildir: Nintendo, The Pokémon Company, GAME FREAK veya Creatures ile bağı olmayan hayran oyunlarıdır.',
+        },
+        {
+          q: 'Pokémon Survivors’ı arkadaşlarımla oynayabilir miyim?',
+          a: `Evet. Çevrimiçi co-op, her biri kendi Pokémon’uyla ${f.players} oyuncuya kadar aynı koşuda buluşturur. Bir oda kur ve arkadaşlarını bağlantı, kod veya arkadaş listesiyle davet et. Hesap gerekir.`,
+        },
+      ],
+    },
+    checked: (date) => `PokéSurvivor hakkındaki bilgiler ${date} tarihinde kendi sitesinde ve kaynak kodunda kontrol edildi; o zamandan beri değişmiş olabilir.`,
+    report: 'Yanlış bir şey mi gördün? GitHub’da bize söyle',
+    alternatives: 'Vampire Survivors benzeri daha fazla Pokémon oyunu',
+    cta: 'Pokémon Survivors’ı ücretsiz oyna',
+  },
+  alternatives: {
+    title: 'Vampire Survivors benzeri Pokémon oyunları: ücretsiz hayran oyunları (2026)',
+    description:
+      'Ücretsiz Vampire Survivors tarzı Pokémon hayran oyunları: Pokémon Survivors, PokéSurvivor ve Pokémon Survivor Burst, artı roguelite PokeRogue. Nerede çalışırlar, co-op, kaç Pokémon ve her biri kimin için.',
+    h1: 'Vampire Survivors benzeri Pokémon oyunları',
+    lead: 'Resmi bir Pokémon Vampire Survivors yok, ama hayranlar birkaç tane yaptı. Bunlar yalnızca hareket ettiğin ve Pokémon’unun sürülere kendiliğinden saldırdığı ücretsiz Pokémon survivors-like (ya da bullet heaven) hayran oyunları; farklı bir tempo istersen de sıra tabanlı bir Pokémon roguelite’ı.',
+    disclosure: (date) =>
+      `Listede ilk sırada olan Pokémon Survivors’ın yapımcısı tarafından yazıldı, bunu aklında tut. Diğer oyunların bilgileri ${date} tarihinde kendi sitelerinde kontrol edildi ve değişmiş olabilir.`,
+    glance: { title: 'Bir bakışta', game: 'Oyun', plays: 'Nerede oynanır', style: 'Tarz', coop: 'Co-op', roster: 'Pokémon' },
+    madeBy: 'Yapan',
+    bestFor: 'En uygun',
+    visit: (name) => `${name} aç`,
+    games: {
+      ours: {
+        plays: 'Tarayıcı, bilgisayar ve telefon',
+        style: 'Survivors-like',
+        coop: 'Çevrimiçi 4 kişiye kadar',
+        roster: (f) => `${f.starters} başlangıç, ${f.eggs} yumurta ailesi, ${f.legends} efsanevi`,
+        about: (f) => [
+          `Kanto’dan Paldea’ya ${f.starters} başlangıç Pokémon’undan birini seç ve ${f.minutes} dakika sürülere karşı hayatta kal: her saldırı kendiliğinden vurur, her seviyede saldırı ve eşya seçer, koşu sırasında evrimleşirsin, ta ki Mewtwo’yla yüzleşene kadar. Efsanevi bosslar, her efsanevinin alemine açılan epik yarıklar, Mega Evrim ve Arceus’a karşı sonsuz mod.`,
+          `Yumurtalardan ${f.eggs} aile daha çıkar, yendiğin efsaneviler Efsanevi Modunda oynanabilir olur ve çevrimiçi co-op ${f.players} oyuncuya kadar bir araya getirir. ${f.languages} dilde, açık kaynak (MIT).`,
+        ],
+        bestFor: 'bosslu kısa koşular, çeşitli build’ler ve oynanabilir efsaneviler; bilgisayarda veya dikey tutulan telefonda.',
+      },
+      pokesurvivor: {
+        plays: 'Tarayıcı, bilgisayar ve telefon (yatay)',
+        style: 'Survivors-like',
+        coop: 'Çevrimiçi 4 kişiye kadar',
+        roster: '966 Pokémon',
+        about: [
+          'Türün en geniş kadrosu: 9 neslin tamamından 966 Pokémon, oynayarak kazanılan biletlerle bölge başına bir gacha üzerinden açılır. Saldıran saldırıyı sen seçersin ve yarıklar bir efsaneviye karşı arenaya götürür. Görevleri, başarımları, sıralamaları ve 4 oyuncuya kadar co-op’u var; 7 dilde.',
+          'Ayrıca Godot ile yapılmış Poke Survivors adında resmi olmayan bir Android sürümü de var.',
+        ],
+        bestFor: 'olabildiğince çok Pokémon toplamak.',
+      },
+      burst: {
+        plays: 'İndirme, Windows ve Mac',
+        style: 'Survivors-like',
+        coop: 'Yok',
+        roster: 'Her sürümle büyüyor',
+        about: [
+          'Pokémon Essentials (RPG Maker XP) ile yapıldı; indirip bilgisayarda oynarsın. Klasik, Rush ve Kule modları, bosslar ve çevrimiçi skor tabloları var, birkaç dilde. Yapımcısı telefon sürümünün test edilmediğini belirtiyor.',
+        ],
+        bestFor: 'klasik bir Pokémon oyununa benzeyen indirilebilir bir oyun.',
+      },
+      pokerogue: {
+        plays: 'Tarayıcı, bilgisayar ve telefon',
+        style: 'Sıra tabanlı roguelite',
+        coop: 'Yok',
+        roster: 'Tüm nesiller',
+        about: [
+          'Survivors-like değil: savaşlar ana seri gibi sıra tabanlı, dalga dalga; takımını kurmak için Pokémon yakalarsın. En bilinen Pokémon roguelite’ı, ücretsiz ve açık kaynak.',
+        ],
+        bestFor: 'sürüler yerine sıra tabanlı savaşlı bir Pokémon roguelite’ı.',
+      },
+    },
+    faq: {
+      title: 'SSS',
+      items: (f) => [
+        {
+          q: 'Resmi bir Pokémon Vampire Survivors var mı?',
+          a: 'Hayır. Pokémon bu tarzda hiç oyun çıkarmadı. Var olanlar Pokémon Survivors, PokéSurvivor ve Pokémon Survivor Burst gibi ücretsiz, resmi olmayan hayran oyunlarıdır.',
+        },
+        {
+          q: 'Vampire Survivors benzeri hangi Pokémon oyununda co-op var?',
+          a: `Pokémon Survivors ve PokéSurvivor; ikisinde de tarayıcıda ${f.players} oyuncuya kadar çevrimiçi co-op var.`,
+        },
+        {
+          q: 'Hangisini telefonumda hiçbir şey indirmeden oynayabilirim?',
+          a: 'Pokémon Survivors, PokéSurvivor ve PokeRogue telefon tarayıcısında çalışır. Pokémon Survivors telefon dikey tutulurken de oynanır. Pokémon Survivor Burst bilgisayarlar için indirilir.',
+        },
+      ],
+    },
+    compareLink: 'Pokémon Survivors ve PokéSurvivor yan yana',
+    cta: 'Pokémon Survivors’ı ücretsiz oyna',
+  },
+  notFound: {
+    title: 'Sayfa bulunamadı · Pokémon Survivors',
+    eyebrow: 'HATA 404 · ROTA 404',
+    h1: 'Rota 404’te kayboldun.',
+    lead: 'Bu sayfa yok, ama Zubat’lar var. Çıkmak için bir tabelaya yürü.',
+    url: 'Aradığın:',
+    mean: { before: 'Şunu mu demek istedin: ', after: '?' },
+    hint: 'Yürümek için ok tuşları veya WASD. Telefonda dokun ve sürükle. Saldırılar kendiliğinden ateşlenir.',
+    game: 'Mini oyun: Rota 404 boyunca bir tabelaya yürü',
+    start: 'Başlamak için yürü',
+    go: 'Git:',
+    over: '{name}, Rota 404’te bayıldı.',
+    time: 'Süre',
+    ko: 'KO',
+    best: 'En iyi',
+    retry: 'Tekrar dene',
+    notes: { play: 'Gerçek bir koşu', pokedex: 'Oyundaki tüm Pokémon’lar', guide: 'Nasıl oynanır' },
   },
 }

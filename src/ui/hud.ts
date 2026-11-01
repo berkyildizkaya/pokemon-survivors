@@ -33,6 +33,7 @@ import { moveCard, withMoveCard } from './moveCard'
 import { createMovePad } from './movePad'
 import { createSpecialControls } from './specialButton'
 import { localPlayer } from '../game/players'
+import { createMinimap } from './minimap'
 
 const hpClass = (ratio: number) => (ratio > 0.5 ? 'hp-high' : ratio > 0.2 ? 'hp-mid' : 'hp-low')
 
@@ -139,6 +140,8 @@ export const createHud = (root: HTMLElement, onSpecial: () => void, onMega: () =
     mega.button,
     lunge.button,
   )
+  const minimap = createMinimap(el)
+  el.append(minimap.el)
   // First child, so a HUD rebuilt mid-run still sits under open menus and toasts.
   root.prepend(el)
 
@@ -167,7 +170,7 @@ export const createHud = (root: HTMLElement, onSpecial: () => void, onMega: () =
   const renderSlots = (g: Game) => {
     const p = localPlayer(g)
     // Moves a fusion on the table would use blink in the duo's colors.
-    const fusing = new Set(readyDuos(p.moves, legendSignature(p.starter)).flatMap((d) => d.from))
+    const fusing = new Set(readyDuos(p.moves, legendSignature(p.starter), p.banished).flatMap((d) => d.from))
     moveSlots.replaceChildren(
       ...Array.from({ length: MAX_MOVES }, (_, i) => {
         const m = p.moves[i]
@@ -220,6 +223,7 @@ export const createHud = (root: HTMLElement, onSpecial: () => void, onMega: () =
     card.update(g)
     title.update(g)
     mission.update(g, !rift.el.classList.contains('hidden'))
+    minimap.update(g)
 
     const key = [...p.moves.map((m) => `${m.id}${m.level}`), ...p.items.map((i) => `${i.id}${i.level}`)].join()
     if (key !== loadoutKey) {
@@ -304,7 +308,12 @@ export const createHud = (root: HTMLElement, onSpecial: () => void, onMega: () =
   /** Hides the touch buttons (special, Mega, lunge) while a menu or the results screen is up, so they never cover its buttons. */
   const setMenuOpen = (open: boolean) => el.classList.toggle('menu-open', open)
 
-  return { update, setMenuOpen, dispose: () => el.remove() }
+  const dispose = () => {
+    minimap.dispose()
+    el.remove()
+  }
+
+  return { update, setMenuOpen, dispose }
 }
 
 export type Hud = ReturnType<typeof createHud>

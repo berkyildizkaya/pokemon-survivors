@@ -43,6 +43,12 @@ export const BOSSES = [95, 143, 144, 145, 146, 243, 244, 245, 377, 378, 379, 150
 export const CRITTERS = [52, 175]
 /** Rift legendaries (src/data/rifts.ts), which can also roll shiny. */
 export const RIFT_LEGENDS = [249, 250, 382, 383, 384, 483, 380, 381, 386]
+/** The Noite das Bruxas' event rift (src/data/rifts.ts): Darkrai, which can roll shiny. */
+export const EVENT_LEGENDS = [491]
+/** Cresselia, whose Lunar Wing breaks Darkrai's nightmare at its capture (a cameo, never fought). */
+export const CAMEOS = [488]
+/** The Festival das Lanternas' last prize (`FESTIVAL_LEGENDS` in src/data/legends.ts): Cresselia, playable in Legend mode, shiny through a shiny pick. */
+export const FESTIVAL_LEGENDS = [488]
 /** Arceus, the endless mode's reaper. */
 export const REAPER = [493]
 /** Places' bosses (src/data/places.ts): Spiritomb, out of the graveyard's Odd Keystone. It can roll shiny. */
@@ -57,7 +63,7 @@ export const COMPANIONS = [710]
 export const HALLOWEEN_BOSSES = [778, 354, 302, 426, 429, 229, 94, 609, 711, 709, 430, 477]
 /** The lobby's shopkeepers (render/plaza.ts): Kecleon, and its purple brother recolored from the same sheets. */
 export const SHOPKEEPERS = [352]
-export const DEX = [...new Set([...STARTERS, ...HATCHLINGS, ...HORDE, ...TRAITS, ...BOSSES, ...CRITTERS, ...RIFT_LEGENDS, ...REAPER, ...PLACE_BOSSES, ...COMPANIONS, ...HALLOWEEN_BOSSES, ...SHOPKEEPERS])]
+export const DEX = [...new Set([...STARTERS, ...HATCHLINGS, ...HORDE, ...TRAITS, ...BOSSES, ...CRITTERS, ...RIFT_LEGENDS, ...EVENT_LEGENDS, ...CAMEOS, ...FESTIVAL_LEGENDS, ...REAPER, ...PLACE_BOSSES, ...COMPANIONS, ...HALLOWEEN_BOSSES, ...SHOPKEEPERS])]
 /**
  * Flying types that take to the sky (the sky's flock in src/data/places.ts and the
  * Flying-type player forms): they get a `Fly` sheet when SpriteCollab has one.
@@ -69,7 +75,7 @@ export const FLYERS = new Set([
 /** Species that can roll shiny: the player lines, regular enemies, rift legendaries, places' bosses and the companions (Pumpkaboo for Gold supporters). */
 /** Legendaries that can also roll shiny as wave bosses (the trios, Mewtwo, the mythicals) and Arceus, for the Legend mode's captures. */
 export const SHINY_LEGENDS = [144, 145, 146, 150, 151, 243, 244, 245, 251, 377, 378, 379, 385, 493]
-export const SHINY = new Set([...STARTERS, ...HATCHLINGS, ...HORDE, ...TRAITS, ...RIFT_LEGENDS, ...PLACE_BOSSES, ...SHINY_LEGENDS, ...COMPANIONS])
+export const SHINY = new Set([...STARTERS, ...HATCHLINGS, ...HORDE, ...TRAITS, ...RIFT_LEGENDS, ...EVENT_LEGENDS, ...FESTIVAL_LEGENDS, ...PLACE_BOSSES, ...SHINY_LEGENDS, ...COMPANIONS])
 
 /**
  * Alternate formes the game draws, by key, mapped to their SpriteCollab form id
@@ -85,6 +91,7 @@ export const FORMS = {
   94: { mega: '0001' },
   229: { mega: '0001' },
   248: { mega: '0001' },
+  254: { mega: '0001' }, // Walk and Idle only so far (no Hurt sheet: it flinches in its Walk)
   282: { mega: '0001' },
   310: { mega: '0001' },
   334: { mega: '0001' },
@@ -92,7 +99,7 @@ export const FORMS = {
   362: { mega: '0001' },
   448: { mega: '0001' },
   475: { mega: '0001' },
-  // Legend mode's forms: Primal Reversion, Mega Rayquaza, the Latis' and Mewtwo Y's Megas, Deoxys' formes.
+  // Legend mode's forms: Primal Reversion, Mega Rayquaza, the Latis', Mewtwo Y's and Darkrai's Megas, Deoxys' formes.
   150: { megaY: '0002' },
   380: { mega: '0001' },
   381: { mega: '0001' },
@@ -100,6 +107,24 @@ export const FORMS = {
   383: { primal: '0001' },
   384: { mega: '0001' },
   386: { attack: '0001', defense: '0002', speed: '0003' },
+  491: { mega: '0002' }, // 0001 is a cutscene sprite
+}
+
+/**
+ * Form shinies SpriteCollab doesn't have yet, committed by hand at `public/assets/pokemon/<dex>/<key>/shiny/`
+ * (Walk, Idle and Hurt): palette swaps of the form's own sheets, so they share its frame sizes and durations.
+ * By dex and form key, the artist to credit in CREDITS.md. Drop an entry once SpriteCollab publishes that shiny.
+ */
+export const HANDMADE_SHINIES = {
+  248: { mega: 'JFain (shared on Discord as @JaiFain)' },
+}
+
+/**
+ * Forms that ship their portrait too (`<dex>/<key>/portrait.png`, `portrait` in the manifest's form), for the
+ * screens that show one: Mega Darkrai, the Noite das Bruxas' Meta da comunidade (`ui/halloween.ts`).
+ */
+export const FORM_PORTRAITS = {
+  491: ['mega'],
 }
 
 /**
@@ -145,6 +170,7 @@ export const FORM_CRIES = {
   383: { primal: 'groudon-primal' },
   384: { mega: 'rayquaza-mega' },
   386: { attack: 'deoxys-attack', defense: 'deoxys-defense', speed: 'deoxys-speed' },
+  491: { mega: 'darkrai-mega' },
   500: { mega: 'emboar-mega' },
   652: { mega: 'chesnaught-mega' },
   655: { mega: 'delphox-mega' },
@@ -161,6 +187,12 @@ export const EMOTIONS = {
   52: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
   355: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
   225: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
+  // Lanturn, the Festival da Praça's Lantern Market keeper (render/plaza.ts).
+  171: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
+  // Machoke, the Dojo's sensei (render/dojo.ts).
+  67: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
+  // Ninjask, the Estádio's judge (render/stadium.ts).
+  291: ['Normal', 'Happy', 'Joyous', 'Surprised', 'Sigh', 'Inspired', 'Angry'],
 }
 
 export const pad = (n) => String(n).padStart(4, '0')

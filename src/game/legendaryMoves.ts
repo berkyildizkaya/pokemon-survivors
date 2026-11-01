@@ -1,7 +1,9 @@
 import { dirTo, fromAngle, TAU } from '../engine/math'
 import { range } from '../engine/rng'
-import { burst } from './effects'
-import { strike } from './moveKit'
+import { healPlayer } from './combat'
+import { burst, shakeScreen } from './effects'
+import { stacksOf } from './kitRules'
+import { returnShot, strike } from './moveKit'
 import type { Look, MoveDef, MoveId, MoveStats } from './moves'
 import { enemiesInView, nearestEnemy } from './queries'
 import { densestFoe } from './signatureRules'
@@ -65,7 +67,7 @@ export type LegendaryVisual =
   | 'whirlwind' | 'whirlBurst' | 'phoenix' | 'sacredFlame' | 'originRing' | 'originBeam' | 'sandWave' | 'hotSand'
   | 'ascentRise' | 'ascentComet' | 'ascentImpact' | 'timeClock' | 'timeRing' | 'timeSnap' | 'mistBall' | 'mistCloud'
   | 'lusterBeam' | 'boostCore' | 'boostComet' | 'boostBurst' | 'wishStar' | 'wishFall' | 'wishBurst'
-  | 'ancientRock' | 'magicalLeaf'
+  | 'ancientRock' | 'magicalLeaf' | 'voidOrb' | 'voidBurst' | 'voidPool' | 'lunarMoon' | 'lunarCrescent' | 'lunarBurst'
 
 /** Whirlwind: the cyclone's pull (px/s) and the gust it ends with (× damage, × area). */
 export const WHIRL = { pull: 150, burst: 2.2, burstR: 46 } as const
@@ -91,6 +93,24 @@ export const WISH = { first: 0.45, gap: 0.08, drain: 0.25 } as const
 export const ANCIENT = { launch: 0.5, odds: 0.3, surgeOdds: 0.6 } as const
 /** Magical Leaf: when the leaves launch (plus a stagger each) and how hard they turn: they never miss. */
 export const LEAF = { launch: 0.3, stagger: 0.025, turn: 10 } as const
+
+/** Dark Void: the orbs' flight, the void's first and full radius (× area), how fast it opens, and how long its sleep lasts. */
+export const VOID = { flight: 0.4, stagger: 0.08, start: 8, r: 44, open: 0.3, sleep: 3 } as const
+
+/**
+ * Lunar Blessing: the moon's phases (casts to a full moon, `fullFork` with the
+ * Lv4 Lua cheia), the crescents' reach and radius, and the full moon: when it
+ * bursts, its first and full radius (× area), how fast it opens, its share of
+ * the damage and the share of max HP it heals.
+ */
+export const LUNAR = { phases: 3, fullFork: 2, reach: 105, r: 7, rise: 0.35, start: 10, fullR: 78, open: 0.25, full: 2.2, heal: 0.06 } as const
+
+/** The moon's phase on a Lunar Blessing cast: the casts left before the full moon count down from `phases - 1` to 0 (the full moon). */
+export const lunarPhase = (owned: OwnedMove) => {
+  const phases = owned.level >= 4 && !tookB(owned) ? LUNAR.fullFork : LUNAR.phases
+  const cast = stacksOf(owned) % phases
+  return { full: cast === phases - 1, lit: (cast + 1) / phases, next: (cast + 1) % phases }
+}
 
 /** Ancient Power's raise of every stat (the games' Ancient Power), while its buff lasts. */
 export const ANCIENT_BOOST = { might: 0.12, area: 0.08, cooldown: -0.06, speed: 8, armor: 1 } as const
@@ -206,7 +226,7 @@ export const LEGENDARY_MOVES = {
           damage: 0, ttl: 0.32, activeFrom: Infinity, age: -ORIGIN.beamAt, memo: angle,
         })
       }
-      g.shake = Math.max(g.shake, 2.5)
+      shakeScreen(g, 2.5)
       cast(g, 'originPulse')
     },
   },
@@ -259,7 +279,7 @@ export const LEGENDARY_MOVES = {
           }
         }
       }
-      g.shake = Math.max(g.shake, 1.5)
+      shakeScreen(g, 1.5)
       cast(g, 'scorchingSands')
     },
   },
@@ -335,7 +355,7 @@ export const LEGENDARY_MOVES = {
         shape: { kind: 'circle', r: reach }, motion: { kind: 'follow', ox: 0, oy: -8 },
         damage: s.damage * TIME.snap, knockback: 90, ttl: 0.4, activeUntil: 0.05, age: -(TIME.time * 0.5 + s.duration),
       })
-      g.shake = Math.max(g.shake, 3)
+      shakeScreen(g, 3)
       cast(g, 'roarOfTime')
     },
   },
@@ -553,6 +573,94 @@ export const LEGENDARY_MOVES = {
         })
       }
       cast(g, 'magicalLeaf')
+    },
+  },
+
+  /* Darkrai (the Noite das Bruxas' event legend) */
+  darkVoid: {
+    name: 'Dark Void',
+    type: 'dark',
+    legendary: true,
+    base: stats({ damage: 62, cooldown: 3, amount: 2, duration: VOID.sleep, knockback: 0 }),
+    // The foes fall asleep where they stand: no steps, no contact damage, until a hit wakes them (Bad Dreams hurts without waking them).
+    status: { kind: 'sleep', chance: 1, duration: VOID.sleep, power: 0 },
+    upgrades: [
+      { damage: 14 },
+      { area: 0.2 },
+      { fork: [{ stats: { amount: 1 } }, { stats: { damage: 16 }, mods: ['burstOnKill'] }] },
+      { cooldown: -0.5, damage: 14 },
+    ],
+    // Orbs of darkness float to the densest crowds and open into voids that swallow the foes into sleep.
+    fire: (g, s) => {
+      const p = g.player
+      const targets = crowdTargets(g, s.amount, 90, 230)
+      const r = VOID.r * s.area
+      for (let i = 0; i < s.amount; i++) {
+        const t = targets[i]
+        const o = fromAngle(i * 2.4 + 0.8, 70)
+        const at = t ? { x: t.x, y: t.y } : { x: p.x + o.x, y: p.y + o.y * 0.7 }
+        const delay = i * VOID.stagger
+        spawnAttack(g, {
+          ...look('darkVoid', 'dark', 'voidOrb'), x: p.x, y: p.y - 12,
+          shape: { kind: 'circle', r: 6 }, motion: { kind: 'linear', vx: (at.x - p.x) / VOID.flight, vy: (at.y - 4 - (p.y - 12)) / VOID.flight },
+          damage: 0, ttl: VOID.flight, activeFrom: Infinity, age: -delay,
+        })
+        spawnAttack(g, {
+          ...look('darkVoid', 'dark', 'voidPool'), x: at.x, y: at.y,
+          shape: { kind: 'circle', r }, motion: { kind: 'static' },
+          damage: 0, ttl: s.duration, activeFrom: Infinity, age: -VOID.flight - delay, memo: r,
+        })
+        spawnAttack(g, {
+          ...look('darkVoid', 'dark', 'voidBurst'), x: at.x, y: at.y - 4,
+          shape: { kind: 'circle', r: VOID.start }, motion: { kind: 'static' },
+          damage: s.damage, knockback: s.knockback, status: s.status, ttl: VOID.open + 0.1,
+          grow: (r - VOID.start) / VOID.open, age: -VOID.flight - delay, memo: r,
+        })
+      }
+      cast(g, 'darkVoid')
+    },
+  },
+
+  /* Cresselia (the Festival das Lanternas' prize) */
+  lunarBlessing: {
+    name: 'Lunar Blessing',
+    type: 'psychic',
+    legendary: true,
+    base: stats({ damage: 30, cooldown: 2.4, amount: 4, speed: 190, knockback: 30 }),
+    upgrades: [
+      { amount: 2 },
+      { damage: 10 },
+      { fork: [{ stats: { area: 0.15 } }, { stats: { amount: 2, damage: 4 }, mods: ['drain'] }] },
+      { cooldown: -0.4, damage: 10 },
+    ],
+    // The moon waxes over Cresselia: crescent blades fly out in a ring and come back, and every third cast
+    // (every other with Lua cheia) the full moon bursts in a wave of moonlight that blesses her with HP.
+    fire: (g, s, owned) => {
+      const p = g.player
+      const phase = lunarPhase(owned)
+      owned.stacks = phase.next
+      spawnAttack(g, {
+        ...look('lunarBlessing', 'psychic', 'lunarMoon'), x: p.x, y: p.y - 34,
+        shape: { kind: 'circle', r: 6 }, motion: { kind: 'follow', ox: 0, oy: -34 },
+        damage: 0, ttl: phase.full ? LUNAR.rise + LUNAR.open : s.cooldown, activeFrom: Infinity, memo: phase.full ? 1 : phase.lit,
+      })
+      if (phase.full) {
+        const r = LUNAR.fullR * s.area
+        spawnAttack(g, {
+          ...look('lunarBlessing', 'psychic', 'lunarBurst'), x: p.x, y: p.y - 8,
+          shape: { kind: 'circle', r: LUNAR.start }, motion: { kind: 'follow', ox: 0, oy: -8 },
+          damage: s.damage * LUNAR.full, knockback: s.knockback * 2, ttl: LUNAR.open + 0.15,
+          grow: (r - LUNAR.start) / LUNAR.open, age: -LUNAR.rise, memo: r,
+        })
+        healPlayer(g, p.stats.maxHp * LUNAR.heal)
+        burst(g, p.x, p.y - 12, { colors: ['#fff8c8', '#f8d8f0', '#f0a8d8'], count: 10, speed: 50, ttl: 0.6, gravity: -50 })
+      }
+      const from = aimAt(g, 220)
+      for (let i = 0; i < s.amount; i++) {
+        const crescent = returnShot(g, s, look('lunarBlessing', 'psychic', 'lunarCrescent'), from + (i * TAU) / s.amount, LUNAR.reach, LUNAR.r)
+        crescent.flip = i % 2 === 1
+      }
+      cast(g, 'lunarBlessing')
     },
   },
 } as const satisfies Record<string, MoveDef>

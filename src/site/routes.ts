@@ -15,6 +15,9 @@ export const SOCIALS = {
   instagram: { name: 'Instagram', handle: '@pokemonsurvivors', url: 'https://www.instagram.com/pokemonsurvivors/' },
 } as const satisfies Record<string, { name: string; handle: string; url: string }>
 
+/** The community server's permanent invite (made by the bot, on #welcome). */
+export const DISCORD_INVITE = 'https://discord.gg/Vx3RWFsjaD'
+
 export type SocialId = keyof typeof SOCIALS
 
 export const SOCIAL_IDS = Object.keys(SOCIALS) as SocialId[]
@@ -33,12 +36,31 @@ export const STRIPE_DONATION_URL = 'https://donate.stripe.com/5kQ28l1x45My6ci4ib
  * These paths are linked from the game's title screen, so keep them stable.
  */
 export const ROUTES = {
-  play: { pt: '/', en: '/en/', es: '/es/', tr: '/tr/' },
-  pokedex: { pt: '/pokedex/', en: '/en/pokedex/', es: '/es/pokedex/', tr: '/tr/pokedex/' },
-  guide: { pt: '/guia/', en: '/en/guide/', es: '/es/guia/', tr: '/tr/rehber/' },
-  changelog: { pt: '/novidades/', en: '/en/changelog/', es: '/es/novedades/', tr: '/tr/yenilikler/' },
-  legal: { pt: '/legal/', en: '/en/legal/', es: '/es/legal/', tr: '/tr/yasal/' },
-  support: { pt: '/apoie/', en: '/en/support/', es: '/es/apoya/', tr: '/tr/destek/' },
+  play: { pt: '/', en: '/en/', es: '/es/', fr: '/fr/', zh: '/zh-tw/', tr: '/tr/' },
+  pokedex: { pt: '/pokedex/', en: '/en/pokedex/', es: '/es/pokedex/', fr: '/fr/pokedex/', zh: '/zh-tw/pokedex/', tr: '/tr/pokedex/' },
+  tierList: { pt: '/tier-list/', en: '/en/tier-list/', es: '/es/tier-list/', fr: '/fr/tier-list/', zh: '/zh-tw/tier-list/', tr: '/tr/tier-list/' },
+  guide: { pt: '/guia/', en: '/en/guide/', es: '/es/guia/', fr: '/fr/guide/', zh: '/zh-tw/guide/', tr: '/tr/rehber/' },
+  changelog: { pt: '/novidades/', en: '/en/changelog/', es: '/es/novedades/', fr: '/fr/nouveautes/', zh: '/zh-tw/changelog/', tr: '/tr/yenilikler/' },
+  legal: { pt: '/legal/', en: '/en/legal/', es: '/es/legal/', fr: '/fr/legal/', zh: '/zh-tw/legal/', tr: '/tr/yasal/' },
+  support: { pt: '/apoie/', en: '/en/support/', es: '/es/apoya/', fr: '/fr/soutenir/', zh: '/zh-tw/support/', tr: '/tr/destek/' },
+  creators: { pt: '/criadores/', en: '/en/creators/', es: '/es/creadores/', fr: '/fr/createurs/', zh: '/zh-tw/creators/', tr: '/tr/icerik-ureticileri/' },
+  // The two pages that answer searches for the other games (`src/site/rivals.ts`): their paths carry the names people type.
+  compare: {
+    pt: '/pokemon-survivors-vs-pokesurvivor/',
+    en: '/en/pokemon-survivors-vs-pokesurvivor/',
+    es: '/es/pokemon-survivors-vs-pokesurvivor/',
+    fr: '/fr/pokemon-survivors-vs-pokesurvivor/',
+    zh: '/zh-tw/pokemon-survivors-vs-pokesurvivor/',
+    tr: '/tr/pokemon-survivors-vs-pokesurvivor/',
+  },
+  alternatives: {
+    pt: '/jogos-pokemon-estilo-vampire-survivors/',
+    en: '/en/pokemon-games-like-vampire-survivors/',
+    es: '/es/juegos-pokemon-como-vampire-survivors/',
+    fr: '/fr/jeux-pokemon-comme-vampire-survivors/',
+    zh: '/zh-tw/pokemon-games-like-vampire-survivors/',
+    tr: '/tr/vampire-survivors-benzeri-pokemon-oyunlari/',
+  },
 } as const satisfies Record<string, Record<Locale, string>>
 
 export type RouteId = keyof typeof ROUTES
@@ -52,23 +74,42 @@ export type PageId = (typeof PAGE_IDS)[number]
 
 export const absolute = (path: string) => `${SITE_URL}${path}`
 
-/** hreflang of each language (Spanish for all of Latin America and beyond, not one country). */
-export const HREFLANG = { pt: 'pt-BR', en: 'en', es: 'es', tr: 'tr' } as const satisfies Record<Locale, string>
+/** hreflang of each language (Spanish for all of Latin America and beyond, not one country; Traditional Chinese for Taiwan and Hong Kong). */
+export const HREFLANG = { pt: 'pt-BR', en: 'en', es: 'es', fr: 'fr', zh: 'zh-Hant', tr: 'tr' } as const satisfies Record<Locale, string>
 
-/** hreflang alternates of a route; English is the default for other languages, like the game pages. */
-export const alternates = (id: RouteId) => [
-  ...LOCALE_IDS.map((l) => ({ hreflang: HREFLANG[l], href: absolute(ROUTES[id][l]) })),
-  { hreflang: 'x-default', href: absolute(ROUTES[id].en) },
+/** One page's path in every language. */
+export type Paths = Readonly<Record<Locale, string>>
+
+/** hreflang alternates of a page; English is the default for other languages, like the game pages. */
+export const alternatesOf = (paths: Paths) => [
+  ...LOCALE_IDS.map((l) => ({ hreflang: HREFLANG[l], href: absolute(paths[l]) })),
+  { hreflang: 'x-default', href: absolute(paths.en) },
 ]
 
-/** sitemap.xml with every URL in every language, each listing its alternates. */
-export const sitemap = () => {
-  const urls = ROUTE_IDS.flatMap((id) =>
-    LOCALE_IDS.map((l) => ROUTES[id][l]).map((path) =>
+export const alternates = (id: RouteId) => alternatesOf(ROUTES[id])
+
+/** A Pokémon's own page, below the Pokédex: `/pokedex/charmander/`, `/en/pokedex/charmander/`. */
+export const dexPaths = (slug: string): Paths => ({
+  pt: `${ROUTES.pokedex.pt}${slug}/`,
+  en: `${ROUTES.pokedex.en}${slug}/`,
+  es: `${ROUTES.pokedex.es}${slug}/`,
+  fr: `${ROUTES.pokedex.fr}${slug}/`,
+  zh: `${ROUTES.pokedex.zh}${slug}/`,
+  tr: `${ROUTES.pokedex.tr}${slug}/`,
+})
+
+/** One page of the sitemap in every language, with the day its content last changed when we know it for sure. */
+export type SitemapEntry = { paths: Paths; lastmod?: string | undefined }
+
+/** sitemap.xml with every entry in every language, each listing its alternates. */
+export const sitemap = (entries: readonly SitemapEntry[]) => {
+  const urls = entries.flatMap(({ paths, lastmod }) =>
+    LOCALE_IDS.map((l) =>
       [
         '  <url>',
-        `    <loc>${absolute(path)}</loc>`,
-        ...alternates(id).map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" href="${a.href}" />`),
+        `    <loc>${absolute(paths[l])}</loc>`,
+        ...(lastmod ? [`    <lastmod>${lastmod}</lastmod>`] : []),
+        ...alternatesOf(paths).map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" href="${a.href}" />`),
         '  </url>',
       ].join('\n'),
     ),

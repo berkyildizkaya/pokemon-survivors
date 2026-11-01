@@ -6,23 +6,36 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "observability": { "enabled": true },
+  // ShardObject: the rooms, many per object. v3 deleted RoomObject, the one room per object of the rooms made before
+  // shards (all expired by then). Migrations only ever append.
   "durable_objects": {
     "bindings": [
-      { "name": "ROOMS", "class_name": "RoomObject" },
-      { "name": "VAULT", "class_name": "Vault" }
+      { "name": "SHARDS", "class_name": "ShardObject" },
+      { "name": "VAULT", "class_name": "Vault" },
+      { "name": "MATCHMAKER", "class_name": "Matchmaker" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomObject", "Vault"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomObject", "Vault"] },
+    { "tag": "v2", "new_sqlite_classes": ["ShardObject"] },
+    { "tag": "v3", "deleted_classes": ["RoomObject"] },
+    { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
+  ],
   // Per IP, per Cloudflare location. Generous: a whole carrier NAT can sit behind one IP.
   "ratelimits": [
     { "name": "CREATE_LIMIT", "namespace_id": "4101", "simple": { "limit": 30, "period": 60 } },
     { "name": "CONNECT_LIMIT", "namespace_id": "4102", "simple": { "limit": 300, "period": 60 } }
   ],
   // ALLOW_GUESTS: the dev relay and local `wrangler dev` seat guests (the soak, in-tab bots, dev builds); production doesn't.
+  // ROOMS_PER_SHARD: the rooms one ShardObject holds at most (README, "Limits and costs").
+  // Matchmaker (v4): the Arena's queue. SIM_BUILD_URL (production only): the site's current build, the only one it takes;
+  // without it the dev relay's queue takes every build (Vercel previews share it).
+  // ARENA_API_URL (production only): where Arena reports and MMR lookups go, signed with the ARENA_REPORT_SECRET secret.
   "vars": {
     "CLERK_ISSUER": "https://clerk.pokemonsurvivors.com",
     "ALLOWED_ORIGINS": "https://www.pokemonsurvivors.com,https://pokemonsurvivors.com,https://*.vercel.app",
-    "ALLOW_GUESTS": "on"
+    "ALLOW_GUESTS": "on",
+    "ROOMS_PER_SHARD": "24"
   },
   // Bindings, rate limits and vars don't inherit into an environment, so they repeat here.
   // Production serves only the live site; Vercel previews use the dev relay.
@@ -33,11 +46,17 @@
       "observability": { "enabled": true },
       "durable_objects": {
         "bindings": [
-          { "name": "ROOMS", "class_name": "RoomObject" },
-          { "name": "VAULT", "class_name": "Vault" }
+          { "name": "SHARDS", "class_name": "ShardObject" },
+          { "name": "VAULT", "class_name": "Vault" },
+          { "name": "MATCHMAKER", "class_name": "Matchmaker" }
         ]
       },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomObject", "Vault"] }],
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["RoomObject", "Vault"] },
+        { "tag": "v2", "new_sqlite_classes": ["ShardObject"] },
+        { "tag": "v3", "deleted_classes": ["RoomObject"] },
+        { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
+      ],
       "ratelimits": [
         { "name": "CREATE_LIMIT", "namespace_id": "4201", "simple": { "limit": 30, "period": 60 } },
         { "name": "CONNECT_LIMIT", "namespace_id": "4202", "simple": { "limit": 300, "period": 60 } }
@@ -45,7 +64,10 @@
       "vars": {
         "CLERK_ISSUER": "https://clerk.pokemonsurvivors.com",
         "ALLOWED_ORIGINS": "https://www.pokemonsurvivors.com,https://pokemonsurvivors.com",
-        "ALLOW_GUESTS": "off"
+        "ALLOW_GUESTS": "off",
+        "ROOMS_PER_SHARD": "24",
+        "ARENA_API_URL": "https://api.pokemonsurvivors.com",
+        "SIM_BUILD_URL": "https://www.pokemonsurvivors.com/sim-build.json"
       }
     }
   }

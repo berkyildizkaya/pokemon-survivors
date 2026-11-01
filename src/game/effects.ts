@@ -14,6 +14,38 @@ type BurstOpts = {
   drag?: number
 }
 
+/**
+ * Where a screen shake comes from: the acting player's own doing (`'own'`: a
+ * hit taken, their move landing, their special), a spot in the world (a
+ * boss's slam, a trap going off) or a moment the whole team watches
+ * (`'team'`: a rift's entrance, a wave boss arriving).
+ */
+export type ShakeFrom = 'own' | 'team' | { x: number; y: number }
+
+/**
+ * Shakes the screen at least `amount` px (it fades in `updateEffects`). In
+ * co-op every screen shakes on its own (`coop/shake.ts`), so the shell is
+ * also told where it came from (a `shake` event): one player's own shake
+ * never jolts a teammate's screen, and a spot shakes the screens it's on.
+ * Solo it's only `g.shake`.
+ */
+export const shakeScreen = (g: Game, amount: number, from: ShakeFrom = 'own') => {
+  g.shake = Math.max(g.shake, amount)
+  tellShake(g, amount, from)
+}
+
+/** Sets the shake to `amount` outright, even under a stronger one (the few big moments that always did), told like `shakeScreen`. */
+export const setScreenShake = (g: Game, amount: number, from: ShakeFrom) => {
+  g.shake = amount
+  tellShake(g, amount, from)
+}
+
+const tellShake = (g: Game, amount: number, from: ShakeFrom) => {
+  if (g.coop === null) return
+  if (typeof from === 'string') g.events.push({ kind: 'shake', amount, from, x: 0, y: 0 })
+  else g.events.push({ kind: 'shake', amount, from: 'spot', x: from.x, y: from.y })
+}
+
 const MAX_PARTICLES = 900
 
 /** Radial particle explosion (hits, faints, pickups…). */
@@ -75,10 +107,16 @@ export const damageText = (g: Game, e: Enemy, amount: number, color: string, ban
 }
 
 export const updateEffects = (g: Game, dt: number) => {
+  // Bursts share a few drags: each one's damping is worked out once a tick, not once a particle.
+  let drag = NaN
+  let damp = 1
   for (const p of g.particles) {
     p.life += dt
     p.vy += p.gravity * dt
-    const damp = dm.exp(-p.drag * dt)
+    if (p.drag !== drag) {
+      drag = p.drag
+      damp = dm.exp(-drag * dt)
+    }
     p.vx *= damp
     p.vy *= damp
     p.x += p.vx * dt
@@ -86,10 +124,11 @@ export const updateEffects = (g: Game, dt: number) => {
   }
   retain(g.particles, (p) => p.life < p.ttl)
 
+  const rise = dm.exp(-5 * dt)
   for (const t of g.texts) {
     t.life += dt
     t.y += t.vy * dt
-    t.vy *= dm.exp(-5 * dt)
+    t.vy *= rise
   }
   retain(g.texts, (t) => t.life < 0.7)
 

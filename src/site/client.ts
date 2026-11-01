@@ -1,8 +1,10 @@
 /**
  * Progressive enhancement for the static site pages. The HTML is complete
- * without it; this only adds the Pokédex filters, shiny toggles and tap-to-walk,
+ * without it; this only adds the Pokédex filters, the cards' shiny toggles and tap-to-walk,
+ * the 404 page's suggestion and mini game (`notFoundClient.ts`, loaded only there),
  * the donation form (with the account's @, the thank-you's code and the
- * supporters' wall), and remembers the language for the game. It must never
+ * supporters' wall), the creators page's videos playing on a tap, and remembers
+ * the language for the game. It must never
  * import game code (plain data like `data/donations` is fine), so the game and
  * the site never load each other's bundles.
  */
@@ -121,18 +123,22 @@ const pokedex = (form: HTMLFormElement) => {
   }
   if (shinyAll instanceof HTMLInputElement) shinyAll.addEventListener('change', syncShinyAll)
 
-  for (const card of cards) {
-    card.querySelector('.shiny-btn')?.addEventListener('click', () => setShiny(card, !card.classList.contains('is-shiny')))
-    // Touch screens have no hover: tapping the sprite toggles the walk cycle.
-    card.querySelector('.stage')?.addEventListener('click', () => card.classList.toggle('walking'))
-  }
-
   apply()
   reveal()
 }
 
+// Every card, in the Pokédex and on a Pokémon's own page: ★ toggles the shiny, and touch screens
+// (no hover) tap the sprite to toggle the walk cycle.
+for (const card of document.querySelectorAll<HTMLElement>('.dex-card')) {
+  card.querySelector('.shiny-btn')?.addEventListener('click', () => setShiny(card, !card.classList.contains('is-shiny')))
+  card.querySelector('.stage')?.addEventListener('click', () => card.classList.toggle('walking'))
+}
+
 const form = document.querySelector<HTMLFormElement>('#dex-filters')
 if (form) pokedex(form)
+
+// The 404 page: its client (the "did you mean" and the Rota 404 mini game) loads only there.
+if (document.getElementById('nf-index')) void import('./notFoundClient')
 
 /** The accounts API, which opens AbacatePay checkouts (`POST /donations`) and knows the handles and supporters. */
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
@@ -254,14 +260,14 @@ const supportersWall = async (section: HTMLElement) => {
   const body = await api('/supporters')
   if (!list || !isObject(body) || !Array.isArray(body.supporters)) return
   const names = body.supporters.flatMap((e: unknown) =>
-    isObject(e) && typeof e.name === 'string' && typeof e.handle === 'string' ? [{ name: e.name, handle: e.handle, gold: e.tier === 'gold' }] : [],
+    isObject(e) && typeof e.name === 'string' && typeof e.handle === 'string' ? [{ name: e.name, handle: e.handle, tier: e.tier === 'gold' || e.tier === 'diamond' ? e.tier : null }] : [],
   )
   list.replaceChildren(
     ...names.map((n) => {
       const li = document.createElement('li')
-      li.textContent = `${n.gold ? '★' : '♥'} ${n.name}`
+      li.textContent = `${n.tier === 'diamond' ? '◆' : n.tier === 'gold' ? '★' : '♥'} ${n.name}`
       li.title = `@${n.handle}`
-      if (n.gold) li.classList.add('gold')
+      if (n.tier) li.classList.add(n.tier)
       return li
     }),
   )
@@ -355,3 +361,22 @@ const support = (ways: HTMLElement) => {
 
 const ways = document.getElementById('donate-ways')
 if (ways) support(ways)
+
+/**
+ * The creators page: a video's thumbnail links to it on its platform; with JS,
+ * a tap plays it right there instead (its player loads only then).
+ */
+for (const link of document.querySelectorAll<HTMLAnchorElement>('a.video-play[data-embed]')) {
+  link.addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    const player = document.createElement('iframe')
+    player.src = link.dataset.embed ?? ''
+    player.title = link.getAttribute('aria-label') ?? ''
+    player.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
+    player.allowFullscreen = true
+    player.referrerPolicy = 'strict-origin-when-cross-origin'
+    link.replaceWith(player)
+    player.focus()
+  })
+}

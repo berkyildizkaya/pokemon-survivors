@@ -3,7 +3,7 @@ import { CARAVAN } from '../data/visitors'
 import type { PlayableId } from '../data/hatchlings'
 import { canPlay } from './capture'
 import { dayNumber, type DayKey } from './day'
-import { EGGS, grantEgg } from './eggs'
+import { grantEgg, incubatorFull } from './eggs'
 import { capLevel, grantCaps } from './evoItems'
 import { MAX_CAPS } from '../data/shop'
 import type { Save } from './meta'
@@ -11,6 +11,7 @@ import { isRecord } from './parse'
 import { shopTmMoveIds, type ShopTmMoveId } from './shopTmMoves'
 import { grantStyle, ownsStyle } from './style'
 import { ownTm, tmPrice } from './tmShelf'
+import * as dm from '../engine/dmath'
 
 /**
  * Meowth's weekend caravan (`CARAVAN` in `data/visitors.ts`): on Friday,
@@ -49,7 +50,7 @@ export const isoWeek = (day: DayKey) => {
   // The week's Thursday decides its year.
   const thursday = n - ((weekday(day) + 6) % 7) + 3
   const year = new Date(thursday * 86_400_000).getUTCFullYear()
-  const jan1 = Math.round(Date.UTC(year, 0, 1) / 86_400_000)
+  const jan1 = dm.round(Date.UTC(year, 0, 1) / 86_400_000)
   return `${year}-W${String(Math.floor((thursday - jan1) / 7) + 1).padStart(2, '0')}`
 }
 
@@ -79,7 +80,7 @@ export const listPrice = (key: CaravanKey) =>
 
 /** What a key costs this save on `day`: haggling takes `CARAVAN.haggle.off` off, rounded to ₽10. */
 export const caravanPrice = (save: Save, key: CaravanKey, day: DayKey) =>
-  Math.round((listPrice(key) * (haggled(save, day) ? 1 - CARAVAN.haggle.off : 1)) / 10) * 10
+  dm.round((listPrice(key) * (haggled(save, day) ? 1 - CARAVAN.haggle.off : 1)) / 10) * 10
 
 /** Whether a Pokémon can take the Gold Bottle Cap: one the save plays, below the top level. */
 export const goldCapFits = (save: Save, id: PlayableId) => canPlay(save, id) && capLevel(save.caps, id) < MAX_CAPS
@@ -96,7 +97,7 @@ export const caravanBlock = (save: Save, key: CaravanKey, day: DayKey): CaravanB
   if (onWeek(save.caravan, day).bought.includes(key)) return 'soldOut'
   if (key === 'frame' && ownsStyle(save.style, 'frame', CARAVAN.frame.id)) return 'owned'
   if (key !== 'egg' && key !== 'goldCap' && key !== 'frame' && save.tms.owned.includes(key)) return 'owned'
-  if (key === 'egg' && save.eggs.length >= EGGS.slots) return 'full'
+  if (key === 'egg' && incubatorFull(save)) return 'full'
   return save.wallet < caravanPrice(save, key, day) ? 'poor' : null
 }
 

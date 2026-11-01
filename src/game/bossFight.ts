@@ -4,6 +4,7 @@ import {
   type BlastSafe, type BossPattern, type BossPhase, type BossStance, type HazardVisual,
 } from '../data/bosses'
 import type { EnemyId } from '../data/enemies'
+import type { HarmBy } from './harm'
 import { bossWaveAt } from '../data/waves'
 import { DIFFICULTY_IDS, type Difficulty } from './difficulty'
 import * as dm from '../engine/dmath'
@@ -26,7 +27,12 @@ export type BossMotion =
  * the player unless they stand somewhere `safe` (for `spots`, within `radius`
  * of one of its `spots`).
  */
-export type BossBlast = { left: number; total: number; x: number; y: number; damage: number; safe: BlastSafe; radius: number; visual: HazardVisual; spots: readonly { x: number; y: number }[] }
+/** A charging blast; `sleep`: seconds of sleep it puts whoever it hits into (Dark Void), 0 for the rest. */
+export type BossBlast = {
+  left: number; total: number; x: number; y: number; damage: number; safe: BlastSafe; radius: number; visual: HazardVisual; spots: readonly { x: number; y: number }[]; sleep: number
+  /** Who charged it, for the end screen (`fire` signs it). */
+  by: HarmBy | null
+}
 
 /** A time stop (`timeStop` pattern): `wait` s until it takes hold, then the player's shots hold still for `left` of `total` s. */
 export type TimeStop = { wait: number; left: number; total: number }
@@ -188,7 +194,7 @@ export const attackWait = (p: BossPattern, fight: BossFight | null) => {
 }
 
 /** How many projectiles or circles a pattern fires in this fight: a single one stays single, several grow with the difficulty. */
-export const attackCount = (count: number, fight: BossFight | null) => (fight && count > 1 ? Math.round(count * BOSS_DIFFICULTY[fight.difficulty].more) : count)
+export const attackCount = (count: number, fight: BossFight | null) => (fight && count > 1 ? dm.round(count * BOSS_DIFFICULTY[fight.difficulty].more) : count)
 
 /** A warning's length in this fight: shortened by the difficulty, never under `MIN_TELEGRAPH` (nor lengthened when written shorter). */
 export const telegraph = (seconds: number, fight: BossFight | null) =>
@@ -308,6 +314,25 @@ export const holdFloor = (phases: readonly BossPhase[], fight: BossFight, maxHp:
   const next = phases[fight.phase + 1]
   return next ? Math.ceil(next.below * maxHp) + 1 : 1
 }
+
+/** The most seconds a boss hit down to its `hold` gate still waits for its ultimate: there, it plays it at once. */
+export const GATE_WAIT = 1
+
+/**
+ * When a boss's ultimate comes due: on its clock, or within `GATE_WAIT` once
+ * its `hold` phase pins it at the gate (`holdFloor`), so a fast fight never
+ * stands around waiting on it.
+ */
+export const ultimateDue = (phases: readonly BossPhase[], fight: BossFight, hp: number, maxHp: number) =>
+  waitsOnUltimate(phases, fight) && hp <= holdFloor(phases, fight, maxHp) ? Math.min(fight.ultLeft, GATE_WAIT) : fight.ultLeft
+
+/**
+ * Whether a stun, sleep or freeze (`held`) stops a boss's script now. Not
+ * while it owes its `hold` phase the ultimate, nor while one plays: those go
+ * through, so no condition can pin a boss at its gate forever.
+ */
+export const statusStops = (phases: readonly BossPhase[] | null, fight: BossFight | null, held: boolean) =>
+  held && !(fight !== null && (fight.ult !== null || (phases !== null && waitsOnUltimate(phases, fight))))
 
 /** How much more (or less) damage a boss with phases takes in the phase it's in (`BossPhase.taken`). */
 export const phaseTaken = (e: { kind: EnemyId; fight: BossFight | null }) => (e.fight ? (phasesOf(e.kind)?.[e.fight.phase]?.taken ?? 1) : 1)

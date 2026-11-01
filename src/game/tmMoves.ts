@@ -1,7 +1,7 @@
 import { dirTo, fromAngle, TAU } from '../engine/math'
 import { range } from '../engine/rng'
 import * as dm from '../engine/dmath'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import type { DamageBonus } from './kitRules'
 import { guard, sweep, walkedSince } from './moveKit'
 import type { CastStats, Look, MoveDef, MoveId, MoveStats } from './moves'
@@ -137,7 +137,7 @@ const yawn = (g: Game, s: CastStats) => {
 const iceBeam = (g: Game, s: CastStats) => {
   const l = look('iceBeam', 'ice', 'iceBeam')
   for (const angle of fan(aimAngle(g, 240), s.amount, ICE_BEAM.spread)) {
-    sweep(g, s, l, { from: angle, arc: 0, time: s.duration, length: ICE_BEAM.length * s.area, segments: ICE_BEAM.segments, r: ICE_BEAM.r * s.area })
+    sweep(g, s, l, { from: angle, arc: 0, time: s.duration, length: ICE_BEAM.length * s.area, segments: ICE_BEAM.segments, r: ICE_BEAM.r })
     g.attacks[g.attacks.length - 1]!.flip = true
   }
   cast(g, 'iceBeam')
@@ -154,7 +154,7 @@ const discharge = (g: Game, s: CastStats, owned: OwnedMove) => {
     damage: s.damage * (0.7 + 0.8 * charge), knockback: s.knockback, status: s.status,
     grow: (r - 6) / DISCHARGE.open, activeUntil: DISCHARGE.open, ttl: DISCHARGE.open + 0.3, memo: charge,
   })
-  if (charge >= 1) g.shake = Math.max(g.shake, 2)
+  if (charge >= 1) shakeScreen(g, 2)
   cast(g, 'discharge')
 }
 
@@ -224,7 +224,7 @@ const auroraBeam = (g: Game, s: CastStats) => {
   const l = look('auroraBeam', 'ice', 'auroraBeam')
   for (let i = 0; i < s.amount; i++) {
     const from = center + (i / s.amount) * TAU - AURORA.arc / 2
-    sweep(g, s, l, { from, arc: AURORA.arc, time: s.duration, length: AURORA.length * s.area, segments: AURORA.segments, r: AURORA.r * s.area })
+    sweep(g, s, l, { from, arc: AURORA.arc, time: s.duration, length: AURORA.length * s.area, segments: AURORA.segments, r: AURORA.r })
     g.attacks[g.attacks.length - 1]!.flip = true
   }
   cast(g, 'auroraBeam')
@@ -301,7 +301,7 @@ const ironShards = (g: Game, s: CastStats) => {
     })
   }
   burst(g, p.x, p.y - 10, { colors: ['#ffffff', '#d8e0f0', '#8890a8'], count: 26, speed: 160, ttl: 0.4, size: 2 })
-  g.shake = Math.max(g.shake, 4)
+  shakeScreen(g, 4)
   cast(g, 'ironHead')
 }
 

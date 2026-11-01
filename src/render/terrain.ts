@@ -1,7 +1,8 @@
-import { canvasCache, context2d, createCanvas, ellipse, lazy, onCanvasReset, type PixelSprite } from '../engine/pixelart'
-import type { BiomeId } from '../data/biomes'
+import { canvasCache, context2d, createCanvas, dropKept, drawPacked, ellipse, keepPacked, lazy, onCanvasReset, type Packed, type PixelSprite } from '../engine/pixelart'
+import { BIOMES, type BiomeId } from '../data/biomes'
 import { CLIFF_CRESTS, CLIFFS, LAKES, TERRAIN as RULES, type SolidKind, type Tier } from '../data/terrain'
 import { featuresNear, groundAt, type Solid } from '../game/terrain'
+import { treasureOpen } from '../game/landmarks'
 import { roomOf } from '../game/room'
 import type { ArenaPiece } from '../data/arenas'
 import { ARENA_PIECES, ARENA_SHADOW, ARENA_TALL } from './arenaPieces'
@@ -840,10 +841,19 @@ const build = (biome: BiomeId, kind: PieceKind, variant: number): Piece => {
   }
 }
 
-const pieces = canvasCache<string, Piece>()
+/** A cached piece: its sprite packed on its biome's pages (`keepPacked`), anchored like a `Piece`. */
+export type KeptPiece = { packed: Packed; ax: number; ay: number }
+
+/** The atlas group of a biome's sculpted pieces (`arena` for the arenas'), dropped with the biome (`keepTerrain`). */
+const groupOf = (biome: BiomeId | 'arena') => `terrain:${biome}`
+
+/** Hands a freshly built piece over to its biome's pages. */
+const keepPiece = (biome: BiomeId | 'arena', p: Piece): KeptPiece => ({ packed: keepPacked(groupOf(biome), p.sprite), ax: p.ax, ay: p.ay })
+
+const pieces = canvasCache<string, KeptPiece>()
 
 /** A piece's sprite: its painted art once loaded (`render/scenery.ts`), else sculpted once per biome (and once more `open`, for a landmark's looted treasure). */
-const pieceOf = (biome: BiomeId, kind: AnyPiece, variant: number, open = false): Piece => {
+const pieceOf = (biome: BiomeId, kind: AnyPiece, variant: number, open = false): KeptPiece => {
   const art = isArenaPiece(kind) ? null : sceneryPiece(biome, kind, variant, open)
   if (art) return art
   // The arenas' scenery looks the same whatever the biome outside; places' entrances and landmarks wear the biome's.
@@ -851,24 +861,30 @@ const pieceOf = (biome: BiomeId, kind: AnyPiece, variant: number, open = false):
   let piece = pieces.get(key)
   if (!piece) {
     piece = isArenaPiece(kind)
-      ? ARENA_PIECES[kind](variant)
-      : isPlacePiece(kind)
-        ? PLACE_PIECES[kind](variant, biome)
-        : isLandmarkPiece(kind)
-          ? LANDMARK_PIECES[kind](variant, biome, open)
-          : build(biome, kind, variant)
+      ? keepPiece('arena', ARENA_PIECES[kind](variant))
+      : keepPiece(
+          biome,
+          // `chest` is both the dungeon's and the maze's: an open one is the maze's treasure, taken.
+          open && isLandmarkPiece(kind)
+            ? LANDMARK_PIECES[kind](variant, biome, true)
+            : isPlacePiece(kind)
+              ? PLACE_PIECES[kind](variant, biome)
+              : isLandmarkPiece(kind)
+                ? LANDMARK_PIECES[kind](variant, biome, false)
+                : build(biome, kind, variant),
+        )
     pieces.set(key, piece)
   }
   return piece
 }
 
-const grounds = canvasCache<string, Piece>()
+const grounds = canvasCache<string, KeptPiece>()
 
 /** A landmark's ground art, built once per biome. */
 const groundOf = (biome: BiomeId, kind: LandmarkGround, variant: number) => {
   const key = `${biome}:${kind}:${variant}`
   let piece = grounds.get(key)
-  if (!piece) grounds.set(key, (piece = LANDMARK_GROUNDS[kind](variant, biome)))
+  if (!piece) grounds.set(key, (piece = keepPiece(biome, LANDMARK_GROUNDS[kind](variant, biome))))
   return piece
 }
 
@@ -917,11 +933,13 @@ export const keepTerrain = (keep: readonly BiomeId[]) => {
       if (biome !== 'arena' && !(keep as readonly string[]).includes(biome)) cache.delete(key)
     }
   }
+  // Their pages go now, not whenever the collector comes by: the next biome's are being built.
+  for (const biome of Object.keys(BIOMES) as BiomeId[]) if (!keep.includes(biome)) dropKept(groupOf(biome))
 }
 
 const mountainShadows = CLIFFS.map((tiers) => lazy(() => footShadow(tiers[0]!.foot, 1)))
 
-const blit = (ctx: CanvasRenderingContext2D, p: Piece, x: number, y: number) => ctx.drawImage(p.sprite, Math.round(x - p.ax), Math.round(y - p.ay))
+const blit = (ctx: CanvasRenderingContext2D, p: KeptPiece, x: number, y: number) => drawPacked(ctx, p.packed, Math.round(x - p.ax), Math.round(y - p.ay))
 
 /** The solids around the view, for the depth sort with the Pokémon. */
 export const solidsInView = (g: Game, camX: number, camY: number, w: number, h: number, out: { push: (s: Solid) => unknown }) => {
@@ -982,12 +1000,12 @@ const skirt = (biome: BiomeId, look: number): Piece => {
   return piece(g, 24, 9)
 }
 
-const skirts = canvasCache<string, Piece>()
+const skirts = canvasCache<string, KeptPiece>()
 
 const skirtOf = (biome: BiomeId, look: number) => {
   const key = `${biome}:${look}`
   let p = skirts.get(key)
-  if (!p) skirts.set(key, (p = skirt(biome, look)))
+  if (!p) skirts.set(key, (p = keepPiece(biome, skirt(biome, look))))
   return p
 }
 
@@ -1009,7 +1027,8 @@ export const drawTerrainGround = (ctx: CanvasRenderingContext2D, g: Game, biome:
     for (const s of f.solids) {
       if (s.kind === 'cliff') {
         ctx.globalAlpha = 0.22
-        blit(ctx, mountainShadows[s.variant]!(), s.x + 5, s.y + 3)
+        const shade = mountainShadows[s.variant]!()
+        ctx.drawImage(shade.sprite, Math.round(s.x + 5 - shade.ax), Math.round(s.y + 3 - shade.ay))
         ctx.globalAlpha = 1
       } else {
         const art = isArenaPiece(s.kind) ? null : sceneryPiece(biome, s.kind, s.variant)
@@ -1017,7 +1036,7 @@ export const drawTerrainGround = (ctx: CanvasRenderingContext2D, g: Game, biome:
           // Painted art is shaded by its own foot, tucked under where it meets the ground.
           const rx = art ? art.foot + 1 : shadowOf(s.kind)
           const ry = Math.round(rx * 0.4)
-          ctx.drawImage(ellipse(rx, ry, SHADOW), Math.round(s.x + 2 - rx), Math.round(art ? s.y + 2 - ry * 2 : s.y - ry))
+          drawPacked(ctx, ellipse(rx, ry, SHADOW), Math.round(s.x + 2 - rx), Math.round(art ? s.y + 2 - ry * 2 : s.y - ry))
         }
         if (SKIRTED.has(s.kind)) blit(ctx, skirtOf(biome, (s.x * 7 + s.y * 13) & (SKIRT_LOOKS - 1)), s.x, s.y + 1)
       }
@@ -1032,7 +1051,10 @@ const HOLE = 16
 /** Two checkerboard discs, one per parity, so the dither stays locked to the world grid as the hole moves. */
 const holes = [0, 1].map((parity) => {
   let disc: PixelSprite | null = null
-  onCanvasReset(() => (disc = null))
+  onCanvasReset(
+    () => (disc = null),
+    () => disc,
+  )
   return () => {
     if (disc) return disc
     disc = createCanvas(HOLE * 2 + 1, HOLE * 2 + 1)
@@ -1044,34 +1066,50 @@ const holes = [0, 1].map((parity) => {
 })
 
 let scratch: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null
-onCanvasReset(() => (scratch = null))
+onCanvasReset(
+  () => (scratch = null),
+  () => scratch,
+)
 
 const TALL: Record<SolidKind, boolean> = { rock: false, tree: true, bush: false, log: false, tower: true, cliff: true }
 
 const tallOf = (kind: AnyPiece) =>
   isArenaPiece(kind) ? ARENA_TALL[kind] : isPlacePiece(kind) ? PLACE_TALL[kind] : isLandmarkPiece(kind) ? LANDMARK_TALL[kind] : kind !== 'lake' && TALL[kind]
 
-/** Draws one solid; a tall one goes see-through around the player when they walk behind it. A looted landmark treasure shows open. */
+/**
+ * Whether solid `s` stands in front of a body `w`×`h` px with its feet at (x, y),
+ * its art reaching over it: a player there stays in the depth sort (`render/draw.ts`).
+ */
+export const solidCovers = (g: Game, s: Solid, biome: BiomeId, x: number, y: number, w: number, h: number) => {
+  if (y >= s.y) return false
+  const piece = pieceOf(biome, s.kind, s.variant, s.loot !== undefined && treasureOpen(g, s.loot))
+  const left = s.x - piece.ax
+  const top = s.y - piece.ay
+  return x + w / 2 > left && x - w / 2 < left + piece.packed.w && y > top && y - h < top + piece.packed.h
+}
+
+/** Draws one solid; a tall one goes see-through around the player when they walk behind it. A looted landmark treasure shows open (and every one in co-op, `treasureOpen`). */
 export const drawSolid = (ctx: CanvasRenderingContext2D, g: Game, s: Solid, biome: BiomeId) => {
-  const piece = pieceOf(biome, s.kind, s.variant, s.loot !== undefined && g.landmarks.looted.has(s.loot))
+  const piece = pieceOf(biome, s.kind, s.variant, s.loot !== undefined && treasureOpen(g, s.loot))
   const x = Math.round(s.x - piece.ax)
   const y = Math.round(s.y - piece.ay)
   const p = localPlayer(g)
   const hx = Math.round(p.x) - HOLE - x
   const hy = Math.round(p.y) - 12 - HOLE - y
-  const behind = tallOf(s.kind) && p.y < s.y && hx > -HOLE * 2 && hy > -HOLE * 2 && hx < piece.sprite.width && hy < piece.sprite.height
-  if (!behind) return ctx.drawImage(piece.sprite, x, y)
-  if (!scratch || scratch.canvas.width < piece.sprite.width || scratch.canvas.height < piece.sprite.height) {
-    const canvas = createCanvas(Math.max(piece.sprite.width, scratch?.canvas.width ?? 0), Math.max(piece.sprite.height, scratch?.canvas.height ?? 0))
+  const { w, h } = piece.packed
+  const behind = tallOf(s.kind) && p.y < s.y && hx > -HOLE * 2 && hy > -HOLE * 2 && hx < w && hy < h
+  if (!behind) return drawPacked(ctx, piece.packed, x, y)
+  if (!scratch || scratch.canvas.width < w || scratch.canvas.height < h) {
+    const canvas = createCanvas(Math.max(w, scratch?.canvas.width ?? 0), Math.max(h, scratch?.canvas.height ?? 0))
     scratch = { canvas, ctx: context2d(canvas) }
   }
   const sc = scratch.ctx
-  sc.clearRect(0, 0, piece.sprite.width, piece.sprite.height)
-  sc.drawImage(piece.sprite, 0, 0)
+  sc.clearRect(0, 0, w, h)
+  drawPacked(sc, piece.packed, 0, 0)
   sc.globalCompositeOperation = 'destination-out'
   sc.drawImage(holes[(x + y + hx + hy) & 1]!(), hx, hy)
   sc.globalCompositeOperation = 'source-over'
-  ctx.drawImage(scratch.canvas, 0, 0, piece.sprite.width, piece.sprite.height, x, y, piece.sprite.width, piece.sprite.height)
+  if (w > 0) ctx.drawImage(scratch.canvas, 0, 0, w, h, x, y, w, h)
 }
 
 const ripples = canvasCache<string, PixelSprite>()

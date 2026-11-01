@@ -4,12 +4,13 @@ import { ENEMIES, type EnemyDef, type EnemyId } from '../data/enemies'
 import { bossWaveAt, RUN_LENGTH, stageIndexAt } from '../data/waves'
 import { spawnHazard } from './bosses'
 import { hurtPlayer } from './combat'
-import { coopScale, dropForEach } from './coop'
+import { harmBy } from './harm'
+import { coopScale } from './coop'
 import { COOP } from '../data/coop'
 import type { Difficulty } from './difficulty'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import { spawnEnemy } from './enemies'
-import { openPrizeLevelUp, xpFor } from './leveling'
+import { openTeamPrize, xpFor } from './leveling'
 import { dropPickup, dropXp } from './pickups'
 import { inView } from './queries'
 import { hasTrait, type StagePool } from './roster'
@@ -173,7 +174,7 @@ export const spawnAlpha = (g: Game, kind: EnemyId, x: number, y: number) => {
   const e = spawnEnemy(g, kind, x, y)
   e.boss = true
   // Co-op: an Alpha takes the bosses' scaling instead of the horde's (exactly 1 solo).
-  e.hp = e.maxHp = Math.round(e.maxHp * alphaHp(g.time) * ALPHA_RULES[g.difficulty].hp * (coopScale(g, COOP.scale.bossHp) / coopScale(g, COOP.scale.hp)))
+  e.hp = e.maxHp = dm.round(e.maxHp * alphaHp(g.time) * ALPHA_RULES[g.difficulty].hp * (coopScale(g, COOP.scale.bossHp) / coopScale(g, COOP.scale.hp)))
   e.damage *= ALPHA_RULES[g.difficulty].damage
   e.mass = ALPHA.mass
   e.radius *= ALPHA.scale
@@ -184,7 +185,7 @@ export const spawnAlpha = (g: Game, kind: EnemyId, x: number, y: number) => {
     phase: 'walk', t: 0, cooldown: range(g.rng, ...ALPHA.charge.every) * 0.5,
     ox: x, oy: y, dx: 1, dy: 0, length: 0, run: 0, hit: false, pace: e.speed, enraged: false,
   }
-  g.shake = Math.max(g.shake, 4)
+  shakeScreen(g, 4, e)
   g.events.push({ kind: 'alpha', enemy: kind, moment: 'spawn' })
   return e
 }
@@ -243,7 +244,7 @@ const recover = (g: Game, e: Enemy, a: AlphaState) => {
   if (!ALPHA_RULES[g.difficulty].shock) return
   spawnHazard(g, {
     kind: 'strike', visual: 'slam', x: e.x, y: e.y, r: ALPHA.shock.radius, damage: e.damage * ALPHA.shock.damage,
-    armAt: ALPHA.shock.delay, disarmAt: ALPHA.shock.delay + 0.15, ttl: ALPHA.shock.delay + 0.45,
+    armAt: ALPHA.shock.delay, disarmAt: ALPHA.shock.delay + 0.15, ttl: ALPHA.shock.delay + 0.45, by: harmBy(e),
   })
   g.events.push({ kind: 'alpha', enemy: e.kind, moment: 'shock' })
 }
@@ -329,19 +330,23 @@ export const updateAlphas = (g: Game, dt: number) => {
  * EXP worth `ALPHA.xpLevels` levels and the prize, and the next one waits at least `ALPHA.gap`.
  */
 export const alphaDown = (g: Game, e: Enemy) => {
-  const xp = Math.round(xpFor(g.player.level) * ALPHA.xpLevels)
+  const xp = dm.round(xpFor(g.player.level) * ALPHA.xpLevels)
   const candies = 6
   for (let i = 0; i < candies; i++) dropXp(g, e.x + range(g.rng, -14, 14), e.y + range(g.rng, -8, 8), Math.ceil(xp / candies))
-  // Co-op: a prize for each player.
-  dropForEach(g, () => dropPickup(g, e.x, e.y, 'alphaPrize'))
+  // One prize for the whole team: whoever takes it opens it for everyone (`openAlphaPrize`).
+  dropPickup(g, e.x, e.y, 'alphaPrize')
   g.alphas.next = Math.max(g.alphas.next, g.time + ALPHA.gap)
-  g.shake = Math.max(g.shake, 6)
+  shakeScreen(g, 6, e)
   burst(g, e.x, e.y - e.radius, { colors: ['#f83020', '#f8d030', '#ffffff'], count: 50, speed: 170, ttl: 0.7, size: 2, drag: 3 })
   g.events.push({ kind: 'alpha', enemy: e.kind, moment: 'down' })
 }
 
-/** The Alpha's prize picked up: a prize level-up of rare cards opens at once (`openPrizeLevelUp`). */
+/**
+ * The Alpha's prize picked up: a prize level-up of rare cards opens at once,
+ * for the whole team in co-op (`openTeamPrize`), so nobody crosses the map for
+ * an Alpha a teammate beat.
+ */
 export const openAlphaPrize = (g: Game) => {
-  openPrizeLevelUp(g, 'alpha')
+  openTeamPrize(g, 'alpha')
   g.events.push({ kind: 'alphaPrize' })
 }

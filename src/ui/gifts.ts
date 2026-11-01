@@ -1,12 +1,14 @@
 import { HATCHLINGS } from '../data/hatchlings'
+import { LEGENDS } from '../data/legends'
+import { BAG_ITEMS } from '../data/shop'
 import { giftInbox, nextGift, openGift } from '../account'
 import { playSfx } from '../engine/audio'
 import type { Input } from '../engine/input'
 import type { Hatch } from '../game/eggs'
 import type { Gift, StyleRef } from '../game/gifts'
 import { companionForm } from '../game/supporters'
-import { formatDay, formatPokeDollars, t } from '../i18n'
-import { coinIcon, eggIcon, giftIcon, medalIcon, ribbonIcon, sparkleIcon } from '../render/art'
+import { formatDay, formatPokeDollars, formatPokeDollarsShort, t } from '../i18n'
+import { bagIcon, coinIcon, eggIcon, giftIcon, medalIcon, ribbonIcon, sparkleIcon } from '../render/art'
 import { styleThumb } from '../render/card'
 import { frameIcon, wallpaperUrl } from '../render/cosmetics'
 import { portraitUrl } from '../render/sprites'
@@ -39,7 +41,7 @@ export const contentLine = (gift: Pick<Gift, 'content'>): { src: string; text: s
       return { src: medalIcon('gold'), text: m.newTitle(t().achievements.titles[c.title]) }
     case 'style': {
       const names: Readonly<Record<string, string>> = t().mart.styles[c.style.slot]
-      return { src: styleIcon(c.style), text: m.style(names[c.style.id] ?? c.style.id) }
+      return { src: styleIcon(c.style), text: m.style[c.style.slot](names[c.style.id] ?? c.style.id) }
     }
     case 'shinyHatch':
       return { src: portraitUrl(HATCHLINGS[c.family].line[0].dex, true), text: m.shinyHatch(HATCHLINGS[c.family].name) }
@@ -51,10 +53,14 @@ export const contentLine = (gift: Pick<Gift, 'content'>): { src: string; text: s
       const form = companionForm(c.id)
       return { src: portraitUrl(form.dex), text: m.companion(form.name) }
     }
+    case 'bag':
+      return { src: bagIcon(c.item), text: m.bag(c.count, BAG_ITEMS[c.item].name) }
+    case 'legend':
+      return { src: portraitUrl(LEGENDS[c.legend].line[0].dex), text: m.legend(LEGENDS[c.legend].name) }
   }
 }
 
-/** Why it came: an invite, friends brought, a donation, the admin's present, joining the Discord, the Noite das Bruxas candy jar, its Caça aos Fantasmas or its supporters' gift, or a day of the challenge (the place is in the ribbon). */
+/** Why it came: an invite, friends brought, a donation, the admin's present, joining the Discord, the Noite das Bruxas candy jar, its Caça aos Fantasmas or its supporters' gift, the Kecleon Shop, a Festival da Praça's pot or its Mecenas, being an OG Supporter, an Arena season's peak tier, or a day of the challenge (the place is in the ribbon). */
 export const reasonLine = (gift: Gift) => {
   const c = gift.content
   if (c.kind === 'ribbon') return t().gifts.ribbonWhy(formatDay(c.ribbon.day), c.ribbon.rank, c.ribbon.total)
@@ -81,6 +87,14 @@ export const reasonLine = (gift: Gift) => {
       return t().gifts.loyalty(r.stamps)
     case 'tycoon':
       return t().gifts.tycoon
+    case 'festival':
+      return t().gifts.festival(t().festival.names[r.festival], formatPokeDollarsShort(r.pot))
+    case 'patron':
+      return t().gifts.patron(t().festival.names[r.festival])
+    case 'og':
+      return t().gifts.og
+    case 'arenaSeason':
+      return t().gifts.arenaSeason(r.season)
   }
 }
 

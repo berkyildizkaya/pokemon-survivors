@@ -1,41 +1,47 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { parseAdminGift, parseAdminQuery } from '../../src/game/admin'
+import { parseArenaResult } from '../../src/game/arenaRank'
 import { parseBugReport } from '../../src/game/bugReport'
 import { challengeOpen } from '../../src/game/challenge'
 import { parseDonation } from '../../src/data/donations'
-import { isPollOption } from '../../src/data/supporters'
+import { isPollOptionOf, type PollKind } from '../../src/data/supporters'
 import { isDayKey } from '../../src/game/day'
+import { parseDonationAmount } from '../../src/game/festival'
 import { isDifficulty } from '../../src/game/difficulty'
 import { halloweenAt } from '../../src/game/halloween'
 import { parseHandlePrefix, parsePresenceUpdate, parseRoomCode } from '../../src/game/friends'
 import { parseSaveData } from '../../src/game/meta'
 import { outbreakAt } from '../../src/game/outbreak'
 import { isRecord } from '../../src/game/parse'
-import { isBoardPeriod, isPlayable, isRunMode, parseDisplayName, parseHandle, parseRunResult, runMode } from '../../src/game/ranking'
+import { isBoardPeriod, isPlayable, isRunMode, parseDisplayName, parseHandle, parseRunResult } from '../../src/game/ranking'
 import { parseReplay, RULES_VERSION, rulesStanding } from '../../src/game/replay'
 import { parseChunk } from '../../src/game/replayStream'
 import { banGated, parseModeration, parseReport } from '../../src/game/reports'
 import { parseCode } from '../../src/game/supporters'
 import { isSuggestionSort, isSuggestionStatus, isVote, parseSuggestionDraft } from '../../src/game/suggestions'
 import type { AdminStore } from './admin'
+import { ARENA_PAGES, parseAbandonedReport, parseArenaReport, shownSeason, verifyArenaSignature, type ArenaStore } from './arena'
 import type { Verify } from './auth'
 import type { BugReports } from './bugReports'
-import type { Checks } from './checks'
 import type { SaveStore } from './db'
 import type { DiscordLink } from './discordLink'
 import type { Report } from './errors'
 import type { Donate } from './donations'
+import type { CandyGoalStore } from './candyGoal'
+import type { DonateError, FestivalStore } from './festival'
 import type { FriendStore } from './friends'
 import type { GiftStore } from './gifts'
 import type { ModerationStore } from './moderation'
+import type { PatreonOAuth } from './patreon'
 import type { RankingStore } from './ranking'
+import { rulesVerdict } from './rulesGrace'
 import type { SupporterStore } from './supporters'
 import { SUGGESTION_ID, type SuggestionStore } from './suggestions'
-import { abacateDonation, ABACATE_REF, stripeDonation, verifyAbacate, verifyStandard, verifyStripe } from './webhooks'
+import { abacateDonation, ABACATE_REF, patreonCharge, patreonMember, stripeDonation, verifyAbacate, verifyPatreon, verifyStandard, verifyStripe } from './webhooks'
 
 export type AppDeps = {
   store: SaveStore
@@ -43,12 +49,14 @@ export type AppDeps = {
   /** Friends (mutual follows), presence and co-op invites. */
   friends: FriendStore
   gifts: Pick<GiftStore, 'inbox' | 'claim' | 'refer' | 'credit' | 'invites'>
-  /** Re-simulates finished runs after the answer went out. */
-  checks: Pick<Checks, 'schedule'>
   verify: Verify
   /** Donation checkouts (AbacatePay), null when the server has no key for them. */
   donate: Donate | null
   supporters: SupporterStore
+  /** Festival da Praça: the pot, donations from the stored save and the plaque. */
+  festival: Pick<FestivalStore, 'status' | 'donate' | 'setPublic' | 'takeDonate' | 'takeToggle' | 'held' | 'review'>
+  /** Meta da comunidade: every account's candy jar summed, toward the goal that opens Mega Darkrai. */
+  candyGoal: Pick<CandyGoalStore, 'status'>
   /** The idea board. */
   suggestions: SuggestionStore
   /** Bug reports: stored, then posted to the community Discord's #bug-reports. */
@@ -59,8 +67,14 @@ export type AppDeps = {
   admin: Pick<AdminStore, 'isAdmin' | 'search' | 'send' | 'recent'>
   /** Reports and bans: the write gate asks who is banned, players report, the admin acts. */
   moderation: Pick<ModerationStore, 'banned' | 'report' | 'open' | 'act'>
-  /** Webhook secrets: Stripe's signing secret and Payment Link, AbacatePay's URL secret. Unset ones answer 503. */
-  webhooks: { stripeSecret?: string; stripePaymentLink: string | null; abacatePaySecret?: string }
+  /** The Arena's ranked layer: reports, ratings, history and the season's board. */
+  arena: Pick<ArenaStore, 'report' | 'abandoned' | 'practice' | 'takePractice' | 'tickets' | 'profile' | 'history' | 'leaderboard'>
+  /** The secret the relay signs Arena reports and ticket lookups with; unset, those routes answer 503. */
+  arenaReportSecret: string | undefined
+  /** Linking a Patreon account (its OAuth client), null when the server has none. */
+  patreon: Pick<PatreonOAuth, 'linkUrl' | 'readState' | 'patronOf'> | null
+  /** Webhook secrets: Stripe's signing secret and Payment Link, AbacatePay's URL secret, Patreon's secret and campaign currency. Unset ones answer 503. */
+  webhooks: { stripeSecret?: string; stripePaymentLink: string | null; abacatePaySecret?: string; patreonSecret?: string; patreonCurrency: string }
   allowedOrigin: (origin: string) => boolean
   /** Whether the database answers, for `/health`. */
   ping: () => Promise<boolean>
@@ -101,6 +115,21 @@ const REPORT_ERRORS = { self: 400, limit: 429 } as const
 /** What inviting a friend answers when it doesn't go, by `Invited`'s error. */
 const INVITE_ERRORS = { notFriend: 404, limit: 429 } as const
 
+/** What a festival donation answers when it's refused, by `DonateError`. */
+const DONATE_ERRORS = { closed: 409, profile: 403, runs: 403, cap: 409, funds: 409, nosave: 409, stale: 409 } as const satisfies Record<DonateError, number>
+
+/** How far ahead of this clock a relay's `endedAt` may be (its clock drifts a little). */
+const ARENA_CLOCK_SKEW_MS = 5 * 60_000
+
+/** An Arena practice's optional retry key. */
+const PRACTICE_KEY = /^[A-Za-z0-9-]{8,64}$/
+
+/** A query's whole number in [min, max], else `fallback`. */
+const queryInt = (raw: string | undefined, min: number, max: number, fallback: number) => {
+  const n = raw === undefined || raw === '' ? NaN : Number(raw)
+  return Number.isSafeInteger(n) && n >= min && n <= max ? n : fallback
+}
+
 /** What a run's end answers when it's refused, by `FinishError`. */
 const FINISH_ERRORS = { unknown: 404, replaced: 409, mismatch: 409, seed: 400, clock: 422, challenge: 400, rewrite: 409 } as const
 
@@ -140,7 +169,7 @@ const CHUNK_ERRORS = { unknown: 404, replaced: 409, committed: 409, gap: 409, cl
  * - `PUT /runs/:token` (auth) `RunResult & { replay }`: records how it ended and
  *   returns `{ ranks, challenge, listed }` (`ChallengePlace`, null for any other run; `listed`
  *   false when, with `STREAM_ENFORCE` on, it wasn't streamed in time and stays off the boards); the
- *   replay may be re-simulated afterwards (`checks.ts`), and the run may make the player's invite count (`gifts.credit`). A challenge run's replay must
+ *   replay is kept for a re-simulation only when the run is on show (`checkRank`; the verifier, `checks.ts`, takes it from the database), and the run may make the player's invite count (`gifts.credit`). A challenge run's replay must
  *   be its day's challenge.
  *   400 for an implausible result, a missing replay or a replay of another run,
  *   `seed` for a replay of another seed than the token's (`reportProblem`; a token from before the
@@ -182,9 +211,17 @@ const CHUNK_ERRORS = { unknown: 404, replaced: 409, committed: 409, gap: 409, cl
  * - `POST /webhooks/stripe`, `POST /webhooks/abacatepay`: the payment providers say a donation is paid
  *   (signed: `webhooks.ts`; AbacatePay's the Standard Webhooks way, or with `?webhookSecret=` for an
  *   older webhook). 401 for a bad signature, 503 without the secret.
- * - `GET /me/supporter` (auth): `SupporterStatus`. `PUT /me/supporter` (auth) `{ public }`: shows or hides the badge and name.
+ * - `POST /webhooks/patreon`: a patron's `members:` event (signed with the webhook's secret: `verifyPatreon`): their
+ *   tier from the active pledge (`patreonMember`), applied to the account that linked them (or kept until one does),
+ *   and a paid charge recorded as history. 401 for a bad signature, 503 without the secret.
+ * - `GET /patreon/link?page=` (auth): `{ url }`, Patreon's authorize URL for the player, coming back to `page` on the
+ *   game's origin. `GET /patreon/callback` (Patreon sends the player there) links the account, gives it the patron's tier
+ *   and files their waiting charges, then redirects to the game with `?patreon=linked` (or `failed`). `DELETE /patreon/link` (auth):
+ *   forgets it, `{ unlinked: true }`. 503 without the Patreon client.
+ * - `GET /me/supporter` (auth): `SupporterStatus` (`patreon` null when the server has no Patreon client). `PUT /me/supporter` (auth) `{ public }`: shows or hides the badge and name.
  * - `GET /supporters`: `{ supporters, hidden }`, the wall (`WallEntry[]`, with each one's title and Hall da Fama Pokémon) and how many supporters per tier stay off it.
- * - `GET /poll`: `Poll`. `PUT /poll` (auth) `{ choice }`: a supporter's vote, 403 for anyone else.
+ * - `GET /poll`: `Poll`. `PUT /poll` (auth) `{ choice }`: a supporter's vote, 403 for anyone else. `GET /poll/diamond`,
+ *   `PUT /poll/diamond`: Diamond's monthly poll (`DIAMOND_POLL`), the same way; 403 for anyone under Diamond.
  * - `GET /suggestions?sort=board|top|new|done`: `{ suggestions }` (`Suggestion[]`), the idea board's columns (`board`,
  *   with the asker's own ideas waiting for review) or an earlier build's tab, with the asker's votes.
  * - `POST /suggestions` (auth) `{ title, body }`: posts an idea (`parseSuggestionDraft`), 201 `{ suggestion }`, `pending`
@@ -197,6 +234,18 @@ const CHUNK_ERRORS = { unknown: 404, replaced: 409, committed: 409, gap: 409, cl
  * - `POST /reports` (auth) `{ target, run?, reason, note? }` (`parseReport`): reports a player by handle, or one
  *   of their runs on the boards. 202 `{ received: true }` whatever becomes of it (nothing about the target
  *   comes back). 400 invalid or reporting oneself, 429 past `REPORT.perDay` in 24 hours.
+ * - `GET /festival`: `FestivalBoard & { me }`, the Festival da Praça the plaza shows (the running one, else the last;
+ *   null before the first): its `start` and `end` days, every festival's `pots`, its `pot` and milestones `reached`,
+ *   the `top` donors by @handle (counted donations of players who show their name) and how many `donors`; the
+ *   public part is cached 30 s. With a token, `me` (`FestivalMine`): ₽ given today (the cap), per festival, held, the plaque setting and the place among the festival's donors (`rank`).
+ * - `POST /festival/donate` (auth) `{ amount, base }`: puts `amount` whole ₽ of the stored save in the running festival's
+ *   pot, on top of revision `base`. `{ save, revision, held, today }`: the save with the ₽ moved to `spent`, for the device
+ *   to keep. 400 invalid amount, 403 `profile` (no @handle) or `runs` (fewer than `FESTIVAL.minRuns` verified runs),
+ *   409 `closed` (no festival running), `cap` (past ₽200k today), `funds` (the stored wallet can't cover it), `nosave`
+ *   or `stale` (sync first), 429 past the rate limit. `held`: the wallet was above `FESTIVAL.heldWallet`, so it counts once the admin approves it.
+ * - `PUT /festival/public` (auth) `{ public }`: shows or hides the player's @handle on the plaque. `{ public }`.
+ * - `GET /candy-goal`: `CandyGoal`, the Meta da comunidade: every account's candy jar summed (each up to
+ *   `HALLOWEEN.community.cap`), the goal and whether they reached it. Public, cached 2 min.
  * - `POST /discord/link` (auth): links the Discord account the player connected in Clerk, joins them
  *   to the community server and gives them their supporter role. `{ username, joined }`; 404 when
  *   Clerk has no verified Discord account for them, 503 when Clerk can't answer.
@@ -211,8 +260,17 @@ const CHUNK_ERRORS = { unknown: 404, replaced: 409, committed: 409, gap: 409, cl
  *   and how many are open. `POST /admin/moderation` (`parseModeration`) `{ userId, action, run?, reason? }`:
  *   `remove` a run from the boards, `reset` the save, `ban` (with a reason) or `unban`, or `dismiss`,
  *   resolving the reports it answers. `{ resolved }`, 404 for an unknown player or run.
+ *   `GET /admin/festival`: `{ donations }` (`HeldDonation[]`), the festival donations held for review.
+ *   `POST /admin/festival/:id/approve` (it counts in the pot) or `/void` (it never counts; its ₽ stays spent): `{ ok }`, 404 for an unknown or already settled one.
+ * - `POST /arena/report` (relay, signed: `x-arena-signature`) `ArenaReport`: a finished match, once per (room, run); an abandoned one (`abandoned: true`) only moves Fair Play.
+ *   `ArenaReportResponse`; a retry gets the stored match with `duplicate`. 400 invalid, 401 bad signature, 503 without `ARENA_REPORT_SECRET`.
+ * - `POST /arena/tickets` (relay, signed) `{ userIds }`: `ArenaTicketsResponse`, each player's current-season MMR, RP and games, and their Fair Play.
+ * - `POST /arena/practice` (auth) `ArenaPracticeRequest`: a quick match against bots, for history and totals only.
+ *   201 `{ match }` (200 `{ duplicate: true }` for a retried `key`), 400 invalid or a bot's slot, 429 past the hourly limit.
+ * - `GET /arena/me` (auth): `ArenaProfile`. `GET /arena/history?before=<ms>&limit=` (auth): `ArenaHistoryEntry[]`, newest first.
+ * - `GET /arena/leaderboard?season=N&limit=`: `ArenaLeaderboard`, the season's top rows, with a token the asker's own.
  */
-export const createApp = ({ store, ranking, friends, gifts, checks, verify, donate, supporters, suggestions, bugReports, discord, admin, moderation, webhooks, allowedOrigin, ping, report }: AppDeps) => {
+export const createApp = ({ store, ranking, friends, gifts, verify, donate, supporters, festival, candyGoal, suggestions, bugReports, discord, admin, moderation, arena, arenaReportSecret, patreon, webhooks, allowedOrigin, ping, report }: AppDeps) => {
   // `userId` is set by `auth` or `maybeAuth` on the routes that ask who's calling; `onError` reports it.
   const app = new Hono<MaybeAuth>()
 
@@ -304,19 +362,18 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     if (!replay || replay.start.starter !== result.starter || replay.start.difficulty !== result.difficulty) {
       return c.json({ error: 'replay of another run' }, 400)
     }
-    const standing = rulesStanding(replay.rules)
-    if (standing === 'older') return c.json({ error: 'outdated' }, 400)
-    if (standing === 'newer') return c.json({ error: 'api behind' }, 503)
+    // Older rules count only on a token pinned to them, within the grace window: a run that straddled a rules deploy.
     const token = c.req.param('token')
+    const pinned = rulesStanding(replay.rules) === 'older' ? await ranking.tokenRules(c.var.userId, token) : null
+    const verdict = rulesVerdict(replay.rules, pinned)
+    if (verdict === 'outdated') return c.json({ error: 'outdated' }, 400)
+    if (verdict === 'behind') return c.json({ error: 'api behind' }, 503)
     const finished = await ranking.finishRun(c.var.userId, token, result, replay)
     if (!finished.ok) return c.json({ error: finished.error }, FINISH_ERRORS[finished.error])
-    checks.schedule(token)
+    if (verdict === 'grace') console.log(`run ${token}: taken under the previous rules (${replay.rules})`)
     void gifts.credit(c.var.userId).catch((err) => console.error('invite credit failed', err))
-    const [ranks, challenge] = await Promise.all([
-      ranking.runRanks(c.var.userId, runMode(result.starter), result.difficulty),
-      finished.challenge ? ranking.challengePlace(c.var.userId, finished.challenge, finished.official === true) : null,
-    ])
-    return c.json({ ranks, challenge, listed: finished.listed })
+    const challenge = finished.challenge ? await ranking.challengePlace(c.var.userId, finished.challenge, finished.official === true) : null
+    return c.json({ ranks: finished.ranks, challenge, listed: finished.listed })
   })
 
   app.get('/boards/:difficulty', maybeAuth, async (c) => {
@@ -483,6 +540,49 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     return c.json({ received: true })
   })
 
+  app.post('/webhooks/patreon', hookBody, async (c) => {
+    if (!webhooks.patreonSecret) return c.json({ error: 'webhook off' }, 503)
+    const raw = await c.req.text()
+    if (!verifyPatreon(raw, c.req.header('X-Patreon-Signature'), webhooks.patreonSecret)) return c.json({ error: 'bad signature' }, 401)
+    const event = c.req.header('X-Patreon-Event')
+    const body: unknown = JSON.parse(raw)
+    const member = patreonMember(event, body)
+    if (member) await supporters.patreonPledge(member)
+    const charge = patreonCharge(event, body, webhooks.patreonCurrency)
+    if (charge) await supporters.patreonCharge(charge)
+    return c.json({ received: true })
+  })
+
+  app.get('/patreon/link', auth, (c) => {
+    if (!patreon) return c.json({ error: 'patreon is off' }, 503)
+    const origin = c.req.header('Origin')
+    const page = c.req.query('page')
+    const back = `${origin && allowedOrigin(origin) ? origin : SITE}${page && SITE_PATH.test(page) ? page : '/'}`
+    return c.json({ url: patreon.linkUrl(c.var.userId, back, Date.now() / 1000) })
+  })
+
+  // Patreon sends the player here, approved (`code`) or not (`error`); either way they go back to the game.
+  app.get('/patreon/callback', async (c) => {
+    if (!patreon) return c.json({ error: 'patreon is off' }, 503)
+    const link = patreon.readState(c.req.query('state'), Date.now() / 1000)
+    const code = c.req.query('code')
+    const back = (outcome: 'linked' | 'failed') => c.redirect(`${link?.back ?? SITE}?patreon=${outcome}`)
+    if (!link || !code) return back('failed')
+    try {
+      await supporters.linkPatreon(link.userId, await patreon.patronOf(code))
+      return back('linked')
+    } catch (err) {
+      console.error(`patreon link failed for ${link.userId}`, err)
+      return back('failed')
+    }
+  })
+
+  app.delete('/patreon/link', auth, async (c) => {
+    if (!patreon) return c.json({ error: 'patreon is off' }, 503)
+    await supporters.unlinkPatreon(c.var.userId)
+    return c.json({ unlinked: true })
+  })
+
   app.post('/discord/link', auth, async (c) => {
     const linked = await discord.link(c.var.userId).catch((err: unknown) => (console.error('discord link failed', err), null))
     if (!linked) return c.json({ error: 'clerk unavailable' }, 503)
@@ -495,13 +595,19 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     return c.json({ unlinked: true })
   })
 
-  app.get('/me/supporter', auth, async (c) => c.json(await supporters.mine(c.var.userId)))
+  /** The player's standing; whether they linked a Patreon only while the server has the Patreon client. */
+  const mine = async (userId: string) => {
+    const s = await supporters.mine(userId)
+    return { ...s, patreon: patreon ? s.patreon : null }
+  }
+
+  app.get('/me/supporter', auth, async (c) => c.json(await mine(c.var.userId)))
 
   app.put('/me/supporter', auth, smallBody, async (c) => {
     const body = await json(c)
     if (!isRecord(body) || typeof body.public !== 'boolean') return c.json({ error: 'expected { public }' }, 400)
     await supporters.setPublic(c.var.userId, body.public)
-    return c.json(await supporters.mine(c.var.userId))
+    return c.json(await mine(c.var.userId))
   })
 
   app.get('/supporters', async (c) => {
@@ -510,14 +616,47 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     return c.json({ supporters: wall, hidden })
   })
 
-  app.get('/poll', async (c) => c.json(await supporters.poll()))
+  /** A poll's routes over `POLLS[kind]`: the supporters' at `/poll`, Diamond's at `/poll/diamond`. */
+  const pollRoutes = <K extends PollKind>(path: string, kind: K) => {
+    app.get(path, async (c) => c.json(await supporters.poll(kind)))
+    app.put(path, auth, smallBody, async (c) => {
+      const body = await json(c)
+      const choice = isRecord(body) && isPollOptionOf(kind, body.choice) ? body.choice : null
+      if (!choice) return c.json({ error: 'expected { choice }' }, 400)
+      if (!(await supporters.vote(c.var.userId, kind, choice))) return c.json({ error: kind === 'diamond' ? 'diamond supporters only' : 'supporters only' }, 403)
+      return c.json(await supporters.poll(kind))
+    })
+  }
+  pollRoutes('/poll', 'supporters')
+  pollRoutes('/poll/diamond', 'diamond')
 
-  app.put('/poll', auth, smallBody, async (c) => {
+  app.get('/festival', maybeAuth, async (c) => {
+    if (!c.var.userId) c.header('Cache-Control', 'public, max-age=30')
+    return c.json(await festival.status(c.var.userId))
+  })
+
+  app.get('/candy-goal', async (c) => {
+    c.header('Cache-Control', 'public, max-age=60')
+    return c.json(await candyGoal.status())
+  })
+
+  app.post('/festival/donate', auth, smallBody, async (c) => {
     const body = await json(c)
-    const choice = isRecord(body) && isPollOption(body.choice) ? body.choice : null
-    if (!choice) return c.json({ error: 'expected { choice }' }, 400)
-    if (!(await supporters.vote(c.var.userId, choice))) return c.json({ error: 'supporters only' }, 403)
-    return c.json(await supporters.poll())
+    const amount = isRecord(body) ? parseDonationAmount(body.amount) : null
+    if (!isRecord(body) || amount === null) return c.json({ error: 'expected { amount, base }' }, 400)
+    const base = typeof body.base === 'number' && Number.isInteger(body.base) ? body.base : null
+    if (!festival.takeDonate(c.var.userId)) return c.json({ error: 'too many donations' }, 429)
+    const done = await festival.donate(c.var.userId, amount, base)
+    if (!done.ok) return c.json({ error: done.error }, DONATE_ERRORS[done.error])
+    return c.json({ save: done.save, revision: done.revision, held: done.held, today: done.today })
+  })
+
+  app.put('/festival/public', auth, smallBody, async (c) => {
+    const body = await json(c)
+    if (!isRecord(body) || typeof body.public !== 'boolean') return c.json({ error: 'expected { public }' }, 400)
+    if (!festival.takeToggle(c.var.userId)) return c.json({ error: 'too many changes' }, 429)
+    await festival.setPublic(c.var.userId, body.public)
+    return c.json({ public: body.public })
   })
 
   app.get('/suggestions', maybeAuth, async (c) => {
@@ -558,6 +697,65 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     if (!report) return c.json({ error: 'expected { text, tech? }' }, 400)
     const submitted = await bugReports.submit(report, { userId: c.var.userId, ip: clientIp(c.req.header('X-Real-IP'), c.req.header('X-Forwarded-For')) })
     return submitted.ok ? c.json({ id: submitted.id }, 201) : c.json({ error: 'too many reports' }, 429)
+  })
+
+  /** A relay's signed body, parsed: the JSON, or a response to send back (503 without the secret, 401 for a bad signature, 400 for bad JSON). */
+  const relayBody = async (c: Context) => {
+    if (!arenaReportSecret) return { error: c.json({ error: 'arena is off' }, 503) }
+    const raw = await c.req.text()
+    if (!verifyArenaSignature(raw, c.req.header('x-arena-signature'), arenaReportSecret)) return { error: c.json({ error: 'bad signature' }, 401) }
+    try {
+      return { body: JSON.parse(raw) as unknown }
+    } catch {
+      return { error: c.json({ error: 'invalid json' }, 400) }
+    }
+  }
+
+  app.post('/arena/report', bodyLimit({ maxSize: 32 * 1024 }), async (c) => {
+    const signed = await relayBody(c)
+    if ('error' in signed) return signed.error
+    // A match every human left has no result: only its Fair Play lands.
+    const gone = parseAbandonedReport(signed.body)
+    if (gone) return gone.endedAt > Date.now() + ARENA_CLOCK_SKEW_MS ? c.json({ error: 'invalid report' }, 400) : c.json(await arena.abandoned(gone))
+    const r = parseArenaReport(signed.body)
+    if (!r || r.endedAt > Date.now() + ARENA_CLOCK_SKEW_MS) return c.json({ error: 'invalid report' }, 400)
+    return c.json(await arena.report(r))
+  })
+
+  app.post('/arena/tickets', smallBody, async (c) => {
+    const signed = await relayBody(c)
+    if ('error' in signed) return signed.error
+    const ids = isRecord(signed.body) && Array.isArray(signed.body.userIds) ? signed.body.userIds : null
+    if (!ids || ids.length > 64 || !ids.every((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 64)) return c.json({ error: 'expected { userIds }' }, 400)
+    return c.json(await arena.tickets(ids))
+  })
+
+  app.post('/arena/practice', auth, bodyLimit({ maxSize: 16 * 1024 }), async (c) => {
+    const body = await json(c)
+    const result = isRecord(body) ? parseArenaResult(body.result) : null
+    const slot = isRecord(body) && typeof body.slot === 'number' && Number.isInteger(body.slot) ? body.slot : null
+    const key = isRecord(body) && body.key !== undefined ? body.key : null
+    if (!result || slot === null || (key !== null && (typeof key !== 'string' || !PRACTICE_KEY.test(key)))) return c.json({ error: 'expected { result, slot, key? }' }, 400)
+    if (!arena.takePractice(c.var.userId)) return c.json({ error: 'too many matches' }, 429)
+    const stored = await arena.practice(c.var.userId, result, slot, key)
+    if (!stored) return c.json({ error: 'not your seat' }, 400)
+    return stored.duplicate ? c.json({ duplicate: true }) : c.json({ match: stored.match }, 201)
+  })
+
+  app.get('/arena/me', auth, async (c) => c.json(await arena.profile(c.var.userId)))
+
+  app.get('/arena/history', auth, async (c) => {
+    const before = queryInt(c.req.query('before'), 0, Number.MAX_SAFE_INTEGER, Date.now() + 86_400_000)
+    const limit = queryInt(c.req.query('limit'), 1, 50, ARENA_PAGES.history)
+    return c.json(await arena.history(c.var.userId, before, limit))
+  })
+
+  app.get('/arena/leaderboard', maybeAuth, async (c) => {
+    const current = shownSeason(Date.now()).id
+    const season = queryInt(c.req.query('season'), 1, current, current)
+    const limit = queryInt(c.req.query('limit'), 1, 100, ARENA_PAGES.board)
+    if (!c.var.userId) c.header('Cache-Control', 'public, max-age=30')
+    return c.json(await arena.leaderboard(season, limit, c.var.userId))
   })
 
   /** The desk's routes, all behind a valid token whose user Clerk says is admin. Everyone else gets 403, whatever they send. */
@@ -607,6 +805,12 @@ export const createApp = ({ store, ranking, friends, gifts, checks, verify, dona
     const done = await moderation.act(c.var.userId, m)
     return done ? c.json(done) : c.json({ error: 'unknown' }, 404)
   })
+
+  desk.get('/festival', async (c) => c.json({ donations: await festival.held() }))
+
+  for (const action of ['approve', 'void'] as const) {
+    desk.post(`/festival/:id/${action}`, async (c) => ((await festival.review(c.var.userId, c.req.param('id'), action)) ? c.json({ ok: true }) : c.json({ error: 'unknown' }, 404)))
+  }
 
   app.route('/admin', desk)
 

@@ -5,15 +5,27 @@ import { holdsShots } from './bossFight'
 import { damageEnemy } from './combat'
 import { evolvedImpact, evolvedTick } from './evolvedMoves'
 import { inheritMods, modHit, modTick } from './mods'
-import { mineArmed, mineBlast, TURRET_RANGE } from './moveRules'
+import { lungeStep, mineArmed, mineBlast, rollStep, TURRET_RANGE } from './moveRules'
 import { nearestEnemy } from './queries'
+import { inDoorway } from './rift'
+import { atCaveChest } from './cave'
+import { inStandRing } from './mapEvents'
 import { spawnAttack } from './spawn'
 import { typeEvolvedTrail } from './typeEvolutions'
 import { ownerOf } from './players'
-import type { Attack, Enemy, Game, Motion, Trailer, Turret } from './types'
+import { isAlly } from './versusRules'
+import type { Attack, Enemy, Game, Motion, Player, Trailer, Turret } from './types'
 import * as dm from '../engine/dmath'
 
 const neighbors: number[] = []
+
+/**
+ * Whether a move carrying the player (a lunge, Rollout) holds them where they
+ * stand: in a portal or a place's door filling (`inDoorway`), at a shut chest
+ * or in the Move Tutor's tent, so it never hops them off a spot that fills by
+ * standing. Co-op's prediction ghost asks it too (`coop/predict.ts`).
+ */
+export const holdsCarry = (g: Game, p: Pick<Player, 'x' | 'y' | 'radius'>) => inDoorway(g, p) || inStandRing(g, p) || atCaveChest(g, p)
 
 const move = (g: Game, a: Attack, m: Motion, dt: number) => {
   const p = g.player
@@ -55,10 +67,12 @@ const move = (g: Game, a: Attack, m: Motion, dt: number) => {
     case 'static':
       break
     case 'lunge': {
-      const step = Math.min(dt, m.left)
-      m.left -= step
-      p.x += m.vx * step
-      p.y += m.vy * step
+      // A portal, a place's door or a chest being stood in holds the player: the lunge ends there.
+      if (holdsCarry(g, p)) m.left = 0
+      const step = lungeStep(m, dt)
+      m.left = step.left
+      p.x += step.dx
+      p.y += step.dy
       if (m.left > 0) p.dir = dir8(m.vx, m.vy)
       a.x = p.x
       a.y = p.y - 8
@@ -106,12 +120,17 @@ const move = (g: Game, a: Attack, m: Motion, dt: number) => {
       a.y += dm.sin(m.heading) * m.speed * dt
       break
     }
-    case 'roll':
-      p.x += p.facing.x * m.speed * dt
-      p.y += p.facing.y * m.speed * dt
+    case 'roll': {
+      // Held, it rolls in place (the stick still walks the player out).
+      if (!holdsCarry(g, p)) {
+        const step = rollStep(p.facing, m.speed, dt)
+        p.x += step.dx
+        p.y += step.dy
+      }
       a.x = p.x
       a.y = p.y - 8
       break
+    }
     case 'tether': {
       const e = m.target
       if (e.dying >= 0) {
@@ -146,7 +165,7 @@ const PULL_BOSS = 0.25
 const pullFoes = (g: Game, a: Attack, dt: number) => {
   for (const i of query(g.grid, a.x, a.y, reach(a) + 40, neighbors)) {
     const e = g.enemies[i]
-    if (!e || e.dying >= 0 || !overlaps(a, e)) continue
+    if (!e || e.dying >= 0 || e.behavior.kind === 'avatar' || !overlaps(a, e)) continue
     const dx = a.x - e.x
     const dy = a.y - (e.y - e.radius)
     const d = dm.hypot(dx, dy)
@@ -222,7 +241,7 @@ const reach = (a: Attack) => (a.shape.kind === 'circle' ? a.shape.r : dm.hypot(a
 const collide = (g: Game, a: Attack) => {
   for (const i of query(g.grid, a.x, a.y, reach(a) + 40, neighbors)) {
     const e = g.enemies[i]
-    if (!e || e.dying >= 0 || !overlaps(a, e)) continue
+    if (!e || e.dying >= 0 || isAlly(g, e) || !overlaps(a, e)) continue
     if ((a.hits.get(e.id) ?? -1) > g.now) continue
     if (a.blast > 0) return detonate(g, a, false)
     a.hits.set(e.id, g.now + a.hitInterval)

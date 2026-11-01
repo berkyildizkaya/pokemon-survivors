@@ -1,7 +1,7 @@
 import { dirTo, fromAngle, TAU } from '../engine/math'
 import { chance, range } from '../engine/rng'
 import * as dm from '../engine/dmath'
-import { burst } from './effects'
+import { burst, shakeScreen } from './effects'
 import {
   AVALANCHE_CHUNKS, AVALANCHE_DROP, AVALANCHE_GAP, AVALANCHE_SPEED, avalancheMult, BITTER_ARC, BITTER_DRAIN, BITTER_TIME,
   BULLDOZE_GAP, BULLDOZE_SEGMENTS, BULLDOZE_TTL, CHARGE_MIGHT, DANCE_MIGHT, DANCE_REACH, FANG_BITE, FANG_FLINCH, FANG_REACH,
@@ -61,7 +61,7 @@ const cast = (g: Game, move: MoveId) => g.events.push({ kind: 'cast', move })
 /** The first hit of a big landing shakes the screen (and holds the world for a blink). */
 const landing = (g: Game, a: Attack, shake: number, hitstop = 0) => {
   if (a.hits.size !== 1) return
-  g.shake = Math.max(g.shake, shake)
+  shakeScreen(g, shake)
   g.hitstop = Math.max(g.hitstop, hitstop)
   g.events.push({ kind: 'quake' })
 }
@@ -214,7 +214,7 @@ export const EGG_MOVES_3 = {
       for (let i = 0; i < s.amount; i++) {
         const dir = i % 2 === 0 ? 1 : -1
         const first = g.attacks.length
-        sweep(g, s, look('bitterBlade', 'fire', 'bitterBlade'), { from: aim - (dir * BITTER_ARC) / 2, arc: dir * BITTER_ARC, time: BITTER_TIME, length: 44 * s.area, segments: 5, r: 7 * s.area, inner: 10 })
+        sweep(g, s, look('bitterBlade', 'fire', 'bitterBlade'), { from: aim - (dir * BITTER_ARC) / 2, arc: dir * BITTER_ARC, time: BITTER_TIME, length: 44 * s.area, segments: 5, r: 7, inner: 10 })
         const last = g.attacks.length - 1
         for (let k = first; k <= last; k++) {
           const a = g.attacks[k]!
@@ -359,7 +359,7 @@ export const EGG_MOVES_3 = {
         ...look('heavySlam', 'steel', 'heavyQuake'), x: p.x, y: p.y,
         shape: { kind: 'circle', r: 10 }, motion: { kind: 'follow', ox: 0, oy: 0 },
         damage: s.damage * mult, knockback: s.knockback, ttl: 0.5, grow: (HEAVY_R * s.area - 10) / 0.18, activeUntil: 0.18, age: -HEAVY_HOP,
-        tier: Math.round((mult - 1) * 10),
+        tier: dm.round((mult - 1) * 10),
       })
     },
     onHit: (g, a) => {
@@ -397,7 +397,7 @@ export const EGG_MOVES_3 = {
           })
         }
       }
-      g.shake = Math.max(g.shake, 2)
+      shakeScreen(g, 2)
       cast(g, 'bulldoze')
     },
   },
@@ -455,7 +455,7 @@ export const EGG_MOVES_3 = {
     fire: (g, s) => {
       for (const angle of fan(aimAngle(g, 160), s.amount, 0.35)) {
         const first = g.attacks.length
-        sweep(g, s, look('chargeBeam', 'electric', 'chargeBeam'), { from: angle, arc: 0, time: s.duration, length: 120 * s.area, segments: 9, r: 6 * s.area, inner: 10 })
+        sweep(g, s, look('chargeBeam', 'electric', 'chargeBeam'), { from: angle, arc: 0, time: s.duration, length: 120 * s.area, segments: 9, r: 6, inner: 10 })
         const last = g.attacks.length - 1
         for (let k = first; k < last; k++) g.attacks[k]!.visual = 'hitbox'
       }

@@ -40,13 +40,30 @@ export const tr: Messages = {
     change: 'Değiştir',
     stroll: 'yürüyüşe çık',
     strollTouch: 'Yürüyüşe çıkmak için çimenlere dokun',
+    explore: 'Keşfet',
+    exploreLabel: 'Çayırda ve meydanda dolaş',
+    exploreTouch: 'Yürümek için dokun veya sürükle',
+    exploreKeys: 'yürü',
     pokedex: 'Pokédex',
     eggs: 'Yumurtalar',
     eggsReady: (n: number) => (n === 1 ? '1 yumurta çatlamaya hazır' : `${n} yumurta çatlamaya hazır`),
     mart: 'Mağaza',
+    dojo: 'Dojo',
+    dojoLabel: 'Dojo: saldırıları dene, build planla',
     ranking: 'Sıralama',
     ideas: 'Fikirler',
     support: 'Projeyi destekle',
+    rail: {
+      halloween: 'Cadılar',
+      festival: 'Festival',
+      outbreak: 'Salgın',
+      challenge: 'Meydan',
+      missions: 'Görevler',
+      hall: 'Salon',
+      invites: 'Davet',
+      discord: 'Discord',
+      days: (n) => `${n}g`,
+    },
   },
 
   shell: {
@@ -79,7 +96,7 @@ export const tr: Messages = {
     createProfile: 'Profil oluştur',
     viewProfile: 'Herkese açık profili gör',
     share: 'Kartı paylaş',
-    supporterSince: (gold: boolean, date: string) => `${gold ? 'Altın Destekçi' : 'Destekçi'} (${date}'den beri)`,
+    supporterSince: (tier, date) => `${{ supporter: 'Destekçi', gold: 'Altın Destekçi', diamond: 'Elmas Destekçi' }[tier]} · ${date} itibarıyla`,
     missions: 'Görevler ve başarımlar',
     join: 'Hesap oluştur / Giriş yap',
     signOut: 'Çıkış yap',
@@ -115,6 +132,8 @@ export const tr: Messages = {
     },
     start: 'Başlat',
     startWith: (name: string) => `${name} ile başla`,
+    random: 'RASTGELE',
+    randomHint: 'Kilidi açık rastgele bir Pokémon seç',
     close: 'Kapat',
     learnStart: 'Başlangıçtan itibaren',
     learnNote: 'Her evrim yeni saldırıların kilidini açar. Yalnızca 6 yuva vardır: Her koşuda bazıları dışarıda kalır.',
@@ -135,6 +154,378 @@ export const tr: Messages = {
       speed: 'Hız',
     },
     jumps: (n: number) => `×${n}`,
+  },
+  versus: {
+    entry: 'Arena',
+    fresh: 'YENİ',
+    title: 'Arena',
+    tagline: '4v4 · 3v3 MOBA',
+    maps: { vale: 'Vadi', glade: 'Açıklık', cove: 'Koy', reef: 'Resif' },
+    formats: {
+      standard: { name: 'Standart', size: '4v4', clock: '7 dk', text: 'Vadi veya Koy · takım başına 3 kale' },
+      quick: { name: 'Hızlı', size: '3v3', clock: '3 dk', text: 'Açıklık veya Resif · takım başına 2 kale' },
+    },
+    intro: 'Vadi veya Koy’da (4v4), Açıklık veya Resif’te (3v3) iki takım. Vahşi Pokémon’ları alt et, Enerji topla ve rakip kalelere sayı at.',
+    lobby: {
+      how: 'Nasıl oynanır',
+      /** The Como jogar strip, in order: each step's title and line. */
+      steps: [
+        { title: 'Vahşi Pokémon’ları alt et', text: 'Kamplar Enerji küreleri düşürür.' },
+        { title: 'Enerji topla', text: 'Her Pokémon en fazla 30 taşır.' },
+        { title: 'Rakip kaleye sayı at', text: 'Çubuk dolana kadar içinde kal.' },
+        { title: 'Son düzlük', text: 'Sonda: çift puan ve Zapdos.' },
+      ],
+      stats: { damage: 'Hasar', toughness: 'Dayanıklılık', speed: 'Hız', healing: 'İyileştirme' },
+      roleInfo: {
+        attacker: 'Yüksek hasar, düşük savunma. Takımının arkasında kal.',
+        speedster: 'Hızlı: dal, sayıyı at ve rakipler gelmeden çık.',
+        allRounder: 'İyi dövüşür, darbelere de dayanır. İlk seçim için ideal.',
+        defender: 'Hasarı üstlenir ve koridoru takım için tutar.',
+        supporter: 'Aurasıyla yakındaki müttefikleri iyileştirir.',
+      },
+      all: 'Tümü',
+      line: 'Maç sırasında evrimleşir',
+      quick: { title: 'Antrenman', text: 'Botlara karşı, hesap gerekmez. Hemen başlar.' },
+      room: { title: 'Arkadaşlarla', text: 'Bir oda kur ve kodu paylaş. Boş koltukları botlar doldurur.', account: '@ adı olan bir hesap gerekir' },
+      offline: 'Bu sürümde kullanılamıyor',
+      casual: { title: 'Normal', text: 'Diğer eğitmenlerle açık sıra. RP yok.' },
+      ranked: { title: 'Dereceli', text: 'Bu sezon RP kazan. Poké Ball’dan Master Ball’a.' },
+      format: 'Format',
+      rankedOnly: 'Dereceli yalnızca 4v4',
+      hub: 'Sıralama',
+    },
+    pick: 'Pokémon’unu seç',
+    free: '27 başlangıç Pokémon’u, herkese ücretsiz.',
+    roles: { attacker: 'Saldırgan', speedster: 'Hızlı', allRounder: 'Çok Yönlü', defender: 'Savunmacı', supporter: 'Destekçi' },
+    back: 'Geri',
+    hintKeys: '← → ↑ ↓ seç · ENTER antrenman · ESC geri',
+    hintTouch: 'Bir Pokémon’a dokun, sonra nasıl oynayacağını seç',
+    teams: ['Mavi', 'Kırmızı'],
+    cpu: 'CPU',
+    you: 'Sen',
+    starting: 'Maç hazırlanıyor…',
+    queue: {
+      searching: 'Maç aranıyor…',
+      found: 'Maç bulundu!',
+      honest: 'Açık sıra yakında · şimdilik koltukları botlar dolduruyor',
+      seeking: 'Aranıyor…',
+      cancel: 'İptal',
+      hintKeys: 'ESC iptal',
+      hintTouch: 'Geri dönmek için İptal’e dokun',
+      kinds: { casual: 'Normal', ranked: 'Dereceli' },
+      connecting: 'Sıraya bağlanılıyor…',
+      players: (found: number, of: number) => `${found}/${of} eğitmen`,
+      botsIn: (s: number) => `Botlar ${s} sn içinde dolduracak`,
+      botsNow: 'Botlarla dolduruluyor…',
+      rankedNote: 'Dereceli için 2 veya daha fazla eğitmen gerekir: botlar yalnızca boş koltukları doldurur.',
+      casualNote: 'RP söz konusu değil. Boş koltuk varsa botlar doldurur.',
+      player: 'Eğitmen',
+      joining: 'Maça katılınıyor…',
+      downgraded: 'Sırada az eğitmen var: bu maç Normal sayılır.',
+      lost: 'Sırayla bağlantı koptu.',
+      refused: { auth: 'Sırada oynamak için giriş yap.', duplicate: 'Zaten başka bir sekmede sıradasın.', build: 'Oyunun yeni bir sürümü çıktı: sayfayı yenile.', closed: 'Sıra şu anda kapalı. Daha sonra tekrar dene.', fairPlay: 'Fair Play puanın Dereceli için çok düşük.' },
+      holding: (time) => `Düşük Fair Play: aramana ${time} sonra başlanacak`,
+      holdNote: 'Maçlardan çıkan oyuncular sırada daha uzun bekler. Fair Play puanını geri kazanmak için maçları bitir.',
+      blocked: {
+        title: 'Dereceli kilitli',
+        score: (score, min) => `Fair Play puanın: ${score}/100. Dereceli için ${min} veya üstü gerekir.`,
+        how: (n) => `Geri dönmek için ${n} Normal maçı sonuna kadar oyna.`,
+        casual: 'Normal oyna',
+        back: 'Geri',
+      },
+      preseason: (date) => `Sezon öncesi: Dereceli maçlar Geçmişine eklenir, ama RP yalnızca 1. Sezonun başladığı ${date} tarihinden itibaren sayılır.`,
+    },
+    splash: {
+      loading: 'Arena yükleniyor…',
+      ready: 'Her şey hazır!',
+      tip: 'İpucu',
+      tips: [
+        'Enerjin dolu mu? Git sayı at: düşersen yarısını kaybedersin.',
+        'Aynı kaledeki her müttefik sayı atmayı %50 hızlandırır.',
+        'Bir rakibin vuruşu sayı atanı durdurur.',
+        'Kendi kalende iyileşir ve %20 daha hızlı koşarsın.',
+        '4v4’te üs kalesi ancak bir koridor kalesi düşünce açılır; 3v3’te üs kalesi yoktur.',
+        'Drednaw’ı alt etmek tüm takıma kalkan ve Enerji verir.',
+        'Uzun otlarda rakipler seni göremez ama saldırıların durur: pusu ve kaçış için ideal.',
+        'Seviye kartları oyunu durdurmaz: birine dokun veya 1–4’e bas.',
+        'Temel saldırın otomatiktir: Q, E ve R; 1. Saldırı, 2. Saldırı ve Unite Saldırısını kullanır.',
+        'Kilitlenmek için bir rakibe tıkla veya dokun; Tab değiştirir. Telefonda nişan almak için saldırı düğmesini sürükle.',
+        'Her evrim önce 1. Saldırıyı, sonra 2. Saldırıyı yeni formun bir saldırısıyla değiştirir.',
+        'T hızlı sohbeti açar, G haritada işaret verir, ` tuşunu basılı tutmak tam skor tablosunu gösterir.',
+        'Devre arasından itibaren takımın teslim olmak için oylama yapabilir: bu yenilgi sayılır, maçtan çıkmak sayılmaz.',
+        'Maçları bitirmek Fair Play kazandırır; çıkmak veya boş durmak kaybettirir, 80’in altında Dereceli yoktur.',
+      ],
+    },
+    hud: {
+      blue: 'MAVİ',
+      red: 'KIRMIZI',
+      double: 'x2',
+      energy: 'Enerji',
+      respawn: (s) => `${s} içinde dönüyorsun`,
+      blessing: (s) => `Zapdos’un lütfu ${s} sn`,
+      shield: 'Kalkan',
+      go: 'Haydi!',
+      scoring: 'Sayı atılıyor…',
+      blocked: 'Durduruldu!',
+      full: 'SAYI!',
+      down: 'Nakavt oldun',
+      downBy: (name) => `${name} tarafından`,
+      downNote: 'Enerjinin yarısı yerde kaldı.',
+      goals: { top: 'Kuzey koridor kalesi', base: 'Üs kalesi', bottom: 'Güney koridor kalesi' },
+    },
+    /** The coach's line under the score (`ui/versusCoach.ts`): what to do now. */
+    coach: {
+      farm: 'Enerji toplamak için *vahşi* Pokémon’ları alt et',
+      carry: 'Enerjini bir *rakip kaleye* götür: oku takip et',
+      channel: '*Sayı atmak* için kalede kal · hasar seni durdurur',
+      locked: 'Üs kalesi kilitli: önce bir *koridor kalesini* yık',
+      full: 'Enerji dolu! Düşmeden önce *sayı at*',
+      lowHp: 'Canın az: iyileşmek için *kalene* dön',
+      defend: 'Bir rakip *senin kalene* sayı atıyor!',
+      grass: '*Uzun otlar*: rakipler seni göremez · saldırıların durur',
+      drednaw: 'Ortada *Drednaw*: kalkan için onu yen',
+      zapdos: 'Ortada *Zapdos*: onu yenenler anında sayı atar',
+      stretch: 'Son düzlük: *çift* puan!',
+      kit: (q, e, r) => `Temel saldırı *otomatik* · *${q}* ve *${e}* saldırıları, *${r}* Unite’ı kullanır`,
+      kitTouch: 'Temel saldırı *otomatik* · kullanmak için *düğmelere* dokun, nişan için sürükle',
+      aim: (tab) => `*Kilitlenmek* için bir rakibe tıkla · *${tab}* değiştirir`,
+      aimTouch: '*Kilitlenmek* için bir rakibe dokun',
+    },
+    toast: {
+      weScored: (name) => `*${name}* sayı attı!`,
+      theyScored: (name) => `*${name}* rakipler için sayı attı`,
+      ourGoalBroke: 'Kalelerimizden biri düştü!',
+      theirGoalBroke: 'Bir rakip kale düştü!',
+      youKo: (name) => `*${name}* nakavt ettin!`,
+      koYou: (name) => `*${name}* seni nakavt etti`,
+      wildKoYou: 'Nakavt oldun',
+      allyKo: (by, name) => `*${by}*, *${name}* nakavt etti`,
+      drednaw: 'Ortada Drednaw belirdi!',
+      zapdos: 'Zapdos ortaya indi!',
+      fellUs: (name) => `Takımımız *${name}* alt etti!`,
+      fellThem: (name) => `Rakipler *${name}* alt etti`,
+      stretch: 'Son düzlük! Çift puan',
+      back: 'Savaşa geri döndün!',
+      surrenderOpen: (name: string) => `*${name}* teslim olmayı önerdi: oy ver!`,
+    },
+    kit: {
+      basic: 'Temel saldırı',
+      move1: '1. Saldırı',
+      move2: '2. Saldırı',
+      unite: 'Unite Saldırısı',
+      auto: 'OTO',
+      learnAt: (level) => `Sv ${level}`,
+      grass: 'OT',
+    },
+    tray: {
+      first: 'Bir saldırı seç',
+      levelup: (level) => `Seviye ${level}!`,
+      branch: 'Şuna evrimleş',
+      ability: 'Yetenek',
+      auto: 'oto seçim',
+      second: '2. Saldırın',
+      upgrade: (n) => `Evrimleşti! Yeni ${n}. Saldırı`,
+    },
+    chat: {
+      title: 'Hızlı sohbet',
+      lines: { go: 'Haydi!', retreat: 'Geri çekilin!', help: 'Yardım!', objective: 'Hedefi alın!', defend: 'Kalemizi savunun!', jungle: 'Dikkat: uzun otlar!', thanks: 'Teşekkürler!', gg: 'İyi oyundu!' },
+      all: 'HEPSİ',
+      wait: 'Yenisini göndermeden önce biraz bekle',
+      muted: 'Hızlı sohbet sessizde (Ayarlar)',
+    },
+    ping: {
+      title: 'Haritada işaretle',
+      kinds: { attack: 'Buraya saldır', danger: 'Tehlike!', omw: 'Geliyorum', objective: 'Hedef' },
+      hint: 'İşaret için mini haritayı basılı tut veya bir nokta seç',
+    },
+    surrender: {
+      button: 'Teslim ol',
+      locked: (time: string) => `Teslim ol (saat ${time} olunca)`,
+      cooldown: (s: number) => `Teslim ol (${s} sn içinde)`,
+      running: 'Oylama sürüyor',
+      confirmSolo: 'Maçtan vazgeçilsin mi? Yenilgi sayılır.',
+      confirmTeam: 'Takımına teslim olmayı önerelim mi? 2/3 kabul ederse maç yenilgiyle biter.',
+      title: (name: string) => `${name} teslim olmak istiyor`,
+      mine: 'Teslim olmayı önerdin',
+      tally: (yes: number, need: number) => `${yes}/${need} oy`,
+      yes: 'Teslim ol',
+      no: 'Oynamaya devam',
+      voted: 'Oy gönderildi',
+      failed: 'Teslim olma reddedildi: maç devam ediyor',
+    },
+    board: {
+      title: 'Skor tablosu',
+      cols: { kos: 'KO', assists: 'AS', deaths: 'B', scored: 'PUAN', dealt: 'HSR', taken: 'ALN', healed: 'İYİ', interrupts: 'DRD' },
+      full: {
+        kos: 'Nakavtlar',
+        assists: 'Asistler (8 sn içinde nakavt olan rakibe vuruş)',
+        deaths: 'Bayılmalar',
+        scored: 'Atılan puanlar',
+        dealt: 'Rakip Pokémon’lara verilen hasar',
+        taken: 'Rakiplerden alınan hasar',
+        healed: 'İyileştirme (saldırılar, Yetenek ve aura)',
+        interrupts: 'Durdurulan rakip sayıları',
+      },
+      hintKeys: (key: string) => `Skor tablosu için ${key} basılı tut`,
+      down: (s: number) => `${s} içinde döner`,
+    },
+
+    end: {
+      victory: 'Zafer!',
+      defeat: 'Yenilgi',
+      draw: 'Berabere',
+      pokemon: 'Pokémon',
+      kos: 'KO',
+      deaths: 'Düşüş',
+      points: 'Puan',
+      damage: 'Hasar',
+      playAgain: 'Tekrar oyna',
+      lobby: 'Lobiye dön',
+      again: 'Sıradaki hazırlanıyor…',
+      surrendered: 'Takımın teslim oldu',
+      theySurrendered: 'Rakipler teslim oldu',
+      rematch: 'Rövanş',
+      rematchTeam: 'Takımla rövanş',
+      rematchNote: (s: number) => `${s} sn içinde basan takım arkadaşlarıyla sıraya girer`,
+      readyCount: (ready: number, total: number) => `Rövanş için ${ready}/${total} hazır`,
+      mvp: 'MVP',
+      mvpLine: (points, kos, damage) => `${points} puan · ${kos} KO · ${damage} hasar`,
+      medals: { points: 'En golcü', kos: 'Avcı', damage: 'En çok hasar' },
+      rank: {
+        practice: 'Antrenman: sıralamaya sayılmaz',
+        room: 'Arkadaşlarla maç: geçmişinde kalır, RP yok',
+        casual: 'Normal: RP yok',
+        calculating: 'RP hesaplanıyor…',
+        late: 'RP’n birazdan Geçmiş’te görünecek.',
+        protected: 'Koruma kullanıldı! Bu yenilgi RP kaybettirmedi.',
+        preseason: (date) => `Sezon öncesi: maç Geçmişinde, RP yok. 1. Sezon ${date} tarihinde başlıyor.`,
+      },
+    },
+    menu: { note: 'Menü açıkken maç devam eder.', leave: 'Maçtan çık', confirm: 'Maçtan çıkılsın mı? Yerini bir CPU alır.' },
+    gate: {
+      title: 'ARENA',
+      pitch: 'Açık sırada oynamak için giriş yap.',
+      note: 'Normal ve Dereceli hesabını kullanır: diğerleri @ adını görür ve RP’n hesabına kaydedilir. Giriş yapmak hesabı da oluşturur.',
+    },
+    hub: {
+      title: 'Dereceli Arena',
+      tabs: { profile: 'Profil', season: 'Sezon', ranking: 'Sıralama', history: 'Geçmiş', rules: 'Kurallar' },
+      loading: 'Yükleniyor…',
+      offline: 'Sıralamaya şu anda ulaşılamıyor. Birazdan tekrar dene.',
+      rp: (n) => `${n} RP`,
+      delta: (n) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n)} RP`,
+      signIn: {
+        title: 'Dereceli oynamak için giriş yap',
+        text: 'Bir hesap ve @ adıyla açık sıraya katılır, RP kazanır ve sezon sıralamasında görünürsün.',
+        button: 'Giriş yap',
+      },
+      profile: {
+        toNext: (n, next) => `${next} için ${n} RP`,
+        top: 'Merdivenin zirvesi: her galibiyet eklenir.',
+        place: (n) => `Bu sezon #${n}`,
+        unplaced: 'Henüz yerleşmedin',
+        totals: { matches: 'Maçlar', wins: 'Galibiyet', losses: 'Yenilgi', draws: 'Beraberlik', winRate: 'Kazanma %', kos: 'KO', scored: 'Puan' },
+        favorites: 'Bu sezonki Pokémon’ların',
+        favorite: (matches, wins) => `${matches} maç · ${wins} galibiyet`,
+        none: 'Bu sezon henüz dereceli maç yok. Sıralamaya girmek için Dereceli oyna!',
+        device: 'Bu cihazda',
+        deviceLine: (matches, wins) => `${matches} antrenman maçı · ${wins} galibiyet`,
+        fairPlay: {
+          title: 'Fair Play',
+          ok: 'Her şey yolunda: Normal ve Dereceli açık.',
+          noRanked: (min, n) => `${min} altında: Dereceli yok. Geri dönmek için ${n} maç bitir.`,
+          held: (s) => `Sıra, maçını aramadan önce ${s} sn daha bekler.`,
+          explain: (r) => `Bitmeden çıkmak: −${r.left}. ${r.afkAfter} sn oynamamak (hareket, saldırı, kilitlenme yok) veya ${r.awayAfter} sn uzakta kalmak: −${r.afk}. Sonuna kadar oynanan her maç: +${r.finish}. Başka bir eğitmenle Normal ve Dereceli maçlarda sayılır.`,
+          penalties: { left: 'Bir maçtan çıktın', afk: 'Bir maç sırasında uzaktaydın' },
+          penalty: (what, n) => `${what}: −${Math.abs(n)} Fair Play`,
+        },
+        protection: {
+          title: 'Koruma',
+          ready: 'Hazır! Bir sonraki Dereceli yenilgin RP kaybettirmez.',
+          filling: 'İyi Dereceli maçlar çubuğu doldurur. Dolunca bir yenilgiyi tamamen karşılar.',
+        },
+        preseason: {
+          title: 'Sezon öncesi',
+          text: (date) => `Dereceli şimdiden açık, ama RP yalnızca 1. Sezonun başladığı ${date} tarihinden itibaren sayılır.`,
+          played: (n) => (n === 1 ? 'Sezon öncesi Dereceli maçın Geçmişinde, RP yok: hiçbir şey kaybetmedin.' : `Sezon öncesi ${n} Dereceli maçın Geçmişinde, RP yok: hiçbir şey kaybetmedin.`),
+        },
+      },
+      season: {
+        title: (n) => `${n}. Sezon`,
+        ends: (left) => `${left} içinde bitiyor`,
+        starts: (left) => `${left} içinde başlıyor`,
+        left: (d, h, m) => (d > 0 ? `${d}g ${h}s` : `${h}s ${m}dk`),
+        ladder: 'Merdiven',
+        range: (from, to) => (to === null ? `${from}+ RP` : `${from}–${to} RP`),
+        reward: (title) => `Sezon unvanı: ${title}`,
+        rewards: { poke: 'Meydan Okuyan', great: 'Rakip', ultra: 'Arena Elit', master: 'Arena Ustası' },
+        you: 'Sen',
+        divisions: 'Her kademede 100 RP’lik 3 lig vardır (III, II ve I). Master Ball’da lig yoktur.',
+        reset: (days) => `Bir sezon ${days} gün sürer. Sezon dönünce RP’n bitirdiğin kademenin bir altındakinin başına döner ve MMR’n varsayılana doğru geri çekilir.`,
+      },
+      ranking: {
+        title: (n) => `${n}. Sezon sıralaması`,
+        record: (wins, matches) => `${wins}G · ${matches} maç`,
+        empty: 'Sıralamada henüz kimse yok. İlk sen ol!',
+        you: 'sen',
+      },
+      history: {
+        kinds: { ranked: 'Dereceli', casual: 'Normal', room: 'Arkadaşlar', practice: 'Antrenman' },
+        outcomes: { win: 'Zafer', loss: 'Yenilgi', draw: 'Berabere' },
+        line: (kos, points) => `${kos} KO · ${points} puan`,
+        more: 'Daha fazla yükle',
+        empty: 'Henüz maç yok. Arena’da oyna!',
+        device: 'Bu cihazdan maçlar. Geçmişini hesabında tutmak için giriş yap.',
+        protected: 'Koruma',
+      },
+      rules: {
+        title: 'Dereceli nasıl işler',
+        items: (r) => [
+          'İki format: Vadi veya Koy’da 4v4 Standart (7 dk, Normal ve Dereceli) ve Açıklık veya Resif’te 3v3 Hızlı (3 dk, yalnızca Normal, RP yok).',
+          `MMR ve RP: MMR gizlidir ve kiminle oynayacağını belirler. RP sıralamanın gösterdiğidir: galibiyet +${r.win}, yenilgi ${r.loss}, nasıl oynadığına göre de +${r.perf}’e kadar.`,
+          `Boş koltuk varsa maçı botlar doldurur: Normal’de ${r.casual} sn, Dereceli’de ${r.ranked} sn sonra.`,
+          `Dereceli için maçta en az ${r.humans} eğitmen olmalı ve iki takımda da insan bulunmalı. Aksi halde Normal sayılır.`,
+          'Maç ortasında çıkmak yenilgi sayılır (yerini bir bot alır) ve Fair Play kaybettirir.',
+          `Sezonlar ${r.days} gün sürer ve Brasília saatiyle gece yarısı döner.`,
+          'Botlara karşı antrenman maçları geçmişinde kalır ama sıralamaya sayılmaz. Arkadaşlarla maçlar da RP vermez.',
+          `Fair Play: herkes ${r.fair.max} ile başlar. Bitmeden çıkmak ${r.fair.left}, ${r.fair.afkAfter} sn oynamamak (hareket, saldırı veya hedef kilitleme yok) ya da ${r.fair.awayAfter} sn uzakta kalmak ${r.fair.afk} kaybettirir; bitirdiğin her maç ${r.fair.finish} geri verir. ${r.fair.rankedMin} altında Dereceli yok; ${r.fair.holdBelow} altında sıra seni daha uzun bekletir.`,
+          'Koruma: iyi Dereceli maçlar çubuğu doldurur. Dolunca bir sonraki yenilgin RP kaybettirmez (MMR yine değişir) ve çubuk boşalır.',
+          `Sezon öncesi: ${r.season1} tarihine kadar Dereceli maçlar Geçmişine RP’siz eklenir. Sıralama 1. Sezonla başlar.`,
+          `Teslim olma: devre arasından itibaren (4v4’te saat ${r.surrender.standard}, 3v3’te ${r.surrender.quick} olunca) bir takım teslim olmak için oylama yapabilir. Takımdaki eğitmenlerin 2/3’üyle geçer (botlarla yalnızsan sen karar verirsin) ve maçtan çıkmak değil, normal bir yenilgi sayılır.`,
+          'Rövanş: arkadaş odasında oda aynı takımla tekrar oynar. Açık sırada "Takımla rövanş", ona basan takım arkadaşlarıyla grup olarak yeniden sıraya girer.',
+        ],
+      },
+      controls: {
+        title: 'Arena kontrolleri',
+        items: (k) => [
+          'Temel saldırı: kendiliğinden ateşlenir; kilitlendiğin hedefe veya önceliğinin seçtiği rakibe (Ayarlar → Kontroller: en yakın, en düşük Can % veya en düşük Can).',
+          `1. Saldırı (${k.move1}) ve 2. Saldırı (${k.move2}): sen kullanır ve nişan alırsın. Unite Saldırısı (${k.unite}): türünün özel saldırısı, bekleme süreli.`,
+          `Hedef değiştir: bir Pokémon’a tıkla veya dokun ya da ${k.target} tuşuna bas. Oyun kolunda: R, ZR ve ZL kullanır; sağ çubuk nişan alır ve hedef değiştirir.`,
+          'Telefonda: yardımlı nişanla kullanmak için bir düğmeye dokun, nişan almak için sürükle, iptal için düğmeye geri kaydır. Temel saldırıya dokunmak hedef değiştirir.',
+          'Yardımlı nişan (varsayılan) kilitli hedefine veya yakındaki en iyi rakibe vurur; manuel ise tam olarak farenin veya parmağının gösterdiği yere gider.',
+          `1. Saldırı başta, 2. Saldırı ${k.second}. seviyede gelir. Arena’da daha erken evrimleşirsin: 4v4’te ${k.evo.standard[0]}. ve ${k.evo.standard[1]}., 3v3’te ${k.evo.quick[0]}. ve ${k.evo.quick[1]}. seviyelerde. Her evrim, aynı seviyede bir saldırıyı yeni formun bir saldırısıyla değiştirir.`,
+          'Uzun otlarda 1. ve 2. Saldırı bekler; Unite Saldırısı çalışır ama yerini ele verir.',
+          `Hızlı sohbet (${k.chat}) ve işaretler (${k.ping}, Alt+tık veya mini haritayı basılı tut) yalnızca takımına ulaşır; "İyi oyundu!" herkese ulaşır. Tam skor tablosu için ${k.board} basılı tut (veya üstteki skora dokun). Hızlı sohbeti Ayarlar’dan sessize alabilirsin.`,
+        ],
+      },
+      hintKeys: '← → sekmeler · ↑ ↓ kaydır · ESC geri',
+      hintTouch: 'Bir sekmeye dokun',
+    },
+    room: {
+      mode: 'Mod',
+      format: 'Format',
+      map: 'Harita',
+      random: 'Rastgele',
+      modes: { run: 'Sürü', versus: 'Arena' },
+      team: 'Takımın',
+      fill: 'Boş koltuklar CPU olur (4’e 4).',
+      pokemon: 'Pokémon',
+      pick: 'Seç',
+      steps: ['Kodu veya bağlantıyı gönder', 'Herkes bir taraf ve bir Pokémon seçer', 'Oda kurucu başlatır: boş koltuklar bot olur'],
+      bot: 'Bot (CPU)',
+      open: 'Boş koltuk',
+      switchTo: (team: string) => `${team} takımına geç`,
+    },
   },
 
   coop: {
@@ -162,7 +553,7 @@ export const tr: Messages = {
       offline: 'Co-op sunucusuna ulaşılamıyor.',
     },
     entry: 'Co-op',
-    beta: 'BETA',
+    fresh: 'YENİ',
     off: 'Co-op oyunun bu sürümünde mevcut değil.',
     update: {
       title: 'Birlikte oynamak için oyunu güncelle: Oda farklı bir sürümde çalışıyor.',
@@ -175,6 +566,7 @@ export const tr: Messages = {
       invalid: 'Oda kurulamadı.',
       rate: 'Şu anda çok fazla oda kuruldu. Biraz bekle ve tekrar dene.',
       busy: 'Co-op sunucusu dolu. Birazdan tekrar dene.',
+      full: 'Co-op sunucusu dolu. Birazdan tekrar dene.',
       offline: 'Co-op sunucusuna ulaşılamıyor.',
     },
     denied: {
@@ -237,6 +629,7 @@ export const tr: Messages = {
       waitHost: 'Kurucunun başlatması bekleniyor…',
       getReady: "Pokémon'unu seç ve hazırlan.",
       reconnecting: 'Yeniden bağlanıyor…',
+      choosing: 'En iyi sunucu seçiliyor…',
       playing: 'Takım koşuda.',
       rejoin: 'Koşuya dön',
       rules: "Co-op standart moddur: Sıralama, Efsanevi Modu, Günün Salgını, Cadılar Bayramı Gecesi, Çanta veya mağaza TM'leri bulunmaz.",
@@ -361,6 +754,10 @@ export const tr: Messages = {
     cards: 'Kartlar',
     cardsHint: 'Bu istatistik için alınan geliştirme kartları',
     noItems: 'Henüz eşya yok',
+    damageTitle: 'Saldırıya göre hasar',
+    damageTotal: (total: string, dps: string) => `Toplam: ${total} · ${dps} DPS`,
+    damageNote: (time: string) => `DPS = hasar ÷ oynanan süre (${time})`,
+    damageEmpty: 'Henüz hasar yok',
     typeDamage: 'Hasar',
     stats: {
       maxHp: 'Azami Can',
@@ -424,13 +821,37 @@ export const tr: Messages = {
       normal: 'Normal',
       reduced: 'Azaltılmış',
     },
+    fog: 'Sis',
+    fogModes: { normal: 'Normal', light: 'Hafif', off: 'KAPALI' },
+    runToasts: 'Koşu uyarıları',
+    runToastModes: { all: 'Tümü', important: 'Yalnızca önemli', none: 'Hiçbiri' },
+    minimap: 'Mini harita',
+    minimapModes: { square: 'Kare', round: 'Yuvarlak', off: 'KAPALI' },
+    quickChat: 'Arena hızlı sohbeti',
+    theme: 'Tema',
+    themes: { system: 'Sistem', light: 'Açık', dark: 'Koyu' },
+    /** How opaque your moves draw (and, in co-op, your teammates'): `render/attackLayers.ts`. */
+    attackOpacity: 'Saldırı opaklığı',
+    teamAttackOpacity: 'Takım saldırı opaklığı',
     uiScale: 'Arayüz boyutu',
     uiScaleAuto: 'Otomatik',
+    fullscreen: 'Tam ekran',
+    safeMode: 'Hafif mod',
     joystick: 'Joystick',
     joystickModes: {
       floating: 'Parmağı takip et',
       fixed: 'Sabit',
     },
+    buttonSide: 'Düğme tarafı',
+    buttonSides: { right: 'Sağ', left: 'Sol' },
+    aimAssist: 'Arena nişanı',
+    aimAssists: { assist: 'Yardımlı', manual: 'Manuel' },
+    targetPriority: 'Arena hedefi',
+    priorities: { closest: 'En yakın', lowestShare: 'En düşük Can %', lowest: 'En düşük Can' },
+    stickHeight: 'Joystick yüksekliği',
+    stickHeights: { low: 'Alçak', mid: 'Orta', high: 'Yüksek' },
+    stickEdge: 'Kenara uzaklık',
+    stickEdges: { near: 'Yakın', mid: 'Orta', far: 'Uzak' },
     on: 'AÇIK',
     off: 'KAPALI',
     tabs: {
@@ -440,6 +861,8 @@ export const tr: Messages = {
       about: 'HAKKINDA',
     },
     about: 'Pokémon Survivors, ücretsiz ve resmi olmayan bir hayran oyunudur. Nintendo, The Pokémon Company, GAME FREAK veya Creatures ile bir bağı yoktur.',
+    languages: { pt: 'Portekizce', en: 'İngilizce', es: 'İspanyolca', fr: 'Fransızca', zh: 'Çince', tr: 'Türkçe' },
+    reviewedBy: (language, name, handle) => `${language} çevirisini ${name} (@${handle}) inceledi`,
     legal: 'Yasal ve künye',
     github: 'GitHub kaynak kodu',
     reportBug: 'Hata bildir',
@@ -465,6 +888,13 @@ export const tr: Messages = {
       pause: 'Duraklat',
       confirm: 'Onayla',
       back: 'Geri',
+      move1: 'Arena: 1. Saldırı',
+      move2: 'Arena: 2. Saldırı',
+      unite: 'Arena: Unite Saldırısı',
+      target: 'Arena: hedef değiştir',
+      chat: 'Arena: hızlı sohbet',
+      ping: 'Arena: haritada işaretle',
+      board: 'Arena: skor tablosu',
     },
     press: (action: string) => `*${action}*: Bir tuşa veya oyun kolu butonuna bas… (ESC iptal eder)`,
     reserved: 'Ok tuşları ve ESC sabittir. Başka bir tuş seç.',
@@ -570,6 +1000,8 @@ export const tr: Messages = {
     rejected: 'Bu koşu sıralamaya dahil edilemedi.',
     outdated: 'Sen oynarken oyun güncellendi, bu yüzden koşu sıralamaya eklenemedi. Sonraki koşun yeni sürümde geçerli olacak.',
     unranked: 'Bu koşu sıralama dışı: Çevrim dışı başladı veya oyun başka bir sekmede ya da cihazda açıktı.',
+    connecting: 'Sıralamaya bağlanılıyor…',
+    playUnranked: 'Sıralamasız oyna',
     unlisted: 'Bu koşu sıralama dışı kaldı: Oynarken bağlantı koptu. Profilinde sayılmaya devam eder.',
     guest: 'Sıralamada görünmek için giriş yap.',
     noHandle: 'Sıralamada görünmek için hesap ekranında profilini oluştur.',
@@ -654,9 +1086,21 @@ export const tr: Messages = {
     earnings: (coins: string, bonus: string) => `Para: ${coins} · Bonus: ${bonus}`,
     retry: 'Tekrar dene',
     change: 'Pokémon değiştir',
+    lobby: 'Lobi',
     dexSpecies: (n: number) => (n === 1 ? '+1 yeni tür' : `+${n} yeni tür`),
     dexShinies: (n: number) => (n === 1 ? '1 shiny yakalandı' : `${n} shiny yakalandı`),
     support: 'Beğendin mi? Projeyi destekle',
+    cause: {
+      title: 'Son darbe',
+      move: (who, move) => `${who} · ${move}`,
+      kind: (who, kind) => `${who} (${kind})`,
+      alpha: (name) => `Alfa ${name}`,
+      world: 'Dünya saldırısı',
+      unknown: 'Bilinmeyen sebep',
+      damage: (n) => `${n} hasar`,
+      before: (hits) => `Öncesinde: ${hits}`,
+      hits: { body: 'temas', hazard: 'darbe', shot: 'atış', blast: 'patlama', beam: 'ışın', lava: 'lav', trap: 'tuzak', zone: 'bölge' },
+    },
   },
 
   share: {
@@ -799,6 +1243,8 @@ export const tr: Messages = {
         regular: 'Müdavim',
         kecleon: 'Altın Kecleon',
         meowth: 'Meowth',
+        lantern: 'Fener',
+        creator: 'İçerik Üretici',
       },
       background: {
         night: 'Yıldızlı gece',
@@ -842,6 +1288,7 @@ export const tr: Messages = {
       caravan: 'Kervan',
       stall: 'Tezgah',
       loyalty: 'Sadakat',
+      incubator: 'Kuluçka',
       expansion: 'Genişletme',
     },
     badges: {
@@ -960,6 +1407,18 @@ export const tr: Messages = {
       owned: 'Zaten senin.',
       invest: (price: string) => `Yatırım yap (${price})`,
     },
+    incubator: {
+      intro: (slots, max) => `Kuluçka makinen: ${max} yuvadan ${slots} · ek yuvalar kalıcı olarak senin`,
+      slot: (n) => `${n}. yuva`,
+      slotText: 'Aynı anda bir yumurta daha çatlar, kalıcı olarak. Kuluçka makinesi doluyken yeni bir yumurta ₽’ye dönüşür.',
+      before: 'Önce ondan önceki yuvayı satın al.',
+      needs: (level) => `Mağaza ${level} olunca satışta.`,
+      buy: (price) => `Satın al ${price}`,
+      confirm: (n, price) => `${n}. kuluçka yuvası ${price} karşılığında satın alınsın mı? Kalıcıdır, iadesi yoktur.`,
+      owned: 'Artık senin.',
+      quick: 'Hızlı Kuluçka',
+      quickText: (speed) => `Kuluçka makinesindeki bir yumurta çatlayana kadar ${speed}× hızlı yürür. Kullanmak için kuluçka makinesini aç ve yumurtaya dokun.`,
+    },
     caravan: {
       intro: (haggled: number | null) => `Meowth Kervanı · Cuma - Pazar · Her birinden 1 adet${haggled ? ` · -%${haggled} pazarlık indirimi` : ''}`,
       egg: 'Uzak diyarlardan geldi, yalnızca hafta sonu.',
@@ -987,18 +1446,25 @@ export const tr: Messages = {
       },
     },
     kecleonEgg: {
-      text: (steps: string) => `${steps} adımda çatlar: Başka hiçbir yumurtada olmayan aileler. Günde 1 adet.`,
+      text: (steps) => `${steps} adımda çatlar: başka hiçbir yumurtanın getirmediği aileler.`,
+      ladder: (max, prices) => `Günde en fazla ${max} adet, her biri bir öncekinin iki katı: ${prices}.`,
+      today: (n, max) => `bugün ${n}/${max}`,
+      next: (price) => `sonra ${price}`,
+      last: 'bugünün sonuncusu',
+      full: 'Kuluçka makinen dolu: başka bir tane almak için bir yumurta çatlat.',
+      confirm: (price) => `${price} karşılığında bir Kecleon Egg daha alınsın mı?`,
     },
     stall: {
       intro: (until: string) => `Duskull Tezgahı · Cadılar Bayramı Gecesi · ${until} tarihine kadar`,
       egg: (steps: string) => `${steps} adımda çatlar: Başka hiçbir yumurtada olmayan hayaletler.`,
       even: (names: string, pct: number) => `${names}: Her biri %${pct}`,
+      hatched: (n, total) => `Çatlayan: ${n}/${total}`,
       odds: (list: string, shiny: number) => `${list}. Her ${shiny} taneden 1'i shiny.`,
       duplicate: (coins: string) => `Zaten varsa: ${coins}.`,
-      stock: 'Günde bir adet, yalnızca Cadılar Bayramı Gecesi boyunca (gelecek yıl tekrar gelir).',
+      stock: 'Yalnızca Cadılar Bayramı Gecesi’nde (seneye geri gelir). Kuluçka makinen ne kadar alıyorsa o kadar al.',
+      candies: (n) => `Harcayacak ${n} şekerin var: kavanoz ödüller için hepsini saymaya devam eder.`,
       blocks: {
         closed: 'Kapalı',
-        soldOut: 'Yarın tekrar gel',
         full: 'Kuluçka makinesi dolu',
         poor: 'Yetersiz ₽',
       },
@@ -1042,6 +1508,89 @@ export const tr: Messages = {
     started: (name: string) => `Kitlesel *${name}* salgını!`,
     hint: 'Bugün çok daha sık çıkar, shiny hali de öyle.',
   },
+  festival: {
+    names: { lanternas: 'Fener Festivali' },
+    title: 'Meydan Festivali',
+    tabs: { fountain: 'Çeşme', plaque: 'Plaket' },
+    potLabel: 'Topluluk kumbarası',
+    endsIn: (left) => `${left} içinde bitiyor`,
+    timeLeft: (days, hours) => (days > 0 ? `${days}g ${hours}s` : `${hours}s`),
+    ofTotal: (total) => `/ ${total}`,
+    next: (pot) => `SONRAKİ HEDEF · ${pot}`,
+    forEveryone: (reward) => `Herkese ${reward}`,
+    missing: (amount) => `${amount} kaldı`,
+    allReached: 'TÜM HEDEFLER!',
+    allReachedText: 'Bütün meydan sana teşekkür ediyor. Kumbara sona kadar saymaya devam eder.',
+    frame: (name) => `${name} çerçevesi`,
+    shiny: (name) => `Shiny ${name}`,
+    give: 'ÇEŞMEYE AT',
+    other: 'Diğer…',
+    otherLabel: 'Çeşmeye ne kadar atılacak',
+    otherHint: (min, max) => `${min} ile ${max} arası`,
+    todayLeft: (amount) => `Bugün hâlâ ${amount} atabilirsin`,
+    capReached: 'Bugünün sınırına ulaştın. Yarın yine gel!',
+    given: (amount) => `${amount} attın`,
+    patron: 'Hami ✓',
+    toPatron: (amount) => `Hami olmak için ${amount} daha`,
+    held: (amount) => `${amount} incelemede`,
+    donate: (amount) => `${amount} at`,
+    donating: 'Atılıyor…',
+    pick: 'Çeşmeye ne kadar atacağını seç.',
+    confirm: (amount) => `Çeşmeye ${amount} atılsın mı? ₽ geri gelmez.`,
+    foot: 'Kecleon her bozukluğu saklar. Hedefler herkese Hediye olur.',
+    guest: 'Katılmak için giriş yap: hesapla ₽’n kumbaraya girer. Hedefler giriş yapmayanlar dahil herkese ulaşır.',
+    guestOffline: 'Hedefler herkese ulaşır. Çeşmeye ₽ atmak için bağlantı gerekir.',
+    signIn: 'Giriş yap',
+    setHandle: 'Bir @ad seç',
+    errors: {
+      profile: 'Önce profilin için bir @ad seç: plakete o yazılır.',
+      runs: 'Çeşmeye atmadan önce hesabınla 3 koşu bitir.',
+      banned: 'Bu hesap festivale katılamaz.',
+      closed: 'Festival bitti. Uğradığın için teşekkürler!',
+      cap: 'Bu, bugünün sınırını aşıyor. Daha küçük bir miktar dene veya yarın gel.',
+      funds: 'Hesabının cüzdanında o kadar ₽ yok. Eşitlemek için bir koşu bitir ve tekrar dene.',
+      stale: 'Hesabın başka bir cihazda değişti. Tekrar dene.',
+      offline: 'Sunucuya ulaşılamıyor. Biraz sonra tekrar dene.',
+      rate: 'Yavaş! Bir dakika bekle ve tekrar dene.',
+      guest: 'Katılmak için hesabına giriş yap.',
+      wallet: 'Cüzdanında o kadar yok.',
+      invalid: (min, max) => `${min} ile ${max} arasında tam bir miktar seç.`,
+      other: 'Olmadı. Biraz sonra tekrar dene.',
+    },
+    done: (amount) => `Çeşmeye ${amount}! Teşekkürler!`,
+    heldDone: (amount) => `${amount} alındı! Cüzdan bu kadar büyük olunca bağış incelemeye alınır ve ekip onaylayınca kumbaraya katılır.`,
+    hello: 'Çeşmedeki her bozukluk bütün meydan için bir şenlik!',
+    thanks: ['Şıp! Duydun mu? Bu senin bozukluğundu!', 'Teşekkürler! Çeşme her bozuklukla daha çok parlıyor!', 'Ne cömertsin! Meydan sana teşekkür ediyor!', 'Bir tane daha! Fenerler heyecanlanıyor!'],
+    helloBefore: (festival, date) => `${festival} ${date} tarihinde başlıyor! Çeşme için ₽ biriktirmeye başla!`,
+    helloAfter: (festival) => `${festival} bitti. Çeşmeye uğrayan herkese teşekkürler!`,
+    before: {
+      opens: (date) => `${date} tarihinde açılıyor`,
+      text: (days) => `${days} gün boyunca herkes meydanın çeşmesine ₽ atar. Kumbaranın geçtiği her hedef, her oyuncuya bir Hediye olur.`,
+    },
+    after: {
+      ended: 'Festival bitti',
+      raised: (pot) => `Meydan ${pot} topladı`,
+      reached: (n, total) => `${total} hedeften ${n}`,
+      next: (festival, date) => `Sıradaki: ${festival}, ${date}`,
+      soon: 'Sıradaki festival yolda. Meydanı gözünün önünde tut!',
+      claim: 'Hedef hediyeleri bitişten sonra 7 güne kadar hediye kutusunda bekler.',
+    },
+    plaque: {
+      title: 'Festival hamileri',
+      donors: (festival, n, count) => `${festival} · ${n === 1 ? '1 bağışçı' : `${count} bağışçı`}`,
+      empty: 'Henüz kimse bir şey atmadı. İlk sen ol!',
+      you: (amount) => `Sen: ${amount}`,
+      rank: (n) => `#${n}`,
+      none: 'Bu festivalde henüz bir şey atmadın.',
+      show: 'Plakette adım',
+      hidden: 'Gizli',
+      shown: 'Görünür',
+      failed: 'Şu anda değiştirilemedi. Tekrar dene.',
+    },
+    card: 'FESTİVAL',
+    daysLeftShort: (days) => (days === 1 ? 'SON GÜN' : `${days} GÜN`),
+    shopButton: 'Festival',
+  },
 
   halloween: {
     name: 'Cadılar Bayramı Gecesi',
@@ -1055,9 +1604,10 @@ export const tr: Messages = {
     howGhosts: "*Hayalet* tipi Pokémon'lar şeker düşürür",
     howBosses: '*Bosslar* ve *Alfalar* daima 10 şeker verir',
     howPumpkins: '*Balkabaklarını* kır: Şeker mi şaka mı?',
-    howEgg: "Meydandaki *Duskull*, günde 1 adet *Haunted Egg* satar",
+    howEgg: 'Meydanda *Duskull*, *Haunted Egg*’i ₽ veya *şeker* karşılığında satar',
     jarCount: (n: string) => `Şeker kavanozu: *${n}*`,
     jarNext: (n: string) => `Sonraki ödüle ${n} şeker kaldı`,
+    toSpend: (n) => `Duskull’ın tezgâhında harcanacak *${n}* şeker`,
     received: 'alındı',
     inGiftBox: 'Hediyede!',
     forJoining: 'katıldığın için',
@@ -1074,7 +1624,7 @@ export const tr: Messages = {
     treat: '*Şeker!* Balkabağı şekerle doluydu.',
     trick: (name: string) => `*Şaka!* Bir ${name} sürüsü belirdi!`,
     candies: 'Şekerler',
-    supporterBadge: (tier: string) => (tier === 'gold' ? 'Altın Destekçi · Cadılar Bayramı 2026' : 'Destekçi · Cadılar Bayramı 2026'),
+    supporterBadge: (tier) => `${{ supporter: 'Destekçi', gold: 'Altın Destekçi', diamond: 'Elmas Destekçi' }[tier]} · Cadılar Bayramı Gecesi 2026`,
     perk: 'Balkabağı',
     perkTitle: (date: string) => `${date} öncesinde destek ol: Kalbin sonsuza dek bu balkabağına dönüşsün ve Pumpkaboo sana eşlik etsin`,
     supportYes: "Desteğin için teşekkürler! Rozetin sıralamada, profilinde ve Şöhretler Salonunda sonsuza dek bir *balkabağı* olacak. Yalnızca destekçilere özel *Pumpkaboo* ise arkasında şeker ışıltıları bırakarak sana eşlik edecek (Altın için *shiny*).",
@@ -1088,6 +1638,13 @@ export const tr: Messages = {
     nightBoss: (name: string) => `Gece boss'u: *${name}*!`,
     hunted: (name: string, candies: number, n: number, total: number) => `*${name}* avlandı! +${candies} şeker · ${n}/${total}`,
     disguise: (name: string) => `${name} Pokémon'unun *Disguise* yeteneği bozuldu!`,
+    goal: 'TOPLULUK HEDEFİ',
+    goalCount: (n, goal) => `*${n}* / ${goal}`,
+    goalWaiting: 'Topluluğun şekerleri sayılıyor…',
+    goalBlurb: (goal, cap) =>
+      `Hesabı olan her eğitmen bu kavanozu birlikte doldurur. *${goal} şekerde* Darkrai herkes için *Mega Evrim* kazanır: Efsanevi Modunda Sv 28’de Mega Darkrai olarak uyanır ve Kâbus yarığında Mega olur. Her eğitmen en fazla ${cap} şekerle katkı sayılır.`,
+    goalDone: 'Topluluk başardı! *Mega Darkrai* herkes için açıldı: Efsanevi Modunda Darkrai Sv 28’de Mega Darkrai olarak uyanır.',
+    goalOpened: '*Mega Darkrai açıldı!* Topluluk şekerleri topladı: Darkrai artık Efsanevi Modunda Mega Darkrai olarak uyanıyor.',
   },
 
   challenge: {
@@ -1204,9 +1761,14 @@ export const tr: Messages = {
     egg: (egg: string) => `Kuluçka makinesine bir *${egg}* gitti.`,
     coins: (coins: string) => `*${coins}* kazandın.`,
     newTitle: (title: string) => `Yeni unvan: *${title}*! Hemen aktifleşti.`,
-    style: (name: string) => `Yeni stil: *${name}*! Hemen aktifleşti.`,
+    style: {
+      frame: (name) => `Yeni çerçeve: *${name}*! Şimdiden takılı.`,
+      background: (name) => `Yeni arka plan: *${name}*! Şimdiden takılı.`,
+      wallpaper: (name) => `Yeni duvar kağıdı: *${name}*! Şimdiden takılı.`,
+    },
     shinyHatch: (name: string) => `Senin için _shiny_ bir *${name}* geldi!`,
     companion: (name: string) => `*${name}* artık koşularda seninle yürüyor!`,
+    legend: (name) => `*${name}* senin için geldi! _Efsanevi Modunda_ oynanabilir.`,
     ribbon: (name: string) => `*${name}*! Profilinde yerini aldı bile.`,
     ribbonWhy: (date: string, rank: number, total: number) => `${date} Meydan Okuması: ${total} kişi arasından #${rank}`,
     button: 'Hediye!',
@@ -1224,7 +1786,7 @@ export const tr: Messages = {
     welcome: (from: string | null) => (from ? `@${from} davetiyle katıldığın için` : 'Bir davetle katıldığın için'),
     friends: (n: number) => (n === 1 ? 'İlk arkadaşını getirdiğin için' : `${n} arkadaş getirdiğin için`),
     shinyPick: '*Kendi seçeceğin bir shiny*! Şimdi seçebilir ya da sonraya, Şöhretler Salonuna bırakabilirsin.',
-    support: (tier: string) => (tier === 'gold' ? 'Altın Destekçi seviyesine ulaştığın için ♥' : 'Projeyi desteklediğin için ♥'),
+    support: (tier) => ({ supporter: 'Projeyi desteklediğin için ♥', gold: 'Altın Destekçi olduğun için ♥', diamond: 'Elmas Destekçi olduğun için ♥' })[tier],
     staff: (from: string | null) => (from ? `Oyunu geliştiren @${from} tarafından bir hediye ♥` : 'Oyunun yapımcısından bir hediye ♥'),
     discord: 'Discord sunucumuza katıldığın için ♥',
     halloween: 'Cadılar Bayramı Gecesi şeker kavanozundan',
@@ -1232,6 +1794,11 @@ export const tr: Messages = {
     ghostHunt: 'Tüm Hayalet Avı bosslarını alt ettiğin için',
     loyalty: (n: number) => `Kecleon müşteri kartındaki ${n} damga için`,
     tycoon: "Kecleon Mağazasını Büyük Mağazaya dönüştürdüğün için",
+    bag: (n, item) => `*${n}× ${item}* Çantana kondu.`,
+    festival: (festival, pot) => `Meydan ${festival} sırasında ${pot} topladı. Her hamiye teşekkürler!`,
+    patron: (festival) => `${festival} Hamisi olduğun için ♥`,
+    og: 'Oyunu en başından desteklediğin için ♥',
+    arenaSeason: (season) => `Arena ${season}. sezonundaki zirven için`,
   },
 
   supporters: {
@@ -1244,12 +1811,12 @@ export const tr: Messages = {
       companion: 'Yoldaş',
       vote: 'Oylama',
     },
-    gold: '*Altın* (toplam 50 R$ veya 10 USD): Altın arka plan, duvar kağıdı ve rozet',
+    gold: '*Altın* ve *Elmas*: Patreon’da aylık destek (ayda 10 US$ ve 20 US$)',
     legends: 'EFSANELER',
-    goldFrom: '10 USD ve üzeri',
+    goldFrom: 'Altın ve Elmas',
     fans: (n: number) => `DESTEKÇİLER · ${n}`,
     firstLegend: 'İlk Efsane sen ol',
-    you: (tier: string) => (tier === 'gold' ? 'Sen bir Altın Destekçisin' : 'Sen bir Destekçisin'),
+    you: (tier) => ({ supporter: 'Destekçisin', gold: 'Altın Destekçisin', diamond: 'Elmas Destekçisin' })[tier],
     join: 'Salona katıl',
     yours: 'Desteğin',
     cosmetic: 'Tüm destekler kozmetiktir: Asla para ödeyen kazanmaz (pay-to-win yoktur).',
@@ -1258,7 +1825,7 @@ export const tr: Messages = {
     none: 'Destek sayfasında @kullanıcı adınla bağış yap: Ödüller bir Gizemli Hediye olarak gelir.',
     loading: 'Yükleniyor…',
     offline: 'Şu anda sunucuya ulaşılamıyor.',
-    since: (tier: string, date: string) => (tier === 'gold' ? `${date} tarihinden beri *Altın Destekçisin*. Çok teşekkürler! ♥` : `${date} tarihinden beri *Destekçisin*. Teşekkürler! ♥`),
+    since: (tier, date) => `${date} itibarıyla *${{ supporter: 'Destekçi', gold: 'Altın Destekçi', diamond: 'Elmas Destekçi' }[tier]}*sin. ${tier === 'supporter' ? 'Teşekkürler!' : 'Çok teşekkürler!'} ♥`,
     donate: 'DESTEK OL',
     signIn: 'Giriş yap',
     createProfile: 'Profil oluştur',
@@ -1267,6 +1834,10 @@ export const tr: Messages = {
     vote: 'Anket',
     code: 'Bir kodum var',
     codeShort: 'Kod',
+    og: { badge: 'OG Destekçi', button: (n) => `OG · ${n}`, title: 'OG DESTEKÇİLER', intro: 'Oyunu Patreon’dan önce destekleyenler. Sonsuza dek Salonda. Teşekkürler! ♥' },
+    companionLegends: 'Efsaneviler (Elmas)',
+    diamondPoll: { tile: 'Elmas', title: 'AYIN ULTRA NADİRİ', intro: 'Elmas Destekçiler oyuna hangi ultra nadir Pokémon’un katılacağını seçer. Verdiğin oyu istediğin zaman değiştirebilirsin.', voteOnly: 'Yalnızca Elmas Destekçiler oy verir. Sonuçları herkes görür.', link: 'Elmas oylaması' },
+    patreon: { link: 'Patreon bağla', unlink: '✓ Patreon · bağlantıyı kes', linked: 'Patreon bağlandı! Kademen aylık desteğini takip eder.', unlinked: 'Patreon bağlantısı kesildi.', failed: 'Patreon bağlanamadı. Tekrar dene.' },
     show: (on: boolean) => (on ? 'Rozet ve isim: Görünür' : 'Rozet ve isim: Gizli'),
     shown: (on: boolean) => (on ? 'Görünür' : 'Gizli'),
     back: 'Geri',
@@ -1313,7 +1884,8 @@ export const tr: Messages = {
     offWall: (total: number) => `Toplam ${total} destekçi. Bazıları panoda görünmemeyi tercih ediyor.`,
     credits: 'Oyunun devam etmesini sağlayan eğitmenlere teşekkürler',
     banner: 'Shiny seni bekliyor!',
-    badge: (tier: string) => (tier === 'gold' ? 'Altın Destekçi' : 'Destekçi'),
+    voteWaiting: 'Oylama açık: oy ver!',
+    badge: (tier) => ({ supporter: 'Destekçi', gold: 'Altın Destekçi', diamond: 'Elmas Destekçi' })[tier],
     profileSince: (date: string) => `${date}'den beri Destekçi`,
   },
 
@@ -1493,6 +2065,8 @@ export const tr: Messages = {
     maxRevive: '*Max Revive* seni yarı Can ile ayağa kaldırdı!',
     stolen: 'Taşıdığı eşyayı çaldın!',
     armedTm: (name: string, order: number) => `TM hazırlandı: *${name}*. Koşunun ${order === 0 ? 'ilk' : 'ikinci'} TM'si bu olacak!`,
+    safeMode: '*Hafif mod* açık: daha az efekt, bu cihazda daha akıcı oyun.',
+    safeModeHint: 'Ayarlar’dan değiştirebilirsin.',
   },
 
   mega: {
@@ -1666,8 +2240,8 @@ export const tr: Messages = {
     voltAbsorb: 'Elektrik saldırıları sana hasar vermek yerine Canını doldurur.',
     lightningRod: 'Elektrik saldırıları Canını doldurur ve Elektrik saldırıları +%15 vurur.',
     bulletproof: 'Boss atışları ve patlamaları %60 daha az hasar verir.',
-    levitate: 'Havada süzülürsün: Lav, tuzaklar, su ve buz seni etkilemez.',
-    magicGuard: 'Yalnızca doğrudan darbelerden hasar alırsın: Lav, tuzak, patlama veya hava koşulları seni etkilemez.',
+    levitate: 'Havada süzülürsün: lav, tuzaklar, zemindeki birikintiler ve alevler, su ve buz seni etkilemez.',
+    magicGuard: 'Seni yalnızca doğrudan vuruşlar yaralar: lav, tuzak, patlama, zemindeki birikinti, hava aşınması veya lanetli eşya ısırığı yok.',
     magicBounce: "Her 12 sn'de bir darbeyi engeller ve dokunan düşmana iki katı olarak geri yansıtır.",
     illusion: "Her 10 sn'de bir darbeyi tamamen engeller.",
     damp: 'Patlamalar sana zarar vermez ve Su saldırıları +%10 vurur.',
@@ -1729,6 +2303,7 @@ export const tr: Messages = {
     drizzle: 'Başlangıçta ve her yeni biyomda (yarıklar hariç) yağmur çağırır: Su ×1,5.',
     airLock: 'Hava durumu düşmanları güçlendirmez, seni hırpalamaz; haritanın çevre saldırıları sana işlemez.',
     multitype: 'Tipin biyoma göre değişir ve o tipteki saldırılar +%20 vurur.',
+    badDreams: '120 px içindeki uyuyan düşmanlar kâbus görür: uyanmadan her 0,5 sn’de hasar alırlar.',
   },
 
   world: {
@@ -1792,7 +2367,24 @@ export const tr: Messages = {
     hatch: 'Çatlat!',
     back: 'Geri',
     collection: (n: number, total: number) => `Koleksiyon ${n}/${total}`,
-    hint: '← → seç · ENTER çatlat · ESC geri',
+    hint: '← → seç · ENTER çatlat veya hızlandır · ESC geri',
+    touchHint: 'Hazır bir yumurtayı çatlatmak için ona, yürüyen birini hızlandırmak için ona dokun.',
+    slotLocked: 'Ek yuva',
+    slotPrice: (price, n) => `${price} · Sv ${n}`,
+    slotWhere: (price, level) => `Bir yuva daha: Kecleon’un mağazasındaki *Kuluçka* sekmesinde, ${price} karşılığında, mağaza ${level} olunca.`,
+    quick: {
+      badge: '×2',
+      owned: (n) => `Hızlı Kuluçka: ${n}`,
+      confirm: (egg, n) => `${egg} için bir Hızlı Kuluçka kullanılsın mı? Çatlayana kadar iki kat hızlı yürür. (${n} tane var)`,
+      use: 'Kullan',
+      already: 'Bu yumurta zaten bir Hızlı Kuluçkada: çatlayana kadar iki kat hızlı yürür.',
+      none: (price) => `Hızlı Kuluçka yok. Kecleon’un mağazası ${price} karşılığında satıyor (*Kuluçka* sekmesi).`,
+    },
+    pity: {
+      rule: (n) => `Garanti: aynı türden ${n} yumurta yeni Pokémon getirmezse, sıradaki getirir.`,
+      count: (egg, n, max) => (n >= max ? `${egg}: *yenisi garanti!*` : `${egg} ${n}/${max}`),
+      hatched: (n) => `Yumurta garantisi: ${n} yumurtadır yeni bir şey çıkmadı, bu yeni!`,
+    },
     hatching: 'Neler oluyor? Yumurta kıpırdıyor!',
     hatched: (name: string) => `Yumurtadan *${name}* çıktı!`,
     hatchedShiny: (name: string) => `Yumurtadan _shiny_ bir *${name}* çıktı!`,
@@ -1807,7 +2399,7 @@ export const tr: Messages = {
     lockedBlurb: (egg: string) => `Hala yumurtasında. Bir *${egg}* içinden çatar.`,
     friendBlurb: 'Yalnızca *Friendship Egg* içinden çıkar: Bir tane almak için bağlantınla arkadaşlarını davet et.',
     hauntedBlurb: "Yalnızca Cadılar Bayramı Gecesinde Duskull'ın sattığı *Haunted Egg* içinden çıkar. Sonrasında gelecek yıla kadar gelmez.",
-    kecleonBlurb: "Yalnızca mağaza Vitrininin günde bir tane sattığı *Kecleon Egg* içinden çıkar.",
+    kecleonBlurb: 'Yalnızca mağazanın Vitrininin günde 6 adede kadar sattığı *Kecleon Egg*’den çıkar.',
     lockedButton: 'Hala yumurta',
     incubator: (n: number, slots: number) => `Kuluçka makinesi ${n}/${slots}`,
     readyBadge: (n: number) => (n === 1 ? '1 yumurta hazır!' : `${n} yumurta hazır!`),
@@ -1939,6 +2531,14 @@ export const tr: Messages = {
         omen: 'Gökyüzünden bir göktaşı yağmuru akıyor…',
         crossing: 'Göktaşı parçalanıyor! Boşluk seni yutmadan önce ilerle!',
         phases: ['Deoxys *Atak Formuna* geçiyor! Kırılgan ama ölümcül.', 'Deoxys *Savunma Formuna* geçiyor! Kalkanı kırmak için muhafızları alt et.', 'Deoxys *Hız Formuna* geçiyor! Durmadan hareket et.'],
+      },
+      darkrai: {
+        place: 'Kâbus',
+        epithet: 'Kâbusların Efendisi',
+        omen: 'Ay kayboluyor ve gece zifiri karanlığa bürünüyor…',
+        crossing: 'Rüya karanlıkta parçalanıyor! Balkabaklarını yak ve ilerle!',
+        phases: ['Darkrai *Dark Void* salıyor! Kürelerden kaç yoksa uykuya dalarsın.', '*Kâbus* her yeri sarıyor! Vuruşlarını yalnızca gerçek Darkrai hisseder.'],
+        cues: { lunarWing: '*Cresselia* gökyüzünü geçiyor ve *Lunar Wing* ile kâbusu bozuyor!' },
       },
     },
     pairName: (a: string, b: string) => `${a} & ${b}`,
@@ -2127,6 +2727,13 @@ export const tr: Messages = {
       exorcist: 'Tüm Hayalet Avı bosslarını alt etti',
       vipCustomer: "Kecleon'un müşteri kartında 30 damga topladı",
       tycoon: "Kecleon'un dükkanını Büyük Mağazaya dönüştürdü",
+      patron: 'Bir Meydan Festivali’ne ₽50.000 veya daha fazla bağışladı',
+      ogSupporter: 'Oyunu Patreon’dan önce destekledi',
+      arenaPoke: 'Bir Arena dereceli sezonunu Poké Ball’da bitirdi',
+      arenaGreat: 'Bir Arena dereceli sezonunda Great Ball’a ulaştı',
+      arenaUltra: 'Bir Arena dereceli sezonunda Ultra Ball’a ulaştı',
+      arenaMaster: 'Bir Arena dereceli sezonunda Master Ball’a ulaştı',
+      creator: 'Pokémon Survivors videoları ve yayınları yapıyor',
     },
     newMedals: 'Yeni madalyalar',
     names: {
@@ -2216,6 +2823,13 @@ export const tr: Messages = {
       exorcist: 'Şeytan Çıkarıcı',
       vipCustomer: 'VIP Müşteri',
       tycoon: 'Kodaman',
+      patron: 'Hami',
+      ogSupporter: 'OG Destekçi',
+      arenaPoke: 'Arena Poké Ball',
+      arenaGreat: 'Arena Great Ball',
+      arenaUltra: 'Arena Ultra Ball',
+      arenaMaster: 'Arena Master Ball',
+      creator: 'İçerik Üreticisi',
     },
     goals: {
       runs: (n: string) => (n === '1' ? 'Bir koşu oyna' : `${n} koşu oyna`),
@@ -2229,7 +2843,7 @@ export const tr: Messages = {
       starters: (n: string) => `${n} farklı başlangıçla oyna`,
       shinyKills: (n: string) => (n === '1' ? 'Bir shiny Pokémon alt et' : `${n} shiny Pokémon alt et`),
       shinyStarters: () => "Shiny bir başlangıç Pokémon'uyla koşuya başla (64'te 1)",
-      shinyLegends: () => 'Bir yarıkta shiny bir efsaneviyi alt et',
+      shinyLegends: () => 'Shiny bir efsaneviyi yen',
       rifts: (n: string) => (n === '1' ? 'Bir efsanevi yarık kazan' : `${n} efsanevi yarık kazan`),
       legends: (n: string) => `Tüm ${n} yarık efsanevisini alt et`,
       overtimeMinutes: (n: string) => (n === '1' ? 'Sonsuz modda 1 dk hayatta kal' : `Sonsuz modda ${n} dk hayatta kal`),
@@ -2255,5696 +2869,2405 @@ export const tr: Messages = {
   },
 
   moves: {
-    "leechSeed": {
-      "description": "En yakındaki düşmanlara tohum fırlatır. Tohum zamanla Can çeker ve seni iyileştirir; düşman bayıldığında iki komşu düşmana sıçrar.",
-      "upgrades": [
-        "+1 tohum",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Ekim",
-              "desc": "Zeminde hasar veren alan bırakır; +%15 durum hasarı"
-            },
-            {
-              "name": "Sarmaşık Dalı",
-              "desc": "Tohum 2 düşmana daha sıçrar; -1 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,3 sn daha hızlı",
-        "+1 tohum",
-        {
-          "fork": [
-            {
-              "name": "Tohum Bombası",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "İkinci Ekim",
-              "desc": "Anında tekrar kullanılır (%50); +%20 alan"
-            }
-          ]
-        },
-        "+2 tohum"
-      ]
+    leechSeed: {
+      description: 'En yakındaki düşmanlara tohum fırlatır. Tohum zamanla Can çeker ve seni iyileştirir; düşman bayıldığında iki komşu düşmana sıçrar.',
+      upgrades: [
+        '+1 tohum',
+        '+3 hasar',
+        { fork: [{ name: 'Ekim', desc: 'Zeminde hasar veren alan bırakır; +%15 durum hasarı' }, { name: 'Sarmaşık Dalı', desc: 'Tohum 2 düşmana daha sıçrar; -1 hasar' }] },
+        'Bekleme süresi 0,3 sn daha hızlı',
+        '+1 tohum',
+        { fork: [{ name: 'Tohum Bombası', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'İkinci Ekim', desc: 'Anında tekrar kullanılır (%50); +%20 alan' }] },
+        '+2 tohum',
+      ],
     },
-    "rapidSpin": {
-      "description": "Kabuğunun içinde dönersin: gövden düşmanlara çarpıp onları uzağa fırlatır. Dönerken %40 daha az hasar alır, daha hızlı hareket eder ve düşman atışlarını savuşturursun.",
-      "upgrades": [
-        "+3 hasar",
-        "Dönüş süresi +0,3 sn",
-        {
-          "fork": [
-            {
-              "name": "Statik Dönüş",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "Can Veren Dönüş",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,5 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kabuk Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; +0,3 sn süre"
-            },
-            {
-              "name": "Son Dönüş",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%15 alan, +16 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve daha uzağa fırlatır"
-      ]
+    rapidSpin: {
+      description: 'Kabuğunun içinde dönersin: gövden düşmanlara çarpıp onları uzağa fırlatır. Dönerken %40 daha az hasar alır, daha hızlı hareket eder ve düşman atışlarını savuşturursun.',
+      upgrades: [
+        '+3 hasar',
+        'Dönüş süresi +0,3 sn',
+        { fork: [{ name: 'Statik Dönüş', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'Can Veren Dönüş', desc: 'Vuruşları seni iyileştirir; +%10 alan' }] },
+        'Bekleme süresi 0,5 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Kabuk Patlaması', desc: 'Bayılttığı düşmanlar patlar; +0,3 sn süre' }, { name: 'Son Dönüş', desc: 'Canı ≤%12 olan düşmanları bitirir; +%15 alan, +16 hasar' }] },
+        '+5 hasar ve daha uzağa fırlatır',
+      ],
     },
-    "petalDance": {
-      "description": "Etrafında yapraklar helezon çizer, art arda her dansta daha da hızlanır. Üçüncü dans en güçlüsüdür ama bir anlığına sersemletip yavaşlatır.",
-      "upgrades": [
-        "+1 yaprak",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Helezon",
-              "desc": "Daha geniş 2. bir helezon geriye döner; +2 hasar"
-            },
-            {
-              "name": "Dökülen Yapraklar",
-              "desc": "Zeminde hasar veren alan bırakır; +0,3 sn süre"
-            }
-          ]
-        },
-        "+1 yaprak",
-        "Bekleme süresi 0,3 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Tam Çiçeklenme",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Yaprak Hortumu",
-              "desc": "Düşmanları içine çeker; +%15 alan"
-            }
-          ]
-        },
-        "+2 yaprak"
-      ]
+    petalDance: {
+      description: 'Etrafında yapraklar helezon çizer, art arda her dansta daha da hızlanır. Üçüncü dans en güçlüsüdür ama bir anlığına sersemletip yavaşlatır.',
+      upgrades: [
+        '+1 yaprak',
+        '+3 hasar',
+        { fork: [{ name: 'Çift Helezon', desc: 'Daha geniş 2. bir helezon geriye döner; +2 hasar' }, { name: 'Dökülen Yapraklar', desc: 'Zeminde hasar veren alan bırakır; +0,3 sn süre' }] },
+        '+1 yaprak',
+        'Bekleme süresi 0,3 sn daha hızlı',
+        { fork: [{ name: 'Tam Çiçeklenme', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'Yaprak Hortumu', desc: 'Düşmanları içine çeker; +%15 alan' }] },
+        '+2 yaprak',
+      ],
     },
-    "eruption": {
-      "description": "Sırtından fırlayan ateş bombaları etrafına yağar. Ne kadar çok Canın varsa o kadar sert vurur. Yakabilir.",
-      "upgrades": [
-        "+1 bomba",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Lav Alanı",
-              "desc": "Zeminde hasar veren alan bırakır; +%10 alan"
-            },
-            {
-              "name": "Artçı Sarsıntı",
-              "desc": "Anında tekrar kullanılır (%50); -4 hasar"
-            }
-          ]
-        },
-        "+2 bomba",
-        "Bekleme süresi 0,4 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Piroklast",
-              "desc": "Bayılttığı düşmanlar patlar; +8 hasar"
-            },
-            {
-              "name": "Öfkeli Yanardağ",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +11 hasar"
-            }
-          ]
-        },
-        "+2 bomba ve +%15 alan"
-      ]
+    eruption: {
+      description: 'Sırtından fırlayan ateş bombaları etrafına yağar. Ne kadar çok Canın varsa o kadar sert vurur. Yakabilir.',
+      upgrades: [
+        '+1 bomba',
+        '+6 hasar',
+        { fork: [{ name: 'Lav Alanı', desc: 'Zeminde hasar veren alan bırakır; +%10 alan' }, { name: 'Artçı Sarsıntı', desc: 'Anında tekrar kullanılır (%50); -4 hasar' }] },
+        '+2 bomba',
+        'Bekleme süresi 0,4 sn daha hızlı',
+        { fork: [{ name: 'Piroklast', desc: 'Bayılttığı düşmanlar patlar; +8 hasar' }, { name: 'Öfkeli Yanardağ', desc: 'Elitlere ve bosslara karşı ×1,5; +11 hasar' }] },
+        '+2 bomba ve +%15 alan',
+      ],
     },
-    "thrash": {
-      "description": "Gözü dönmüş bir saldırı: 2,5 sn boyunca etrafındaki düşmanları aralıksız ısırırsın. Ardından yorulup bir anlığına yavaşlarsın.",
-      "upgrades": [
-        "+3 hasar",
-        "Saniyede +1 ısırık",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Hiddet",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "Can Veren Hiddet",
-              "desc": "Vuruşları seni iyileştirir; +%20 alan"
-            }
-          ]
-        },
-        "Saldırı süresi +0,5 sn",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Katliam",
-              "desc": "Bayılttığı düşmanlar patlar; +1 ısırık"
-            },
-            {
-              "name": "Titan Öfkesi",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +1 ısırık"
-            }
-          ]
-        },
-        "Bekleme süresi 1 sn daha hızlı ve +3 hasar"
-      ]
+    thrash: {
+      description: 'Gözü dönmüş bir saldırı: 2,5 sn boyunca etrafındaki düşmanları aralıksız ısırırsın. Ardından yorulup bir anlığına yavaşlarsın.',
+      upgrades: [
+        '+3 hasar',
+        'Saniyede +1 ısırık',
+        { fork: [{ name: 'Zincirleme Hiddet', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'Can Veren Hiddet', desc: 'Vuruşları seni iyileştirir; +%20 alan' }] },
+        'Saldırı süresi +0,5 sn',
+        '+4 hasar',
+        { fork: [{ name: 'Katliam', desc: 'Bayılttığı düşmanlar patlar; +1 ısırık' }, { name: 'Titan Öfkesi', desc: 'Elitlere ve bosslara karşı ×1,5; +1 ısırık' }] },
+        'Bekleme süresi 1 sn daha hızlı ve +3 hasar',
+      ],
     },
-    "doubleKick": {
-      "description": "Kavis çizerek peş peşe iki hızlı tekme atar: ilki hedefi işaretler, ikincisi ise ilkinin vurduğu hedefe ×1,5 hasar verir.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Tekme",
-              "desc": "2 düşmana daha sıçrar; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Üçlü Tekme",
-              "desc": "Anında tekrar kullanılır (%50); +0,1 sn bekleme süresi, +6 hasar"
-            }
-          ]
-        },
-        "+4 hasar",
-        "Arkana doğru +1 çift tekme",
-        {
-          "fork": [
-            {
-              "name": "Son Darbe",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +10 hasar"
-            },
-            {
-              "name": "Patlama Tekmesi",
-              "desc": "Bayılttığı düşmanlar patlar; +2 hasar"
-            }
-          ]
-        },
-        "+%25 alan ve daha güçlü iter"
-      ]
+    doubleKick: {
+      description: 'Kavis çizerek peş peşe iki hızlı tekme atar: ilki hedefi işaretler, ikincisi ise ilkinin vurduğu hedefe ×1,5 hasar verir.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Zincirleme Tekme', desc: '2 düşmana daha sıçrar; -0,1 sn bekleme süresi' }, { name: 'Üçlü Tekme', desc: 'Anında tekrar kullanılır (%50); +0,1 sn bekleme süresi, +6 hasar' }] },
+        '+4 hasar',
+        'Arkana doğru +1 çift tekme',
+        { fork: [{ name: 'Son Darbe', desc: 'Canı ≤%12 olan düşmanları bitirir; +10 hasar' }, { name: 'Patlama Tekmesi', desc: 'Bayılttığı düşmanlar patlar; +2 hasar' }] },
+        '+%25 alan ve daha güçlü iter',
+      ],
     },
-    "mudShot": {
-      "description": "Düşmanları yavaşlatan ağır çamur fırlatır. İlk vuruş yakındaki diğer düşmanlara sıçrar.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çift Dalga",
-              "desc": "Geriye doğru da ateşler; +7 hasar"
-            },
-            {
-              "name": "Bataklık",
-              "desc": "Zayıflatan çamur bırakır; +1 dalga"
-            }
-          ]
-        },
-        "Bekleme süresi 0,25 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çamur Patlaması",
-              "desc": "İsabette 2'ye ayrılır; +%10 alan, +5 hasar"
-            },
-            {
-              "name": "Geri Dönen Dalga",
-              "desc": "Gidip geri döner; +0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 dalga ve +4 hasar"
-      ]
+    mudShot: {
+      description: 'Düşmanları yavaşlatan ağır çamur fırlatır. İlk vuruş yakındaki diğer düşmanlara sıçrar.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çift Dalga', desc: 'Geriye doğru da ateşler; +7 hasar' }, { name: 'Bataklık', desc: 'Zayıflatan çamur bırakır; +1 dalga' }] },
+        'Bekleme süresi 0,25 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Çamur Patlaması', desc: "İsabette 2'ye ayrılır; +%10 alan, +5 hasar" }, { name: 'Geri Dönen Dalga', desc: 'Gidip geri döner; +0,1 sn bekleme süresi' }] },
+        '+1 dalga ve +4 hasar',
+      ],
     },
-    "woodHammer": {
-      "description": "Kütükten bir çekici kaldırıp var gücüyle önündeki zemine indirir. İsabet eden her vuruş Canından biraz götürür.",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Kıymıklar",
-              "desc": "2 düşmana daha sıçrar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Kökleşme",
-              "desc": "Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi"
-            }
-          ]
-        },
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Balyoz",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi, -10 hasar"
-            },
-            {
-              "name": "Oduncu",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,3 sn bekleme süresi, +11 hasar"
-            }
-          ]
-        },
-        "+10 hasar"
-      ]
+    woodHammer: {
+      description: 'Kütükten bir çekici kaldırıp var gücüyle önündeki zemine indirir. İsabet eden her vuruş Canından biraz götürür.',
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Kıymıklar', desc: '2 düşmana daha sıçrar; -0,2 sn bekleme süresi' }, { name: 'Kökleşme', desc: 'Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi' }] },
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Balyoz', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi, -10 hasar' }, { name: 'Oduncu', desc: 'Elitlere ve bosslara karşı ×1,5; -0,3 sn bekleme süresi, +11 hasar' }] },
+        '+10 hasar',
+      ],
     },
-    "drillPeck": {
-      "description": "Dönen bir gaga matkabı düşman dizisini delip geçer, içinden geçtiği her bir düşmanı biçerek yavaşlar.",
-      "upgrades": [
-        "+2 hasar",
-        "+1 matkap",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü Matkap",
-              "desc": "Düşmanları takip eder; +4 hasar"
-            },
-            {
-              "name": "Çift Gaga",
-              "desc": "Geriye doğru da ateşler; -1 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,25 sn daha hızlı",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Şarapnel",
-              "desc": "İsabette 2'ye ayrılır; +%10 alan, +4 hasar"
-            },
-            {
-              "name": "Keskin Rüzgâr",
-              "desc": "Zeminde hasar veren alan bırakır; +%25 alan"
-            }
-          ]
-        },
-        "+1 matkap ve +3 hasar"
-      ]
+    drillPeck: {
+      description: 'Dönen bir gaga matkabı düşman dizisini delip geçer, içinden geçtiği her bir düşmanı biçerek yavaşlar.',
+      upgrades: [
+        '+2 hasar',
+        '+1 matkap',
+        { fork: [{ name: 'Güdümlü Matkap', desc: 'Düşmanları takip eder; +4 hasar' }, { name: 'Çift Gaga', desc: 'Geriye doğru da ateşler; -1 hasar' }] },
+        'Bekleme süresi 0,25 sn daha hızlı',
+        '+3 hasar',
+        { fork: [{ name: 'Şarapnel', desc: "İsabette 2'ye ayrılır; +%10 alan, +4 hasar" }, { name: 'Keskin Rüzgâr', desc: 'Zeminde hasar veren alan bırakır; +%25 alan' }] },
+        '+1 matkap ve +3 hasar',
+      ],
     },
-    "leafTornado": {
-      "description": "Yapraklardan bir hortum ileri doğru süzülür, düşmanları içine çekip yavaşlatır, ardından bir yaprak çemberi şeklinde patlar.",
-      "upgrades": [
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Avcı Hortum",
-              "desc": "Düşmanları takip eder; +0,3 sn süre"
-            },
-            {
-              "name": "Fırtınanın Gözü",
-              "desc": "Etrafında döner; +3 hasar"
-            }
-          ]
-        },
-        "+1 hortum",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Yeşil Patlama",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Kuru Yapraklar",
-              "desc": "Zeminde hasar veren alan bırakır; +%20 alan"
-            }
-          ]
-        },
-        "+1 hortum ve +3 hasar"
-      ]
+    leafTornado: {
+      description: 'Yapraklardan bir hortum ileri doğru süzülür, düşmanları içine çekip yavaşlatır, ardından bir yaprak çemberi şeklinde patlar.',
+      upgrades: [
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Avcı Hortum', desc: 'Düşmanları takip eder; +0,3 sn süre' }, { name: 'Fırtınanın Gözü', desc: 'Etrafında döner; +3 hasar' }] },
+        '+1 hortum',
+        '+3 hasar',
+        { fork: [{ name: 'Yeşil Patlama', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Kuru Yapraklar', desc: 'Zeminde hasar veren alan bırakır; +%20 alan' }] },
+        '+1 hortum ve +3 hasar',
+      ],
     },
-    "flameCharge": {
-      "description": "Alevlere bürünerek yakındaki en kalabalık düşman grubunun üzerine atlar ve alev saçan bir patlamayla iner. Maksimum Canın ne kadar fazlaysa o kadar sert vurur. Yakabilir.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Ateş İzi",
-              "desc": "Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi"
-            },
-            {
-              "name": "Kıvılcımlar",
-              "desc": "2 düşmana daha sıçrar; -0,4 sn bekleme süresi"
-            }
-          ]
-        },
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Meteor",
-              "desc": "Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi"
-            },
-            {
-              "name": "Can Veren Kor",
-              "desc": "Vuruşları seni iyileştirir; -0,3 sn bekleme süresi"
-            }
-          ]
-        },
-        "+8 hasar ve +%15 alan"
-      ]
+    flameCharge: {
+      description: 'Alevlere bürünerek yakındaki en kalabalık düşman grubunun üzerine atlar ve alev saçan bir patlamayla iner. Maksimum Canın ne kadar fazlaysa o kadar sert vurur. Yakabilir.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Ateş İzi', desc: 'Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi' }, { name: 'Kıvılcımlar', desc: '2 düşmana daha sıçrar; -0,4 sn bekleme süresi' }] },
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Meteor', desc: 'Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi' }, { name: 'Can Veren Kor', desc: 'Vuruşları seni iyileştirir; -0,3 sn bekleme süresi' }] },
+        '+8 hasar ve +%15 alan',
+      ],
     },
-    "needleArm": {
-      "description": "Dikenlerin kabarır: Her yöne iğneler uçar; 1,5 sn boyunca sana temas eden hiçbir düşman hasar veremez, bunun yerine hasar alıp geri savrulur.",
-      "upgrades": [
-        "+3 hasar",
-        "+2 iğne",
-        {
-          "fork": [
-            {
-              "name": "Statik Dikenler",
-              "desc": "2 düşmana daha sıçrar; +0,3 sn süre"
-            },
-            {
-              "name": "Vampir Dikenler",
-              "desc": "Vuruşları seni iyileştirir; +16 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,5 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kaktüs Bombası",
-              "desc": "Bayılttığı düşmanlar patlar; +1 vuruş, -4 hasar"
-            },
-            {
-              "name": "Çift Kabarma",
-              "desc": "Anında tekrar kullanılır (%50); +1 vuruş, +8 hasar"
-            }
-          ]
-        },
-        "Diken süresi +0,4 sn ve +4 hasar"
-      ]
+    needleArm: {
+      description: 'Dikenlerin kabarır: Her yöne iğneler uçar; 1,5 sn boyunca sana temas eden hiçbir düşman hasar veremez, bunun yerine hasar alıp geri savrulur.',
+      upgrades: [
+        '+3 hasar',
+        '+2 iğne',
+        { fork: [{ name: 'Statik Dikenler', desc: '2 düşmana daha sıçrar; +0,3 sn süre' }, { name: 'Vampir Dikenler', desc: 'Vuruşları seni iyileştirir; +16 hasar' }] },
+        'Bekleme süresi 0,5 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Kaktüs Bombası', desc: 'Bayılttığı düşmanlar patlar; +1 vuruş, -4 hasar' }, { name: 'Çift Kabarma', desc: 'Anında tekrar kullanılır (%50); +1 vuruş, +8 hasar' }] },
+        'Diken süresi +0,4 sn ve +4 hasar',
+      ],
     },
-    "psybeam": {
-      "description": "Renkli medyum halkalarından dalgalı bir ışın. Kafa karıştırabilir: Kafası karışan düşman hedefsizce dolaşır ve çarptığı diğer düşmanlara hasar verir.",
-      "upgrades": [
-        "+2 halka",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Işın",
-              "desc": "Geriye doğru da ateşler"
-            },
-            {
-              "name": "Acımasız Zihin",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +%6 durum ihtimali"
-            }
-          ]
-        },
-        "Bekleme süresi 0,25 sn daha hızlı",
-        "+3 hasar ve +%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Prizma",
-              "desc": "İsabette 2'ye ayrılır; +1 vuruş"
-            },
-            {
-              "name": "Medyum Aurası",
-              "desc": "Etrafında döner; +1 vuruş"
-            }
-          ]
-        },
-        "+4 hasar ve +%6 kafa karıştırma ihtimali"
-      ]
+    psybeam: {
+      description: 'Renkli medyum halkalarından dalgalı bir ışın. Kafa karıştırabilir: Kafası karışan düşman hedefsizce dolaşır ve çarptığı diğer düşmanlara hasar verir.',
+      upgrades: [
+        '+2 halka',
+        '+3 hasar',
+        { fork: [{ name: 'Çift Işın', desc: 'Geriye doğru da ateşler' }, { name: 'Acımasız Zihin', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +%6 durum ihtimali' }] },
+        'Bekleme süresi 0,25 sn daha hızlı',
+        '+3 hasar ve +%20 alan',
+        { fork: [{ name: 'Prizma', desc: "İsabette 2'ye ayrılır; +1 vuruş" }, { name: 'Medyum Aurası', desc: 'Etrafında döner; +1 vuruş' }] },
+        '+4 hasar ve +%6 kafa karıştırma ihtimali',
+      ],
     },
-    "darkestLariat": {
-      "description": "Kollarını iki yana açıp 1,5 sn boyunca dönerek etrafındaki her şeyi biçer geçer. Kalkanları deler.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 menzil",
-        {
-          "fork": [
-            {
-              "name": "Kement",
-              "desc": "Düşmanları içine çeker; +0,3 sn süre"
-            },
-            {
-              "name": "Karanlık Kucaklaşma",
-              "desc": "Vuruşları seni iyileştirir; +0,4 sn süre"
-            }
-          ]
-        },
-        "Bekleme süresi 0,4 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Dört Kol",
-              "desc": "Daha geniş 2. bir kol çifti geriye döner; -2 hasar"
-            },
-            {
-              "name": "Nakavt",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 kol, +9 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve +%15 menzil"
-      ]
+    darkestLariat: {
+      description: 'Kollarını iki yana açıp 1,5 sn boyunca dönerek etrafındaki her şeyi biçer geçer. Kalkanları deler.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 menzil',
+        { fork: [{ name: 'Kement', desc: 'Düşmanları içine çeker; +0,3 sn süre' }, { name: 'Karanlık Kucaklaşma', desc: 'Vuruşları seni iyileştirir; +0,4 sn süre' }] },
+        'Bekleme süresi 0,4 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Dört Kol', desc: 'Daha geniş 2. bir kol çifti geriye döner; -2 hasar' }, { name: 'Nakavt', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 kol, +9 hasar' }] },
+        '+5 hasar ve +%15 menzil',
+      ],
     },
-    "sparklingAria": {
-      "description": "Yavaş baloncuklar süzülür ve bir düşmana değdiğinde patlayarak etraftaki her şeye su sıçratır. Yakınında patlayan baloncuklar seni biraz iyileştirir.",
-      "upgrades": [
-        "+1 baloncuk",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Gelgit Havuzu",
-              "desc": "Zeminde hasar veren su birikintileri bırakır; +4 hasar"
-            },
-            {
-              "name": "Köpük Arkı",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,3 sn daha hızlı",
-        "+2 baloncuk",
-        {
-          "fork": [
-            {
-              "name": "Baloncuk Bombası",
-              "desc": "Bayılttığı düşmanlar patlar; +5 hasar"
-            },
-            {
-              "name": "Bis",
-              "desc": "Anında tekrar kullanılır (%50)"
-            }
-          ]
-        },
-        "+2 baloncuk ve +%15 alan"
-      ]
+    sparklingAria: {
+      description: 'Yavaş baloncuklar süzülür ve bir düşmana değdiğinde patlayarak etraftaki her şeye su sıçratır. Yakınında patlayan baloncuklar seni biraz iyileştirir.',
+      upgrades: [
+        '+1 baloncuk',
+        '+4 hasar',
+        { fork: [{ name: 'Gelgit Havuzu', desc: 'Zeminde hasar veren su birikintileri bırakır; +4 hasar' }, { name: 'Köpük Arkı', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        'Bekleme süresi 0,3 sn daha hızlı',
+        '+2 baloncuk',
+        { fork: [{ name: 'Baloncuk Bombası', desc: 'Bayılttığı düşmanlar patlar; +5 hasar' }, { name: 'Bis', desc: 'Anında tekrar kullanılır (%50)' }] },
+        '+2 baloncuk ve +%15 alan',
+      ],
     },
-    "snipeShot": {
-      "description": "Hedef göstergesi uzaktaki bir düşmana kilitlenir ve keskin bir atış düşmanı dümdüz delip geçer: Ne kadar uzağa uçarsa o kadar sert vurur. Kalkanları deler.",
-      "upgrades": [
-        "+5 hasar",
-        "1 düşmanı daha delip geçer",
-        {
-          "fork": [
-            {
-              "name": "Büyük Av",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,2 sn bekleme süresi, +8 hasar"
-            },
-            {
-              "name": "Parçalanan Atış",
-              "desc": "İsabette 2'ye ayrılır; -0,3 sn bekleme süresi"
-            }
-          ]
-        },
-        "+6 hasar",
-        "+1 atış",
-        {
-          "fork": [
-            {
-              "name": "Bağışlayıcı Atış",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 delme, +13 hasar"
-            },
-            {
-              "name": "Sıçrayan Atış",
-              "desc": "2 düşmana daha sıçrar; +2 delme, -9 hasar"
-            }
-          ]
-        },
-        "+8 hasar"
-      ]
+    snipeShot: {
+      description: 'Hedef göstergesi uzaktaki bir düşmana kilitlenir ve keskin bir atış düşmanı dümdüz delip geçer: Ne kadar uzağa uçarsa o kadar sert vurur. Kalkanları deler.',
+      upgrades: [
+        '+5 hasar',
+        '1 düşmanı daha delip geçer',
+        { fork: [{ name: 'Büyük Av', desc: 'Elitlere ve bosslara karşı ×1,5; -0,2 sn bekleme süresi, +8 hasar' }, { name: 'Parçalanan Atış', desc: "İsabette 2'ye ayrılır; -0,3 sn bekleme süresi" }] },
+        '+6 hasar',
+        '+1 atış',
+        { fork: [{ name: 'Bağışlayıcı Atış', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 delme, +13 hasar' }, { name: 'Sıçrayan Atış', desc: '2 düşmana daha sıçrar; +2 delme, -9 hasar' }] },
+        '+8 hasar',
+      ],
     },
-    "flowerTrick": {
-      "description": "Hedefini kovalayan ve asla ıskalamayan bir çiçek fırlatır, çarptığında açar. Elitlere ve bosslara karşı ×1,5 vurur.",
-      "upgrades": [
-        "+1 çiçek",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Buket",
-              "desc": "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Bahçe",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 çiçek",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çiçek Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; daha hızlı, -5 hasar"
-            },
-            {
-              "name": "Ölümcül Çiçek",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; daha hızlı, +6 hasar"
-            }
-          ]
-        },
-        "+2 çiçek"
-      ]
+    flowerTrick: {
+      description: 'Hedefini kovalayan ve asla ıskalamayan bir çiçek fırlatır, çarptığında açar. Elitlere ve bosslara karşı ×1,5 vurur.',
+      upgrades: [
+        '+1 çiçek',
+        '+4 hasar',
+        { fork: [{ name: 'Buket', desc: "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi" }, { name: 'Bahçe', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }] },
+        '+1 çiçek',
+        '+5 hasar',
+        { fork: [{ name: 'Çiçek Patlaması', desc: 'Bayılttığı düşmanlar patlar; daha hızlı, -5 hasar' }, { name: 'Ölümcül Çiçek', desc: 'Canı ≤%12 olan düşmanları bitirir; daha hızlı, +6 hasar' }] },
+        '+2 çiçek',
+      ],
     },
-    "aquaStep": {
-      "description": "Bir dans adımı: Su sıçratarak ileriye doğru süzülürsün, kayarken dokunulmaz olursun. Art arda atılan her adım seni %3 hızlandırır (%15'e kadar).",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 menzil",
-        {
-          "fork": [
-            {
-              "name": "Su Birikintileri",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Can Veren Adım",
-              "desc": "Vuruşları seni iyileştirir; -0,25 sn bekleme süresi"
-            }
-          ]
-        },
-        "+5 hasar",
-        "+%20 menzil",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Sıçrama",
-              "desc": "2 düşmana daha sıçrar; -0,25 sn bekleme süresi, +8 hasar"
-            },
-            {
-              "name": "Son Dalga",
-              "desc": "Bayılttığı düşmanlar patlar; -0,25 sn bekleme süresi"
-            }
-          ]
-        },
-        "+6 hasar ve +%20 menzil"
-      ]
+    aquaStep: {
+      description: "Bir dans adımı: Su sıçratarak ileriye doğru süzülürsün, kayarken dokunulmaz olursun. Art arda atılan her adım seni %3 hızlandırır (%15'e kadar).",
+      upgrades: [
+        '+4 hasar',
+        '+%20 menzil',
+        { fork: [{ name: 'Su Birikintileri', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }, { name: 'Can Veren Adım', desc: 'Vuruşları seni iyileştirir; -0,25 sn bekleme süresi' }] },
+        '+5 hasar',
+        '+%20 menzil',
+        { fork: [{ name: 'Zincirleme Sıçrama', desc: '2 düşmana daha sıçrar; -0,25 sn bekleme süresi, +8 hasar' }, { name: 'Son Dalga', desc: 'Bayılttığı düşmanlar patlar; -0,25 sn bekleme süresi' }] },
+        '+6 hasar ve +%20 menzil',
+      ],
     },
-    "ember": {
-      "description": "En yakındaki düşmana köz fırlatır. Yakabilir.",
-      "upgrades": [
-        "+1 köz",
-        "+4 hasar ve +%10 yanma ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü Alev",
-              "desc": "Közler düşmanları takip eder; bekleme süresi %10 daha hızlı"
-            },
-            {
-              "name": "Köz İzi",
-              "desc": "Yanan zemin bırakır ama daha yavaş uçar"
-            }
-          ]
-        },
-        "+1 köz",
-        "1 düşmanı daha delip geçer",
-        {
-          "fork": [
-            {
-              "name": "Parçalanma",
-              "desc": "İsabette 2 köze ayrılır; +4 hasar"
-            },
-            {
-              "name": "Çapraz Ateş",
-              "desc": "Geriye doğru da ateşler; bekleme süresi %10 daha yavaş"
-            }
-          ]
-        },
-        "+1 köz ve +%25 alan"
-      ]
+    ember: {
+      description: 'En yakındaki düşmana köz fırlatır. Yakabilir.',
+      upgrades: [
+        '+1 köz',
+        '+4 hasar ve +%10 yanma ihtimali',
+        { fork: [{ name: 'Güdümlü Alev', desc: 'Közler düşmanları takip eder; bekleme süresi %10 daha hızlı' }, { name: 'Köz İzi', desc: 'Yanan zemin bırakır ama daha yavaş uçar' }] },
+        '+1 köz',
+        '1 düşmanı daha delip geçer',
+        { fork: [{ name: 'Parçalanma', desc: 'İsabette 2 köze ayrılır; +4 hasar' }, { name: 'Çapraz Ateş', desc: 'Geriye doğru da ateşler; bekleme süresi %10 daha yavaş' }] },
+        '+1 köz ve +%25 alan',
+      ],
     },
-    "fireSpin": {
-      "description": "Alevler etrafında döner. Yakabilir.",
-      "upgrades": [
-        "+1 alev",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çift Çember",
-              "desc": "Ters yönde dönen daha geniş 2. çember; -3 hasar"
-            },
-            {
-              "name": "Ateş Çarkı",
-              "desc": "Kavrulmuş zemin ve +4 hasar; daha yavaş döner"
-            }
-          ]
-        },
-        "Süre +0,6 sn",
-        "+1 alev",
-        {
-          "fork": [
-            {
-              "name": "Parlama",
-              "desc": "Alt edilen düşmanlar patlar; +5 hasar"
-            },
-            {
-              "name": "Ateş Girdabı",
-              "desc": "Hemen ardından tekrar döner (%50); daha sert yakar"
-            }
-          ]
-        },
-        "+1 alev ve daha hızlı döner"
-      ]
+    fireSpin: {
+      description: 'Alevler etrafında döner. Yakabilir.',
+      upgrades: [
+        '+1 alev',
+        '+%20 alan',
+        { fork: [{ name: 'Çift Çember', desc: 'Ters yönde dönen daha geniş 2. çember; -3 hasar' }, { name: 'Ateş Çarkı', desc: 'Kavrulmuş zemin ve +4 hasar; daha yavaş döner' }] },
+        'Süre +0,6 sn',
+        '+1 alev',
+        { fork: [{ name: 'Parlama', desc: 'Alt edilen düşmanlar patlar; +5 hasar' }, { name: 'Ateş Girdabı', desc: 'Hemen ardından tekrar döner (%50); daha sert yakar' }] },
+        '+1 alev ve daha hızlı döner',
+      ],
     },
-    "waterGun": {
-      "description": "Hareket ettiğin yöndeki düşmanları delip geçen bir tazyikli su fışkırtır.",
-      "upgrades": [
-        "+1 su tazyiki",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Tazyik",
-              "desc": "Geriye doğru da püskürtür; -1 hasar"
-            },
-            {
-              "name": "Güdümlü Tazyik",
-              "desc": "Düşmanı takip eder ve 1 düşmanı daha delip geçer; daha yavaş"
-            }
-          ]
-        },
-        "Bekleme süresi 0,1 sn daha hızlı",
-        "+1 su tazyiki",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker; +4 hasar"
-            },
-            {
-              "name": "Dip Akıntısı",
-              "desc": "Geri dönüp tekrar vurur; %15 daha yavaş"
-            }
-          ]
-        },
-        "+1 su tazyiki ve 2 düşmanı daha delip geçer"
-      ]
+    waterGun: {
+      description: 'Hareket ettiğin yöndeki düşmanları delip geçen bir tazyikli su fışkırtır.',
+      upgrades: [
+        '+1 su tazyiki',
+        '+3 hasar',
+        { fork: [{ name: 'Çift Tazyik', desc: 'Geriye doğru da püskürtür; -1 hasar' }, { name: 'Güdümlü Tazyik', desc: 'Düşmanı takip eder ve 1 düşmanı daha delip geçer; daha yavaş' }] },
+        'Bekleme süresi 0,1 sn daha hızlı',
+        '+1 su tazyiki',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker; +4 hasar' }, { name: 'Dip Akıntısı', desc: 'Geri dönüp tekrar vurur; %15 daha yavaş' }] },
+        '+1 su tazyiki ve 2 düşmanı daha delip geçer',
+      ],
     },
-    "whirlpool": {
-      "description": "Yaklaşan herkesi yavaşlatan ve hasar veren sürekli bir girdap.",
-      "upgrades": [
-        "+%20 alan",
-        "+2 hasar",
-        {
-          "fork": [
-            {
-              "name": "Acımasız Akıntı",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; -0,04 sn bekleme süresi"
-            },
-            {
-              "name": "Memba",
-              "desc": "Vuruşları seni iyileştirir; -0,08 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%20 alan",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çeken Akıntı",
-              "desc": "2 düşmana daha sıçrar; -0,08 sn bekleme süresi"
-            },
-            {
-              "name": "Dip Anaforu",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,08 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%25 alan ve +3 hasar"
-      ]
+    whirlpool: {
+      description: 'Yaklaşan herkesi yavaşlatan ve hasar veren sürekli bir girdap.',
+      upgrades: [
+        '+%20 alan',
+        '+2 hasar',
+        { fork: [{ name: 'Acımasız Akıntı', desc: 'Durum etkisi altındaki düşmanlara ×1,35; -0,04 sn bekleme süresi' }, { name: 'Memba', desc: 'Vuruşları seni iyileştirir; -0,08 sn bekleme süresi' }] },
+        '+%20 alan',
+        '+3 hasar',
+        { fork: [{ name: 'Çeken Akıntı', desc: '2 düşmana daha sıçrar; -0,08 sn bekleme süresi' }, { name: 'Dip Anaforu', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,08 sn bekleme süresi' }] },
+        '+%25 alan ve +3 hasar',
+      ],
     },
-    "razorLeaf": {
-      "description": "Keskin yapraklar bumerang gibi fırlayıp geri döner. Zehirleyebilir.",
-      "upgrades": [
-        "+1 yaprak",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Yaprak",
-              "desc": "Geriye doğru da fırlatır; -2 hasar"
-            },
-            {
-              "name": "Bora",
-              "desc": "Hemen ardından tekrar fırlatır (%50); +%20 alan"
-            }
-          ]
-        },
-        "+1 yaprak",
-        "Yapraklar %25 daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Böğürtlen Çalısı",
-              "desc": "Zemine zehirli dikenler bırakır; +%25 zehir"
-            },
-            {
-              "name": "Yaprak Patlaması",
-              "desc": "Alt edilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "+1 yaprak"
-      ]
+    razorLeaf: {
+      description: 'Keskin yapraklar bumerang gibi fırlayıp geri döner. Zehirleyebilir.',
+      upgrades: [
+        '+1 yaprak',
+        '+4 hasar',
+        { fork: [{ name: 'Çift Yaprak', desc: 'Geriye doğru da fırlatır; -2 hasar' }, { name: 'Bora', desc: 'Hemen ardından tekrar fırlatır (%50); +%20 alan' }] },
+        '+1 yaprak',
+        'Yapraklar %25 daha hızlı',
+        { fork: [{ name: 'Böğürtlen Çalısı', desc: 'Zemine zehirli dikenler bırakır; +%25 zehir' }, { name: 'Yaprak Patlaması', desc: 'Alt edilen düşmanlar patlar; +5 hasar' }] },
+        '+1 yaprak',
+      ],
     },
-    "vineWhip": {
-      "description": "Sarmaşıkların geniş menzilli yatay bir kırbaç darbesi. Zehirleyebilir.",
-      "upgrades": [
-        "Arkaya da vurur",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kökler",
-              "desc": "Zeminde hasar veren alan bırakır; +%10 alan"
-            },
-            {
-              "name": "Zincirleme Kırbaç",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha hızlı",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Diken Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Vampir Kırbaç",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            }
-          ]
-        },
-        "+8 hasar"
-      ]
+    vineWhip: {
+      description: 'Sarmaşıkların geniş menzilli yatay bir kırbaç darbesi. Zehirleyebilir.',
+      upgrades: [
+        'Arkaya da vurur',
+        '+5 hasar',
+        { fork: [{ name: 'Kökler', desc: 'Zeminde hasar veren alan bırakır; +%10 alan' }, { name: 'Zincirleme Kırbaç', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        'Bekleme süresi 0,15 sn daha hızlı',
+        '+6 hasar',
+        { fork: [{ name: 'Diken Patlaması', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Vampir Kırbaç', desc: 'Vuruşları seni iyileştirir; +%10 alan' }] },
+        '+8 hasar',
+      ],
     },
-    "swift": {
-      "description": "Asla ıskalamayan güdümlü yıldızlar.",
-      "upgrades": [
-        "+1 yıldız",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kayan Yıldızlar",
-              "desc": "2 düşmana daha seker; +6 hasar"
-            },
-            {
-              "name": "Takımyıldız",
-              "desc": "+1 yıldız ve +2 hasar; etrafında dönerler"
-            }
-          ]
-        },
-        "+1 yıldız",
-        "1 düşmanı daha delip geçer",
-        {
-          "fork": [
-            {
-              "name": "Kuyruklu Yıldız",
-              "desc": "Alt ettikleri düşmanlar yıldız saçarak patlar; +5 hasar"
-            },
-            {
-              "name": "Yıldız Yağmuru",
-              "desc": "Hemen ardından tekrar kullanılır (%50); %12 daha hızlı"
-            }
-          ]
-        },
-        "+2 yıldız"
-      ]
+    swift: {
+      description: 'Asla ıskalamayan güdümlü yıldızlar.',
+      upgrades: [
+        '+1 yıldız',
+        '+3 hasar',
+        { fork: [{ name: 'Kayan Yıldızlar', desc: '2 düşmana daha seker; +6 hasar' }, { name: 'Takımyıldız', desc: '+1 yıldız ve +2 hasar; etrafında dönerler' }] },
+        '+1 yıldız',
+        '1 düşmanı daha delip geçer',
+        { fork: [{ name: 'Kuyruklu Yıldız', desc: 'Alt ettikleri düşmanlar yıldız saçarak patlar; +5 hasar' }, { name: 'Yıldız Yağmuru', desc: 'Hemen ardından tekrar kullanılır (%50); %12 daha hızlı' }] },
+        '+2 yıldız',
+      ],
     },
-    "thunder": {
-      "description": "Ekrandaki rastgele düşmanların üzerine yıldırımlar düşer. Felç edebilir.",
-      "upgrades": [
-        "+1 yıldırım",
-        "+8 hasar",
-        {
-          "fork": [
-            {
-              "name": "Fırtına",
-              "desc": "+2 daha küçük yıldırım ve bir yankı (%50); -6 hasar"
-            },
-            {
-              "name": "Odaklanmış Yıldırım",
-              "desc": "1 devasa yıldırım, +34 hasar, 2 düşmana sıçrar"
-            }
-          ]
-        },
-        "+1 yıldırım",
-        "Bekleme süresi 0,3 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Paratoner",
-              "desc": "Alt edilen düşmanlar elektrik saçar; +10 hasar"
-            },
-            {
-              "name": "Yüklü Zemin",
-              "desc": "Elektrik yüklü zemin bırakır; +%15 felç ihtimali"
-            }
-          ]
-        },
-        "+2 yıldırım"
-      ]
+    thunder: {
+      description: 'Ekrandaki rastgele düşmanların üzerine yıldırımlar düşer. Felç edebilir.',
+      upgrades: [
+        '+1 yıldırım',
+        '+8 hasar',
+        { fork: [{ name: 'Fırtına', desc: '+2 daha küçük yıldırım ve bir yankı (%50); -6 hasar' }, { name: 'Odaklanmış Yıldırım', desc: '1 devasa yıldırım, +34 hasar, 2 düşmana sıçrar' }] },
+        '+1 yıldırım',
+        'Bekleme süresi 0,3 sn daha hızlı',
+        { fork: [{ name: 'Paratoner', desc: 'Alt edilen düşmanlar elektrik saçar; +10 hasar' }, { name: 'Yüklü Zemin', desc: 'Elektrik yüklü zemin bırakır; +%15 felç ihtimali' }] },
+        '+2 yıldırım',
+      ],
     },
-    "sludgeBomb": {
-      "description": "Zehir birikintisi bırakan zehirli bir balçık fırlatır. Zehir etkisi katlanır.",
-      "upgrades": [
-        "+1 bomba",
-        "+2 hasar ve %25 daha güçlü zehir",
-        {
-          "fork": [
-            {
-              "name": "Bataklık",
-              "desc": "Düşmanları içine çeker; +0,3 sn süre"
-            },
-            {
-              "name": "Zehir Yağmuru",
-              "desc": "Anında tekrar kullanılır (%50)"
-            }
-          ]
-        },
-        "+%20 alan",
-        "+1 bomba",
-        {
-          "fork": [
-            {
-              "name": "Aşınma",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +1 hasar"
-            },
-            {
-              "name": "Bulaşma",
-              "desc": "Bayılan düşmanlar etrafa zehir saçarak patlar; +3 hasar"
-            }
-          ]
-        },
-        "+1 bomba ve +%20 alan"
-      ]
+    sludgeBomb: {
+      description: 'Zehir birikintisi bırakan zehirli bir balçık fırlatır. Zehir etkisi katlanır.',
+      upgrades: [
+        '+1 bomba',
+        '+2 hasar ve %25 daha güçlü zehir',
+        { fork: [{ name: 'Bataklık', desc: 'Düşmanları içine çeker; +0,3 sn süre' }, { name: 'Zehir Yağmuru', desc: 'Anında tekrar kullanılır (%50)' }] },
+        '+%20 alan',
+        '+1 bomba',
+        { fork: [{ name: 'Aşınma', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +1 hasar' }, { name: 'Bulaşma', desc: 'Bayılan düşmanlar etrafa zehir saçarak patlar; +3 hasar' }] },
+        '+1 bomba ve +%20 alan',
+      ],
     },
-    "dreamEater": {
-      "description": "Bir Hypnosis dalgası etrafındaki düşmanları uyutur ve hayaletimsi çeneler önce uyuyanları ısırır: Uyuyan düşmana ×3 hasar verir (düşman uyanır) ve ısırık sana Can kazandırır.",
-      "upgrades": [
-        "+1 ısırık",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kabus",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "Ziyafet",
-              "desc": "Vuruşları seni iyileştirir; +%20 alan"
-            }
-          ]
-        },
-        "+%15 uyutma ihtimali",
-        "Bekleme süresi 0,3 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Rüya Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar"
-            },
-            {
-              "name": "Yutucu",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +11 hasar"
-            }
-          ]
-        },
-        "+2 ısırık"
-      ]
+    dreamEater: {
+      description: 'Bir Hypnosis dalgası etrafındaki düşmanları uyutur ve hayaletimsi çeneler önce uyuyanları ısırır: Uyuyan düşmana ×3 hasar verir (düşman uyanır) ve ısırık sana Can kazandırır.',
+      upgrades: [
+        '+1 ısırık',
+        '+4 hasar',
+        { fork: [{ name: 'Kabus', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'Ziyafet', desc: 'Vuruşları seni iyileştirir; +%20 alan' }] },
+        '+%15 uyutma ihtimali',
+        'Bekleme süresi 0,3 sn daha hızlı',
+        { fork: [{ name: 'Rüya Patlaması', desc: 'Bayılttığı düşmanlar patlar' }, { name: 'Yutucu', desc: 'Elitlere ve bosslara karşı ×1,5; +11 hasar' }] },
+        '+2 ısırık',
+      ],
     },
-    "forcePalm": {
-      "description": "En yakındaki düşmana felç edebilen bir aura avuç darbesi indirir. Zaten felç olmuş bir düşmanda aura doğrudan içinden geçip arkasında bir dalga halinde patlar.",
-      "upgrades": [
-        "+5 hasar",
-        "+%15 felç ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Şok",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "Çift Avuç",
-              "desc": "Anında tekrar kullanılır (%50); +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+1 avuç darbesi",
-        {
-          "fork": [
-            {
-              "name": "Hayati Darbe",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +16 hasar"
-            },
-            {
-              "name": "Aura Dalgası",
-              "desc": "Bayılttığı düşmanlar patlar; +6 hasar"
-            }
-          ]
-        },
-        "+%25 alan ve +%10 felç ihtimali"
-      ]
+    forcePalm: {
+      description: 'En yakındaki düşmana felç edebilen bir aura avuç darbesi indirir. Zaten felç olmuş bir düşmanda aura doğrudan içinden geçip arkasında bir dalga halinde patlar.',
+      upgrades: [
+        '+5 hasar',
+        '+%15 felç ihtimali',
+        { fork: [{ name: 'Zincirleme Şok', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'Çift Avuç', desc: 'Anında tekrar kullanılır (%50); +%20 alan' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+1 avuç darbesi',
+        { fork: [{ name: 'Hayati Darbe', desc: 'Canı ≤%12 olan düşmanları bitirir; +16 hasar' }, { name: 'Aura Dalgası', desc: 'Bayılttığı düşmanlar patlar; +6 hasar' }] },
+        '+%25 alan ve +%10 felç ihtimali',
+      ],
     },
-    "dig": {
-      "description": "Shift tuşuna veya atılma düğmesine bas: Yerin altına girersin (dokunulmaz olursun, sürü seni kaybeder) ve yakındaki en büyük düşmanın, öncelikle bir boss'un altından bir depremle çıkarsın.",
-      "upgrades": [
-        "+10 hasar",
-        "%20 daha büyük deprem",
-        {
-          "fork": [
-            {
-              "name": "Yarıntı",
-              "desc": "Zeminde hasar veren alan bırakır; -0,4 sn bekleme süresi"
-            },
-            {
-              "name": "Pusu",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,5 sn bekleme süresi"
-            }
-          ]
-        },
-        "+12 hasar",
-        "Yerin altında +0,3 sn",
-        {
-          "fork": [
-            {
-              "name": "Göçük",
-              "desc": "Bayılttığı düşmanlar patlar; -0,5 sn bekleme süresi"
-            },
-            {
-              "name": "Tuzak Çukuru",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,5 sn bekleme süresi, +18 hasar"
-            }
-          ]
-        },
-        "+14 hasar ve %25 daha büyük deprem"
-      ]
+    dig: {
+      description: "Shift tuşuna veya atılma düğmesine bas: Yerin altına girersin (dokunulmaz olursun, sürü seni kaybeder) ve yakındaki en büyük düşmanın, öncelikle bir boss'un altından bir depremle çıkarsın.",
+      upgrades: [
+        '+10 hasar',
+        '%20 daha büyük deprem',
+        { fork: [{ name: 'Yarıntı', desc: 'Zeminde hasar veren alan bırakır; -0,4 sn bekleme süresi' }, { name: 'Pusu', desc: 'Elitlere ve bosslara karşı ×1,5; -0,5 sn bekleme süresi' }] },
+        '+12 hasar',
+        'Yerin altında +0,3 sn',
+        { fork: [{ name: 'Göçük', desc: 'Bayılttığı düşmanlar patlar; -0,5 sn bekleme süresi' }, { name: 'Tuzak Çukuru', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,5 sn bekleme süresi, +18 hasar' }] },
+        '+14 hasar ve %25 daha büyük deprem',
+      ],
     },
-    "twister": {
-      "description": "Ejderha hortumları etrafında dolaşarak değdikleri düşmanları rüzgârın merkezine çeker.",
-      "upgrades": [
-        "+2 hasar",
-        "Süre +1 sn",
-        {
-          "fork": [
-            {
-              "name": "Rüzgâr İzi",
-              "desc": "Zeminde hasar veren alan bırakır; +1 hortum, -1 hasar"
-            },
-            {
-              "name": "Değirmen",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 hortum"
-            }
-          ]
-        },
-        "%20 daha büyük hortumlar",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Su Hortumu",
-              "desc": "Bayılttığı düşmanlar patlar; -0,5 sn bekleme süresi"
-            },
-            {
-              "name": "Fırtına",
-              "desc": "Anında tekrar kullanılır (%50); -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 hortum ve %15 daha büyük"
-      ]
+    twister: {
+      description: 'Ejderha hortumları etrafında dolaşarak değdikleri düşmanları rüzgârın merkezine çeker.',
+      upgrades: [
+        '+2 hasar',
+        'Süre +1 sn',
+        { fork: [{ name: 'Rüzgâr İzi', desc: 'Zeminde hasar veren alan bırakır; +1 hortum, -1 hasar' }, { name: 'Değirmen', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 hortum' }] },
+        '%20 daha büyük hortumlar',
+        '+3 hasar',
+        { fork: [{ name: 'Su Hortumu', desc: 'Bayılttığı düşmanlar patlar; -0,5 sn bekleme süresi' }, { name: 'Fırtına', desc: 'Anında tekrar kullanılır (%50); -0,2 sn bekleme süresi' }] },
+        '+1 hortum ve %15 daha büyük',
+      ],
     },
-    "sandTomb": {
-      "description": "Etrafında bir kum girdabı döner: İçine yakalanan düşmanları yıpratıp yavaşlatır, gözlerine kaçan kum ise temas vuruşlarının yarısını ıskalamalarına neden olur.",
-      "upgrades": [
-        "+2 hasar",
-        "%20 daha büyük girdap",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Kumlar",
-              "desc": "Vuruşları seni iyileştirir; +0,5 sn süre"
-            },
-            {
-              "name": "Acımasız Mezar",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +1 sn süre"
-            }
-          ]
-        },
-        "Bekleme süresi 0,8 sn daha hızlı",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Gömme",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Kum Saati",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%10 alan, +4 hasar"
-            }
-          ]
-        },
-        "Süre +1,5 sn ve +2 hasar"
-      ]
+    sandTomb: {
+      description: 'Etrafında bir kum girdabı döner: İçine yakalanan düşmanları yıpratıp yavaşlatır, gözlerine kaçan kum ise temas vuruşlarının yarısını ıskalamalarına neden olur.',
+      upgrades: [
+        '+2 hasar',
+        '%20 daha büyük girdap',
+        { fork: [{ name: 'Can Veren Kumlar', desc: 'Vuruşları seni iyileştirir; +0,5 sn süre' }, { name: 'Acımasız Mezar', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +1 sn süre' }] },
+        'Bekleme süresi 0,8 sn daha hızlı',
+        '+3 hasar',
+        { fork: [{ name: 'Gömme', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Kum Saati', desc: 'Canı ≤%12 olan düşmanları bitirir; +%10 alan, +4 hasar' }] },
+        'Süre +1,5 sn ve +2 hasar',
+      ],
     },
-    "meteorMash": {
-      "description": "En yakındaki düşmanların üzerine meteor yumrukları yağar. İsabet eden her vuruş hasar alana dek sonraki vuruşları güçlendirir (+%6, en fazla +%60).",
-      "upgrades": [
-        "+1 meteor",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çelik Parçacıkları",
-              "desc": "2 düşmana daha sıçrar; +%10 alan, +13 hasar"
-            },
-            {
-              "name": "Krater",
-              "desc": "Zeminde hasar veren alan bırakır; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,25 sn daha hızlı",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çarpma",
-              "desc": "Bayılttığı düşmanlar patlar; +1 meteor"
-            },
-            {
-              "name": "Meteor Yağmuru",
-              "desc": "Anında tekrar kullanılır (%50); +5 hasar"
-            }
-          ]
-        },
-        "+6 hasar ve +%20 alan"
-      ]
+    meteorMash: {
+      description: 'En yakındaki düşmanların üzerine meteor yumrukları yağar. İsabet eden her vuruş hasar alana dek sonraki vuruşları güçlendirir (+%6, en fazla +%60).',
+      upgrades: [
+        '+1 meteor',
+        '+5 hasar',
+        { fork: [{ name: 'Çelik Parçacıkları', desc: '2 düşmana daha sıçrar; +%10 alan, +13 hasar' }, { name: 'Krater', desc: 'Zeminde hasar veren alan bırakır; +%20 alan' }] },
+        'Bekleme süresi 0,25 sn daha hızlı',
+        '+6 hasar',
+        { fork: [{ name: 'Çarpma', desc: 'Bayılttığı düşmanlar patlar; +1 meteor' }, { name: 'Meteor Yağmuru', desc: 'Anında tekrar kullanılır (%50); +5 hasar' }] },
+        '+6 hasar ve +%20 alan',
+      ],
     },
-    "zenHeadbutt": {
-      "description": "Doğrudan önündeki düşmana kafa üstü kısa bir medyum sıçrayışı yapar: Çarptığı düşman irkilip yarım saniye boyunca hareketsiz kalır.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Zihin Dalgası",
-              "desc": "2 düşmana daha sıçrar; -0,15 sn bekleme süresi"
-            },
-            {
-              "name": "Meditasyon",
-              "desc": "Vuruşları seni iyileştirir; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+6 hasar",
-        "Daha fazla geri itme ve +%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Sismik Kafa",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Aydınlanma",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,15 sn bekleme süresi, +13 hasar"
-            }
-          ]
-        },
-        "+8 hasar"
-      ]
+    zenHeadbutt: {
+      description: 'Doğrudan önündeki düşmana kafa üstü kısa bir medyum sıçrayışı yapar: Çarptığı düşman irkilip yarım saniye boyunca hareketsiz kalır.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Zihin Dalgası', desc: '2 düşmana daha sıçrar; -0,15 sn bekleme süresi' }, { name: 'Meditasyon', desc: 'Vuruşları seni iyileştirir; -0,2 sn bekleme süresi' }] },
+        '+6 hasar',
+        'Daha fazla geri itme ve +%15 alan',
+        { fork: [{ name: 'Sismik Kafa', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi' }, { name: 'Aydınlanma', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,15 sn bekleme süresi, +13 hasar' }] },
+        '+8 hasar',
+      ],
     },
-    "foulPlay": {
-      "description": "İllüzyon pençeleri yakındaki en sert vuran düşmanı biçer: Düşman ne kadar çok temas hasarı veriyorsa darbe o kadar sert vurur (en fazla ×5). Bosslara karşı harikadır.",
-      "upgrades": [
-        "+4 hasar",
-        "+1 hedef",
-        {
-          "fork": [
-            {
-              "name": "İhanet",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Zincirleme Pençeler",
-              "desc": "2 düşmana daha sıçrar; -0,25 sn bekleme süresi"
-            }
-          ]
-        },
-        "+5 hasar",
-        "%25 daha uzun menzil",
-        {
-          "fork": [
-            {
-              "name": "Alçak Vuruş",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 hedef, +14 hasar"
-            },
-            {
-              "name": "Kapan",
-              "desc": "Bayılttığı düşmanlar patlar; +1 hedef, -9 hasar"
-            }
-          ]
-        },
-        "+6 hasar"
-      ]
+    foulPlay: {
+      description: 'İllüzyon pençeleri yakındaki en sert vuran düşmanı biçer: Düşman ne kadar çok temas hasarı veriyorsa darbe o kadar sert vurur (en fazla ×5). Bosslara karşı harikadır.',
+      upgrades: [
+        '+4 hasar',
+        '+1 hedef',
+        { fork: [{ name: 'İhanet', desc: 'Elitlere ve bosslara karşı ×1,5; -0,1 sn bekleme süresi' }, { name: 'Zincirleme Pençeler', desc: '2 düşmana daha sıçrar; -0,25 sn bekleme süresi' }] },
+        '+5 hasar',
+        '%25 daha uzun menzil',
+        { fork: [{ name: 'Alçak Vuruş', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 hedef, +14 hasar' }, { name: 'Kapan', desc: 'Bayılttığı düşmanlar patlar; +1 hedef, -9 hasar' }] },
+        '+6 hasar',
+      ],
     },
-    "bodySlam": {
-      "description": "Shift tuşuna veya atılma düğmesine bas: Yakındaki en kalabalık düşman grubunun üzerine ağır bir sıçrayış yapar. İniş anında felç edebilen bir şok dalgası yayar.",
-      "upgrades": [
-        "+6 hasar",
-        "%20 daha büyük şok dalgası",
-        {
-          "fork": [
-            {
-              "name": "Sarsıntı",
-              "desc": "Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi"
-            },
-            {
-              "name": "Yer Çekimi",
-              "desc": "İniş kalabalığı içine çeker; -0,4 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%15 felç ihtimali",
-        "+8 hasar",
-        {
-          "fork": [
-            {
-              "name": "Ağır Sıklet",
-              "desc": "Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi"
-            },
-            {
-              "name": "Statik Çarpma",
-              "desc": "2 düşmana daha sıçrar; -0,4 sn bekleme süresi"
-            }
-          ]
-        },
-        "+10 hasar ve %25 daha büyük şok dalgası"
-      ]
+    bodySlam: {
+      description: 'Shift tuşuna veya atılma düğmesine bas: Yakındaki en kalabalık düşman grubunun üzerine ağır bir sıçrayış yapar. İniş anında felç edebilen bir şok dalgası yayar.',
+      upgrades: [
+        '+6 hasar',
+        '%20 daha büyük şok dalgası',
+        { fork: [{ name: 'Sarsıntı', desc: 'Zeminde hasar veren alan bırakır; -0,3 sn bekleme süresi' }, { name: 'Yer Çekimi', desc: 'İniş kalabalığı içine çeker; -0,4 sn bekleme süresi' }] },
+        '+%15 felç ihtimali',
+        '+8 hasar',
+        { fork: [{ name: 'Ağır Sıklet', desc: 'Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi' }, { name: 'Statik Çarpma', desc: '2 düşmana daha sıçrar; -0,4 sn bekleme süresi' }] },
+        '+10 hasar ve %25 daha büyük şok dalgası',
+      ],
     },
-    "dynamicPunch": {
-      "description": "En yakındaki düşmana yavaş ve devasa bir yumruk savurur. Patlama, çarptığı düşmanları şaşkına çevirip kafalarını karıştırır: Sendeleyip birbirlerine çarparlar.",
-      "upgrades": [
-        "+10 hasar",
-        "%20 daha büyük patlama",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Yumruk",
-              "desc": "2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +10 hasar"
-            },
-            {
-              "name": "Çatlak Zemin",
-              "desc": "Zeminde hasar veren alan bırakır; -0,4 sn bekleme süresi"
-            }
-          ]
-        },
-        "+12 hasar",
-        "%20 daha büyük patlama",
-        {
-          "fork": [
-            {
-              "name": "Dinamit",
-              "desc": "Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi, -13 hasar"
-            },
-            {
-              "name": "Şampiyon",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,3 sn bekleme süresi, +28 hasar"
-            }
-          ]
-        },
-        "+16 hasar"
-      ]
+    dynamicPunch: {
+      description: 'En yakındaki düşmana yavaş ve devasa bir yumruk savurur. Patlama, çarptığı düşmanları şaşkına çevirip kafalarını karıştırır: Sendeleyip birbirlerine çarparlar.',
+      upgrades: [
+        '+10 hasar',
+        '%20 daha büyük patlama',
+        { fork: [{ name: 'Zincirleme Yumruk', desc: '2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +10 hasar' }, { name: 'Çatlak Zemin', desc: 'Zeminde hasar veren alan bırakır; -0,4 sn bekleme süresi' }] },
+        '+12 hasar',
+        '%20 daha büyük patlama',
+        { fork: [{ name: 'Dinamit', desc: 'Bayılttığı düşmanlar patlar; -0,4 sn bekleme süresi, -13 hasar' }, { name: 'Şampiyon', desc: 'Elitlere ve bosslara karşı ×1,5; -0,3 sn bekleme süresi, +28 hasar' }] },
+        '+16 hasar',
+      ],
     },
-    "rollout": {
-      "description": "2 sn boyunca yuvarlanırsın (yön çubuğuyla yönlendirilir). Art arda gelen her vuruş sonrakini ikiye katlar (en fazla ×5).",
-      "upgrades": [
-        "+2 hasar",
-        "Yuvarlanma süresi +0,5 sn",
-        {
-          "fork": [
-            {
-              "name": "Yüklü Kaya",
-              "desc": "2 düşmana daha sıçrar; -0,5 sn bekleme süresi"
-            },
-            {
-              "name": "Can Veren Yuvarlanma",
-              "desc": "Vuruşları seni iyileştirir; -0,6 sn bekleme süresi, +3 hasar"
-            }
-          ]
-        },
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çığ",
-              "desc": "Bayılttığı düşmanlar patlar; +0,5 sn süre"
-            },
-            {
-              "name": "Silindir",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +0,3 sn süre, +16 hasar"
-            }
-          ]
-        },
-        "+3 hasar ve bekleme süresi 0,5 sn daha hızlı"
-      ]
+    rollout: {
+      description: '2 sn boyunca yuvarlanırsın (yön çubuğuyla yönlendirilir). Art arda gelen her vuruş sonrakini ikiye katlar (en fazla ×5).',
+      upgrades: [
+        '+2 hasar',
+        'Yuvarlanma süresi +0,5 sn',
+        { fork: [{ name: 'Yüklü Kaya', desc: '2 düşmana daha sıçrar; -0,5 sn bekleme süresi' }, { name: 'Can Veren Yuvarlanma', desc: 'Vuruşları seni iyileştirir; -0,6 sn bekleme süresi, +3 hasar' }] },
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çığ', desc: 'Bayılttığı düşmanlar patlar; +0,5 sn süre' }, { name: 'Silindir', desc: 'Elitlere ve bosslara karşı ×1,5; +0,3 sn süre, +16 hasar' }] },
+        '+3 hasar ve bekleme süresi 0,5 sn daha hızlı',
+      ],
     },
-    "iceBall": {
-      "description": "Kartopları sürünün arasından yuvarlanarak değdikleri her şeyi yavaşlatır. Her vuruş sonrakini ikiye katlar (en fazla ×5) ve topu büyütür; en büyük boyuta ulaştığında dondurur.",
-      "upgrades": [
-        "+3 hasar",
-        "+1 top",
-        {
-          "fork": [
-            {
-              "name": "Buz İzi",
-              "desc": "Zeminde hasar veren alan bırakır; daha hızlı"
-            },
-            {
-              "name": "Dolu Arkı",
-              "desc": "2 düşmana daha sıçrar; +6 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kar Kayması",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Kırma",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%10 alan"
-            }
-          ]
-        },
-        "+1 top"
-      ]
+    iceBall: {
+      description: 'Kartopları sürünün arasından yuvarlanarak değdikleri her şeyi yavaşlatır. Her vuruş sonrakini ikiye katlar (en fazla ×5) ve topu büyütür; en büyük boyuta ulaştığında dondurur.',
+      upgrades: [
+        '+3 hasar',
+        '+1 top',
+        { fork: [{ name: 'Buz İzi', desc: 'Zeminde hasar veren alan bırakır; daha hızlı' }, { name: 'Dolu Arkı', desc: '2 düşmana daha sıçrar; +6 hasar' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Kar Kayması', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Kırma', desc: 'Canı ≤%12 olan düşmanları bitirir; +%10 alan' }] },
+        '+1 top',
+      ],
     },
-    "furyCutter": {
-      "description": "En yakındaki düşmana tırpanla bir darbe indirir. İsabet eden her darbe sonrakini güçlendirir (en fazla ×4); boşluğa savrulan darbe seriyi sıfırlar.",
-      "upgrades": [
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Kesik",
-              "desc": "2 düşmana daha sıçrar; -0,05 sn bekleme süresi"
-            },
-            {
-              "name": "Vampir Tırpanı",
-              "desc": "Vuruşları seni iyileştirir; -0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Biçme",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Patlama Kesiği",
-              "desc": "Bayılttığı düşmanlar patlar; -0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+4 hasar"
-      ]
+    furyCutter: {
+      description: 'En yakındaki düşmana tırpanla bir darbe indirir. İsabet eden her darbe sonrakini güçlendirir (en fazla ×4); boşluğa savrulan darbe seriyi sıfırlar.',
+      upgrades: [
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Zincirleme Kesik', desc: '2 düşmana daha sıçrar; -0,05 sn bekleme süresi' }, { name: 'Vampir Tırpanı', desc: 'Vuruşları seni iyileştirir; -0,1 sn bekleme süresi' }] },
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Biçme', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,1 sn bekleme süresi' }, { name: 'Patlama Kesiği', desc: 'Bayılttığı düşmanlar patlar; -0,1 sn bekleme süresi' }] },
+        '+4 hasar',
+      ],
     },
-    "sacredSword": {
-      "description": "Hayalet bir kılıç önündeki kavisi biçer. Bronzong kalkanlarını kesip geçer ve tip dirençlerini yok sayar.",
-      "upgrades": [
-        "+5 hasar",
-        "%20 daha büyük kılıç",
-        {
-          "fork": [
-            {
-              "name": "Kutsal İz",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Ejderha Avcısı",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,25 sn bekleme süresi, +7 hasar"
-            }
-          ]
-        },
-        "+6 hasar",
-        "%20 daha büyük kılıç",
-        {
-          "fork": [
-            {
-              "name": "Çift Biçme",
-              "desc": "Anında tekrar kullanılır (%50); +6 hasar"
-            },
-            {
-              "name": "Yargı",
-              "desc": "Bayılttığı düşmanlar patlar; +1 savurma"
-            }
-          ]
-        },
-        "+7 hasar"
-      ]
+    sacredSword: {
+      description: 'Hayalet bir kılıç önündeki kavisi biçer. Bronzong kalkanlarını kesip geçer ve tip dirençlerini yok sayar.',
+      upgrades: [
+        '+5 hasar',
+        '%20 daha büyük kılıç',
+        { fork: [{ name: 'Kutsal İz', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }, { name: 'Ejderha Avcısı', desc: 'Elitlere ve bosslara karşı ×1,5; -0,25 sn bekleme süresi, +7 hasar' }] },
+        '+6 hasar',
+        '%20 daha büyük kılıç',
+        { fork: [{ name: 'Çift Biçme', desc: 'Anında tekrar kullanılır (%50); +6 hasar' }, { name: 'Yargı', desc: 'Bayılttığı düşmanlar patlar; +1 savurma' }] },
+        '+7 hasar',
+      ],
     },
-    "dragonDarts": {
-      "description": "İki güdümlü ok: Yakında iki düşman varsa her birine birer ok, sadece bir düşman varsa ikisi birden ona fırlar.",
-      "upgrades": [
-        "+3 hasar",
-        "Daha hızlı oklar",
-        {
-          "fork": [
-            {
-              "name": "Çift Ok",
-              "desc": "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi, +16 hasar"
-            },
-            {
-              "name": "Muhafız",
-              "desc": "Etrafında döner; -0,15 sn bekleme süresi, -7 hasar"
-            }
-          ]
-        },
-        "+4 hasar",
-        "+2 ok",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker; +3 hasar"
-            },
-            {
-              "name": "Boss Avcısı",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +16 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı ve +3 hasar"
-      ]
+    dragonDarts: {
+      description: 'İki güdümlü ok: Yakında iki düşman varsa her birine birer ok, sadece bir düşman varsa ikisi birden ona fırlar.',
+      upgrades: [
+        '+3 hasar',
+        'Daha hızlı oklar',
+        { fork: [{ name: 'Çift Ok', desc: "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi, +16 hasar" }, { name: 'Muhafız', desc: 'Etrafında döner; -0,15 sn bekleme süresi, -7 hasar' }] },
+        '+4 hasar',
+        '+2 ok',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker; +3 hasar' }, { name: 'Boss Avcısı', desc: 'Elitlere ve bosslara karşı ×1,5; +16 hasar' }] },
+        'Bekleme süresi 0,2 sn daha hızlı ve +3 hasar',
+      ],
     },
-    "snarl": {
-      "description": "Üç kafa, üç zincirleme dalga: Her biri bir öncekinin vurduğu yerden bir sonraki düşmana sıçrar, her defasında biraz daha büyür ve güçlenir.",
-      "upgrades": [
-        "+3 hasar",
-        "%20 daha büyük dalgalar",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Hırlama",
-              "desc": "2 düşmana daha sıçrar; -0,15 sn bekleme süresi"
-            },
-            {
-              "name": "Açlık",
-              "desc": "Vuruşları seni iyileştirir; -0,25 sn bekleme süresi"
-            }
-          ]
-        },
-        "+4 hasar",
-        "+1 dalga",
-        {
-          "fork": [
-            {
-              "name": "Sürü Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Yırtıcı",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%10 alan"
-            }
-          ]
-        },
-        "+5 hasar ve +1 dalga"
-      ]
+    snarl: {
+      description: 'Üç kafa, üç zincirleme dalga: Her biri bir öncekinin vurduğu yerden bir sonraki düşmana sıçrar, her defasında biraz daha büyür ve güçlenir.',
+      upgrades: [
+        '+3 hasar',
+        '%20 daha büyük dalgalar',
+        { fork: [{ name: 'Zincirleme Hırlama', desc: '2 düşmana daha sıçrar; -0,15 sn bekleme süresi' }, { name: 'Açlık', desc: 'Vuruşları seni iyileştirir; -0,25 sn bekleme süresi' }] },
+        '+4 hasar',
+        '+1 dalga',
+        { fork: [{ name: 'Sürü Patlaması', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Yırtıcı', desc: 'Canı ≤%12 olan düşmanları bitirir; +%10 alan' }] },
+        '+5 hasar ve +1 dalga',
+      ],
     },
-    "gigaImpact": {
-      "description": "Shift tuşuna veya atılma düğmesine bas: Muazzam bir darbeyle ileri atılırsın. Ardından nefesini toparlarken 1 sn boyunca yürüyemezsin.",
-      "upgrades": [
-        "+10 hasar",
-        "%20 daha büyük çarpma alanı",
-        {
-          "fork": [
-            {
-              "name": "Çöküş",
-              "desc": "Düşmanları içine çeker; -0,6 sn bekleme süresi, +10 hasar"
-            },
-            {
-              "name": "Şok Dalgası",
-              "desc": "2 düşmana daha sıçrar; -0,8 sn bekleme süresi"
-            }
-          ]
-        },
-        "+14 hasar",
-        "Nefesini 0,25 sn daha çabuk toplar",
-        {
-          "fork": [
-            {
-              "name": "Afet",
-              "desc": "Bayılttığı düşmanlar patlar; -0,8 sn bekleme süresi"
-            },
-            {
-              "name": "Titan",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,6 sn bekleme süresi, +15 hasar"
-            }
-          ]
-        },
-        "+18 hasar ve %25 daha büyük çarpma alanı"
-      ]
+    gigaImpact: {
+      description: 'Shift tuşuna veya atılma düğmesine bas: Muazzam bir darbeyle ileri atılırsın. Ardından nefesini toparlarken 1 sn boyunca yürüyemezsin.',
+      upgrades: [
+        '+10 hasar',
+        '%20 daha büyük çarpma alanı',
+        { fork: [{ name: 'Çöküş', desc: 'Düşmanları içine çeker; -0,6 sn bekleme süresi, +10 hasar' }, { name: 'Şok Dalgası', desc: '2 düşmana daha sıçrar; -0,8 sn bekleme süresi' }] },
+        '+14 hasar',
+        'Nefesini 0,25 sn daha çabuk toplar',
+        { fork: [{ name: 'Afet', desc: 'Bayılttığı düşmanlar patlar; -0,8 sn bekleme süresi' }, { name: 'Titan', desc: 'Elitlere ve bosslara karşı ×1,5; -0,6 sn bekleme süresi, +15 hasar' }] },
+        '+18 hasar ve %25 daha büyük çarpma alanı',
+      ],
     },
-    "flail": {
-      "description": "Her yöne çaresizce kuyruk darbeleri indirir. Canın ne kadar düşükse darbeler o kadar sert (en fazla ×3) ve o kadar çok olur.",
-      "upgrades": [
-        "+3 hasar",
-        "+1 kuyruk darbesi",
-        {
-          "fork": [
-            {
-              "name": "İkinci Nefes",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            },
-            {
-              "name": "Kırbaç Arkı",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha hızlı",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çaresizlik",
-              "desc": "Bayılttığı düşmanlar patlar; +1 kuyruk darbesi"
-            },
-            {
-              "name": "Son Direniş",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 kuyruk darbesi, +4 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve +%15 alan"
-      ]
+    flail: {
+      description: 'Her yöne çaresizce kuyruk darbeleri indirir. Canın ne kadar düşükse darbeler o kadar sert (en fazla ×3) ve o kadar çok olur.',
+      upgrades: [
+        '+3 hasar',
+        '+1 kuyruk darbesi',
+        { fork: [{ name: 'İkinci Nefes', desc: 'Vuruşları seni iyileştirir; +%10 alan' }, { name: 'Kırbaç Arkı', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        'Bekleme süresi 0,15 sn daha hızlı',
+        '+4 hasar',
+        { fork: [{ name: 'Çaresizlik', desc: 'Bayılttığı düşmanlar patlar; +1 kuyruk darbesi' }, { name: 'Son Direniş', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 kuyruk darbesi, +4 hasar' }] },
+        '+5 hasar ve +%15 alan',
+      ],
     },
-    "boneRush": {
-      "description": "En yakındaki düşmana kemik sopayla kombo yapar: 2 ila 5 savuruş ve son vuruş düşmanı uzağa fırlatır.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Kemik Arkı",
-              "desc": "2 düşmana daha sıçrar; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Kemiklik",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 savuruş",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kemik Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Ağır Sopa",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +%10 alan"
-            }
-          ]
-        },
-        "+1 savuruş ve +4 hasar"
-      ]
+    boneRush: {
+      description: 'En yakındaki düşmana kemik sopayla kombo yapar: 2 ila 5 savuruş ve son vuruş düşmanı uzağa fırlatır.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Kemik Arkı', desc: '2 düşmana daha sıçrar; -0,1 sn bekleme süresi' }, { name: 'Kemiklik', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }] },
+        '+1 savuruş',
+        '+4 hasar',
+        { fork: [{ name: 'Kemik Patlaması', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Ağır Sopa', desc: 'Elitlere ve bosslara karşı ×1,5; +%10 alan' }] },
+        '+1 savuruş ve +4 hasar',
+      ],
     },
-    "metronome": {
-      "description": "Parmağını sallar ve rastgele bir saldırı kullanır: Ember'dan Earthquake'e kadar her şey olabilir ve ara sıra Blizzard veya Hydro Pump gibi evrimleşmiş bir saldırı bile gelebilir.",
-      "upgrades": [
-        "+%10 güç",
-        "Bekleme süresi 0,2 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Bis",
-              "desc": "Hemen ardından tekrar sallar (%50)"
-            },
-            {
-              "name": "Kıvılcım",
-              "desc": "2 düşmana daha sıçrar; +4 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+%15 güç",
-        {
-          "fork": [
-            {
-              "name": "Sürpriz",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Kaos",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%15 güç"
-      ]
+    metronome: {
+      description: "Parmağını sallar ve rastgele bir saldırı kullanır: Ember'dan Earthquake'e kadar her şey olabilir ve ara sıra Blizzard veya Hydro Pump gibi evrimleşmiş bir saldırı bile gelebilir.",
+      upgrades: [
+        '+%10 güç',
+        'Bekleme süresi 0,2 sn daha hızlı',
+        { fork: [{ name: 'Bis', desc: 'Hemen ardından tekrar sallar (%50)' }, { name: 'Kıvılcım', desc: '2 düşmana daha sıçrar; +4 hasar' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+%15 güç',
+        { fork: [{ name: 'Sürpriz', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi' }, { name: 'Kaos', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }] },
+        '+%15 güç',
+      ],
     },
-    "echoedVoice": {
-      "description": "Art arda her kullanımda büyüyen ses dalgaları yayar: Daha büyük, daha güçlü ve daha fazla yankılı (5 defaya kadar). Hasar almak yankıyı sıfırlar.",
-      "upgrades": [
-        "+3 hasar",
-        "%20 daha büyük dalgalar",
-        {
-          "fork": [
-            {
-              "name": "Yankılanma",
-              "desc": "Anında tekrar kullanılır (%50); -4 hasar"
-            },
-            {
-              "name": "Akustik Yankı",
-              "desc": "2 düşmana daha sıçrar; -0,2 sn bekleme süresi, +4 hasar"
-            }
-          ]
-        },
-        "+3 hasar",
-        "%20 daha büyük dalgalar",
-        {
-          "fork": [
-            {
-              "name": "Gürleme",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Son Çığlık",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+4 hasar"
-      ]
+    echoedVoice: {
+      description: 'Art arda her kullanımda büyüyen ses dalgaları yayar: Daha büyük, daha güçlü ve daha fazla yankılı (5 defaya kadar). Hasar almak yankıyı sıfırlar.',
+      upgrades: [
+        '+3 hasar',
+        '%20 daha büyük dalgalar',
+        { fork: [{ name: 'Yankılanma', desc: 'Anında tekrar kullanılır (%50); -4 hasar' }, { name: 'Akustik Yankı', desc: '2 düşmana daha sıçrar; -0,2 sn bekleme süresi, +4 hasar' }] },
+        '+3 hasar',
+        '%20 daha büyük dalgalar',
+        { fork: [{ name: 'Gürleme', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi' }, { name: 'Son Çığlık', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,2 sn bekleme süresi' }] },
+        '+4 hasar',
+      ],
     },
-    "sketch": {
-      "description": "Fırça kuyruğu en yakındaki düşmandan bir saldırı kopyalar (öncelikle menzildeki bir boss'tan): Kendi tipinden bir saldırı, boss'tan ise daha güçlü bir saldırı alır. Çizilen saldırıyı 3 kez kullanır, sonra yeniden çizer. Yakında kimse yoksa hafızasından çizer.",
-      "upgrades": [
-        "+%10 güç",
-        "Bekleme süresi 0,2 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Rötuş",
-              "desc": "Anında tekrar çizer (%50); +%20 menzil"
-            },
-            {
-              "name": "Boya Sıçraması",
-              "desc": "2 düşmana daha sıçrar; +4 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+%15 güç",
-        {
-          "fork": [
-            {
-              "name": "Başyapıt",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Portre",
-              "desc": "Elitlerde ve bosslarda ×1,5; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%15 güç"
-      ]
+    sketch: {
+      description: "Fırça kuyruğu en yakındaki düşmandan bir saldırı kopyalar (öncelikle menzildeki bir boss'tan): Kendi tipinden bir saldırı, boss'tan ise daha güçlü bir saldırı alır. Çizilen saldırıyı 3 kez kullanır, sonra yeniden çizer. Yakında kimse yoksa hafızasından çizer.",
+      upgrades: [
+        '+%10 güç',
+        'Bekleme süresi 0,2 sn daha hızlı',
+        { fork: [{ name: 'Rötuş', desc: 'Anında tekrar çizer (%50); +%20 menzil' }, { name: 'Boya Sıçraması', desc: '2 düşmana daha sıçrar; +4 hasar' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+%15 güç',
+        { fork: [{ name: 'Başyapıt', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi' }, { name: 'Portre', desc: 'Elitlerde ve bosslarda ×1,5; -0,2 sn bekleme süresi' }] },
+        '+%15 güç',
+      ],
     },
-    "curse": {
-      "description": "Görüş alanındaki en güçlü düşmanı (öncelikle bir boss'u) lanetlemek için mevcut Canının %15'ini feda eder: Düşman kalkan ve dirençleri yok sayarak 6 sn boyunca saniyede maksimum Canının %1,2'sini kaybeder. Canın %25'in altındayken beklemede kalır.",
-      "upgrades": [
+    curse: {
+      description: "Görüş alanındaki en güçlü düşmanı (öncelikle bir boss'u) lanetlemek için mevcut Canının %15'ini feda eder: Düşman kalkan ve dirençleri yok sayarak 6 sn boyunca saniyede maksimum Canının %1,2'sini kaybeder. Canın %25'in altındayken beklemede kalır.",
+      upgrades: [
         "Saniyede maksimum Canın +%0,3'ü",
-        "Süre +2 sn",
-        {
-          "fork": [
-            {
-              "name": "Ahit",
-              "desc": "Lanet sana Can kazandırır; -0,8 sn bekleme süresi"
-            },
-            {
-              "name": "Veba",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -1 sn bekleme süresi"
-            }
-          ]
-        },
+        'Süre +2 sn',
+        { fork: [{ name: 'Ahit', desc: 'Lanet sana Can kazandırır; -0,8 sn bekleme süresi' }, { name: 'Veba', desc: 'Elitlere ve bosslara karşı ×1,5; -1 sn bekleme süresi' }] },
         "Saniyede maksimum Canın +%0,3'ü",
-        "+1 lanetli düşman",
-        {
-          "fork": [
-            {
-              "name": "Musallat",
-              "desc": "Bayılttığı düşmanlar patlar; -1 sn bekleme süresi"
-            },
-            {
-              "name": "Hüküm",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,8 sn bekleme süresi"
-            }
-          ]
-        },
-        "Saniyede maksimum Canın +%0,4'ü"
-      ]
+        '+1 lanetli düşman',
+        { fork: [{ name: 'Musallat', desc: 'Bayılttığı düşmanlar patlar; -1 sn bekleme süresi' }, { name: 'Hüküm', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,8 sn bekleme süresi' }] },
+        "Saniyede maksimum Canın +%0,4'ü",
+      ],
     },
-    "gust": {
-      "description": "Herkesi uzağa savuran dairesel bir rüzgâr dalgası.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Esinti",
-              "desc": "Vuruşları seni iyileştirir; -0,3 sn bekleme süresi"
-            },
-            {
-              "name": "Çift Rüzgâr",
-              "desc": "Anında tekrar kullanılır (%50); -0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 rüzgâr",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Bora",
-              "desc": "Bayılttığı düşmanlar patlar; +%30 alan"
-            },
-            {
-              "name": "Statik Rüzgâr",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+1 rüzgâr"
-      ]
+    gust: {
+      description: 'Herkesi uzağa savuran dairesel bir rüzgâr dalgası.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Can Veren Esinti', desc: 'Vuruşları seni iyileştirir; -0,3 sn bekleme süresi' }, { name: 'Çift Rüzgâr', desc: 'Anında tekrar kullanılır (%50); -0,1 sn bekleme süresi' }] },
+        '+1 rüzgâr',
+        '+4 hasar',
+        { fork: [{ name: 'Bora', desc: 'Bayılttığı düşmanlar patlar; +%30 alan' }, { name: 'Statik Rüzgâr', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        '+1 rüzgâr',
+      ],
     },
-    "machPunch": {
-      "description": "En yakındaki düşmana hızlı yumruk kombosu yapar; son vuruş ileriye doğru bir şok dalgası fırlatır. Yürürken bekleme süresi daha hızlı dolar.",
-      "upgrades": [
-        "+1 yumruk",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Direk",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "Can Veren Direk",
-              "desc": "Vuruşları seni iyileştirir; +%20 alan"
-            }
-          ]
-        },
-        "+1 yumruk",
-        "Bekleme süresi 0,2 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Nakavt",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +6 hasar"
-            },
-            {
-              "name": "Sonik Patlama",
-              "desc": "Bayılttığı düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "+2 yumruk"
-      ]
+    machPunch: {
+      description: 'En yakındaki düşmana hızlı yumruk kombosu yapar; son vuruş ileriye doğru bir şok dalgası fırlatır. Yürürken bekleme süresi daha hızlı dolar.',
+      upgrades: [
+        '+1 yumruk',
+        '+3 hasar',
+        { fork: [{ name: 'Zincirleme Direk', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'Can Veren Direk', desc: 'Vuruşları seni iyileştirir; +%20 alan' }] },
+        '+1 yumruk',
+        'Bekleme süresi 0,2 sn daha hızlı',
+        { fork: [{ name: 'Nakavt', desc: 'Canı ≤%12 olan düşmanları bitirir; +6 hasar' }, { name: 'Sonik Patlama', desc: 'Bayılttığı düşmanlar patlar; +5 hasar' }] },
+        '+2 yumruk',
+      ],
     },
-    "flashCannon": {
-      "description": "Düz bir hat üzerindeki her şeyi delip geçen çelik bir küre.",
-      "upgrades": [
-        "+6 hasar",
-        "+%25 alan",
-        {
-          "fork": [
-            {
-              "name": "Prizma",
-              "desc": "İsabette 2'ye ayrılır; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Yansıtıcı",
-              "desc": "Gidip geri döner; -0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 küre",
-        "+8 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Top",
-              "desc": "Geriye doğru da ateşler; +%10 alan"
-            },
-            {
-              "name": "Zırh Delici",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +%25 alan"
-            }
-          ]
-        },
-        "+1 küre"
-      ]
+    flashCannon: {
+      description: 'Düz bir hat üzerindeki her şeyi delip geçen çelik bir küre.',
+      upgrades: [
+        '+6 hasar',
+        '+%25 alan',
+        { fork: [{ name: 'Prizma', desc: "İsabette 2'ye ayrılır; -0,2 sn bekleme süresi" }, { name: 'Yansıtıcı', desc: 'Gidip geri döner; -0,1 sn bekleme süresi' }] },
+        '+1 küre',
+        '+8 hasar',
+        { fork: [{ name: 'Çift Top', desc: 'Geriye doğru da ateşler; +%10 alan' }, { name: 'Zırh Delici', desc: 'Elitlere ve bosslara karşı ×1,5; +%25 alan' }] },
+        '+1 küre',
+      ],
     },
-    "spiritShackle": {
-      "description": "Düşmanları delip geçen ve onları bir anlığına kendi gölgelerine sabitleyen hayalet oklardan bir yelpaze.",
-      "upgrades": [
-        "+1 ok",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü Oklar",
-              "desc": "Düşmanları takip eder; 1 düşmanı daha delip geçer"
-            },
-            {
-              "name": "Çapraz Ateş",
-              "desc": "Geriye doğru da ateşler"
-            }
-          ]
-        },
-        "+1 ok",
-        "Bekleme süresi 0,2 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker; +1 hasar"
-            },
-            {
-              "name": "Acımasız Pranga",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +6 hasar"
-            }
-          ]
-        },
-        "+2 ok"
-      ]
+    spiritShackle: {
+      description: 'Düşmanları delip geçen ve onları bir anlığına kendi gölgelerine sabitleyen hayalet oklardan bir yelpaze.',
+      upgrades: [
+        '+1 ok',
+        '+3 hasar',
+        { fork: [{ name: 'Güdümlü Oklar', desc: 'Düşmanları takip eder; 1 düşmanı daha delip geçer' }, { name: 'Çapraz Ateş', desc: 'Geriye doğru da ateşler' }] },
+        '+1 ok',
+        'Bekleme süresi 0,2 sn daha hızlı',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker; +1 hasar' }, { name: 'Acımasız Pranga', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +6 hasar' }] },
+        '+2 ok',
+      ],
     },
-    "waterShuriken": {
-      "description": "Biçtiği her düşmanla daha da büyüyüp güçlenen güdümlü su shurikenleri.",
-      "upgrades": [
-        "+1 shuriken",
-        "+2 hasar",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker; -0,08 sn bekleme süresi, +6 hasar"
-            },
-            {
-              "name": "Su İzi",
-              "desc": "Zeminde hasar veren alan bırakır; -0,12 sn bekleme süresi, +7 hasar"
-            }
-          ]
-        },
-        "+1 shuriken",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Yıldız",
-              "desc": "İsabette 2'ye ayrılır; daha hızlı"
-            },
-            {
-              "name": "Son Kesik",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; daha hızlı, +2 hasar"
-            }
-          ]
-        },
-        "+2 shuriken"
-      ]
+    waterShuriken: {
+      description: 'Biçtiği her düşmanla daha da büyüyüp güçlenen güdümlü su shurikenleri.',
+      upgrades: [
+        '+1 shuriken',
+        '+2 hasar',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker; -0,08 sn bekleme süresi, +6 hasar' }, { name: 'Su İzi', desc: 'Zeminde hasar veren alan bırakır; -0,12 sn bekleme süresi, +7 hasar' }] },
+        '+1 shuriken',
+        '+3 hasar',
+        { fork: [{ name: 'Çift Yıldız', desc: "İsabette 2'ye ayrılır; daha hızlı" }, { name: 'Son Kesik', desc: 'Canı ≤%12 olan düşmanları bitirir; daha hızlı, +2 hasar' }] },
+        '+2 shuriken',
+      ],
     },
-    "crunch": {
-      "description": "En yakındaki düşmanlara güçlü bir ısırık darbesi.",
-      "upgrades": [
-        "+6 hasar",
-        "+1 ısırık",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Isırık",
-              "desc": "Yakındaki 2 düşmana sıçrar; -3 hasar"
-            },
-            {
-              "name": "Çift Isırık",
-              "desc": "Hemen ardından tekrar ısırır (%50); +%15 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+1 ısırık",
-        {
-          "fork": [
-            {
-              "name": "Aç Dişler",
-              "desc": "Alt edilen düşmanlar gölge saçarak patlar; +8 hasar"
-            },
-            {
-              "name": "Gölge Isırığı",
-              "desc": "Zeminde hasar veren gölge bırakır; +%20 alan"
-            }
-          ]
-        },
-        "+1 ısırık ve +%20 alan"
-      ]
+    crunch: {
+      description: 'En yakındaki düşmanlara güçlü bir ısırık darbesi.',
+      upgrades: [
+        '+6 hasar',
+        '+1 ısırık',
+        { fork: [{ name: 'Zincirleme Isırık', desc: 'Yakındaki 2 düşmana sıçrar; -3 hasar' }, { name: 'Çift Isırık', desc: 'Hemen ardından tekrar ısırır (%50); +%15 alan' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+1 ısırık',
+        { fork: [{ name: 'Aç Dişler', desc: 'Alt edilen düşmanlar gölge saçarak patlar; +8 hasar' }, { name: 'Gölge Isırığı', desc: 'Zeminde hasar veren gölge bırakır; +%20 alan' }] },
+        '+1 ısırık ve +%20 alan',
+      ],
     },
-    "pyroBall": {
-      "description": "İndiğinde patlayan ve en yakındaki düşmana seken bir ateş topu fırlatır.",
-      "upgrades": [
-        "+1 top",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Közler",
-              "desc": "Zeminde hasar veren alan bırakır; +%15 alan"
-            },
-            {
-              "name": "Kıvılcım Topu",
-              "desc": "2 düşmana daha sıçrar; +%25 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,3 sn daha hızlı",
-        "+8 hasar",
-        {
-          "fork": [
-            {
-              "name": "Golazo",
-              "desc": "Bayılttığı düşmanlar patlar; +1 top"
-            },
-            {
-              "name": "Çift Sekme",
-              "desc": "Anında tekrar kullanılır (%50)"
-            }
-          ]
-        },
-        "+%25 alan ve +6 hasar"
-      ]
+    pyroBall: {
+      description: 'İndiğinde patlayan ve en yakındaki düşmana seken bir ateş topu fırlatır.',
+      upgrades: [
+        '+1 top',
+        '+6 hasar',
+        { fork: [{ name: 'Közler', desc: 'Zeminde hasar veren alan bırakır; +%15 alan' }, { name: 'Kıvılcım Topu', desc: '2 düşmana daha sıçrar; +%25 alan' }] },
+        'Bekleme süresi 0,3 sn daha hızlı',
+        '+8 hasar',
+        { fork: [{ name: 'Golazo', desc: 'Bayılttığı düşmanlar patlar; +1 top' }, { name: 'Çift Sekme', desc: 'Anında tekrar kullanılır (%50)' }] },
+        '+%25 alan ve +6 hasar',
+      ],
     },
-    "psyshock": {
-      "description": "Medyum küreleri her yöne uçar ve geri döner.",
-      "upgrades": [
-        "+1 küre",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Medyum Yörüngesi",
-              "desc": "Etrafında döner; +%10 alan"
-            },
-            {
-              "name": "Parçacık",
-              "desc": "İsabette 2'ye ayrılır; +%20 alan"
-            }
-          ]
-        },
-        "+1 küre",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Zihin Arkı",
-              "desc": "2 düşmana daha sıçrar; daha hızlı"
-            },
-            {
-              "name": "Zihin Ezmesi",
-              "desc": "Elitlere ve bosslara karşı ×1,5; daha hızlı"
-            }
-          ]
-        },
-        "+2 küre"
-      ]
+    psyshock: {
+      description: 'Medyum küreleri her yöne uçar ve geri döner.',
+      upgrades: [
+        '+1 küre',
+        '+3 hasar',
+        { fork: [{ name: 'Medyum Yörüngesi', desc: 'Etrafında döner; +%10 alan' }, { name: 'Parçacık', desc: "İsabette 2'ye ayrılır; +%20 alan" }] },
+        '+1 küre',
+        '+4 hasar',
+        { fork: [{ name: 'Zihin Arkı', desc: '2 düşmana daha sıçrar; daha hızlı' }, { name: 'Zihin Ezmesi', desc: 'Elitlere ve bosslara karşı ×1,5; daha hızlı' }] },
+        '+2 küre',
+      ],
     },
-    "earthquake": {
-      "description": "Etrafındaki her şeye hasar veren bir sarsıntı. Uzun bekleme süresi.",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Artçı Sarsıntı",
-              "desc": "Anında tekrar kullanılır (%50); -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Yüklü Fay",
-              "desc": "2 düşmana daha sıçrar; -0,4 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 sarsıntı",
-        "+10 hasar",
-        {
-          "fork": [
-            {
-              "name": "Fay Hattı",
-              "desc": "Bayılttığı düşmanlar patlar; +%25 alan"
-            },
-            {
-              "name": "Uçurum",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%15 alan"
-            }
-          ]
-        },
-        "+1 sarsıntı ve +10 hasar"
-      ]
+    earthquake: {
+      description: 'Etrafındaki her şeye hasar veren bir sarsıntı. Uzun bekleme süresi.',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Artçı Sarsıntı', desc: 'Anında tekrar kullanılır (%50); -0,2 sn bekleme süresi' }, { name: 'Yüklü Fay', desc: '2 düşmana daha sıçrar; -0,4 sn bekleme süresi' }] },
+        '+1 sarsıntı',
+        '+10 hasar',
+        { fork: [{ name: 'Fay Hattı', desc: 'Bayılttığı düşmanlar patlar; +%25 alan' }, { name: 'Uçurum', desc: 'Canı ≤%12 olan düşmanları bitirir; +%15 alan' }] },
+        '+1 sarsıntı ve +10 hasar',
+      ],
     },
-    "drumBeating": {
-      "description": "Davul vuruşları: Düşmanları yavaşlatan kök dalgaları. Her üçüncü vuruş daha büyük ve daha serttir.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Acımasız Ritim",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +1 vuruş"
-            },
-            {
-              "name": "Can Veren Ritim",
-              "desc": "Vuruşları seni iyileştirir; +1 vuruş"
-            }
-          ]
-        },
-        "Bekleme süresi 0,25 sn daha hızlı",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Orman Yankısı",
-              "desc": "2 düşmana daha sıçrar; +1 vuruş"
-            },
-            {
-              "name": "Savaş Davulu",
-              "desc": "Bayılttığı düşmanlar patlar; +1 vuruş"
-            }
-          ]
-        },
-        "+%25 alan ve +5 hasar"
-      ]
+    drumBeating: {
+      description: 'Davul vuruşları: Düşmanları yavaşlatan kök dalgaları. Her üçüncü vuruş daha büyük ve daha serttir.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Acımasız Ritim', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +1 vuruş' }, { name: 'Can Veren Ritim', desc: 'Vuruşları seni iyileştirir; +1 vuruş' }] },
+        'Bekleme süresi 0,25 sn daha hızlı',
+        '+5 hasar',
+        { fork: [{ name: 'Orman Yankısı', desc: '2 düşmana daha sıçrar; +1 vuruş' }, { name: 'Savaş Davulu', desc: 'Bayılttığı düşmanlar patlar; +1 vuruş' }] },
+        '+%25 alan ve +5 hasar',
+      ],
     },
-    "disarmingVoice": {
-      "description": "Her yöne yayılan kalp dalgaları.",
-      "upgrades": [
-        "+2 kalp",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Seken Kalpler",
-              "desc": "2 düşmana daha seker; +9 hasar"
-            },
-            {
-              "name": "Serenat",
-              "desc": "Etrafında döner; -4 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+2 kalp",
-        {
-          "fork": [
-            {
-              "name": "Kırık Kalp",
-              "desc": "İsabette 2'ye ayrılır; +2 hasar"
-            },
-            {
-              "name": "Tatlı Ses",
-              "desc": "Vuruşları seni iyileştirir; +4 hasar"
-            }
-          ]
-        },
-        "+4 kalp"
-      ]
+    disarmingVoice: {
+      description: 'Her yöne yayılan kalp dalgaları.',
+      upgrades: [
+        '+2 kalp',
+        '+3 hasar',
+        { fork: [{ name: 'Seken Kalpler', desc: '2 düşmana daha seker; +9 hasar' }, { name: 'Serenat', desc: 'Etrafında döner; -4 hasar' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+2 kalp',
+        { fork: [{ name: 'Kırık Kalp', desc: "İsabette 2'ye ayrılır; +2 hasar" }, { name: 'Tatlı Ses', desc: 'Vuruşları seni iyileştirir; +4 hasar' }] },
+        '+4 kalp',
+      ],
     },
-    "torchSong": {
-      "description": "Alevli bir şarkı: Her yöne ateş notaları yayılır. Art arda söylenen her şarkı %8 daha güçlüdür (5'e kadar); hasar almak seriyi bozar.",
-      "upgrades": [
-        "+1 nota",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü Notalar",
-              "desc": "Düşmanları takip eder; 1 düşmanı daha delip geçer, +10 hasar"
-            },
-            {
-              "name": "Kamp Ateşi",
-              "desc": "Etrafında döner; -4 hasar"
-            }
-          ]
-        },
-        "+2 nota",
-        "Bekleme süresi 0,3 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Havai Fişek",
-              "desc": "Bayılttığı düşmanlar patlar; +5 hasar"
-            },
-            {
-              "name": "Alevli Sahne",
-              "desc": "Zeminde hasar veren alan bırakır; +3 hasar"
-            }
-          ]
-        },
-        "+2 nota ve +%20 alan"
-      ]
+    torchSong: {
+      description: "Alevli bir şarkı: Her yöne ateş notaları yayılır. Art arda söylenen her şarkı %8 daha güçlüdür (5'e kadar); hasar almak seriyi bozar.",
+      upgrades: [
+        '+1 nota',
+        '+3 hasar',
+        { fork: [{ name: 'Güdümlü Notalar', desc: 'Düşmanları takip eder; 1 düşmanı daha delip geçer, +10 hasar' }, { name: 'Kamp Ateşi', desc: 'Etrafında döner; -4 hasar' }] },
+        '+2 nota',
+        'Bekleme süresi 0,3 sn daha hızlı',
+        { fork: [{ name: 'Havai Fişek', desc: 'Bayılttığı düşmanlar patlar; +5 hasar' }, { name: 'Alevli Sahne', desc: 'Zeminde hasar veren alan bırakır; +3 hasar' }] },
+        '+2 nota ve +%20 alan',
+      ],
     },
-    "leafBlade": {
-      "description": "Etrafındaki her şeyi biçen dönen bir kılıç. Her üçüncü savuruş kritiktir: ×2 hasar veren daha büyük altın bir yaprak kılıç.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çift Kılıç",
-              "desc": "Daha geniş 2. bir savuruş geriye döner"
-            },
-            {
-              "name": "Temiz Kesik",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 kılıç"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Patlama Kesiği",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Bitki Özü",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            }
-          ]
-        },
-        "+1 kılıç"
-      ]
+    leafBlade: {
+      description: 'Etrafındaki her şeyi biçen dönen bir kılıç. Her üçüncü savuruş kritiktir: ×2 hasar veren daha büyük altın bir yaprak kılıç.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çift Kılıç', desc: 'Daha geniş 2. bir savuruş geriye döner' }, { name: 'Temiz Kesik', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 kılıç' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+6 hasar',
+        { fork: [{ name: 'Patlama Kesiği', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Bitki Özü', desc: 'Vuruşları seni iyileştirir; +%10 alan' }] },
+        '+1 kılıç',
+      ],
     },
-    "razorShell": {
-      "description": "Önünde kavis çizerek savrulan keskin bir kabuk darbesi. Düşmanı işaretleyebilir; işaretlenen düşman her vuruştan daha fazla hasar alır.",
-      "upgrades": [
-        "Arkaya da vurur",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Kesik",
-              "desc": "2 düşmana daha sıçrar; +%10 alan"
-            },
-            {
-              "name": "İnci",
-              "desc": "Vuruşları seni iyileştirir; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha hızlı",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kabuk Bombası",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Acımasız Kabuk",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +%10 alan"
-            }
-          ]
-        },
-        "+1 savuruş ve +6 hasar"
-      ]
+    razorShell: {
+      description: 'Önünde kavis çizerek savrulan keskin bir kabuk darbesi. Düşmanı işaretleyebilir; işaretlenen düşman her vuruştan daha fazla hasar alır.',
+      upgrades: [
+        'Arkaya da vurur',
+        '+5 hasar',
+        { fork: [{ name: 'Zincirleme Kesik', desc: '2 düşmana daha sıçrar; +%10 alan' }, { name: 'İnci', desc: 'Vuruşları seni iyileştirir; +%20 alan' }] },
+        'Bekleme süresi 0,15 sn daha hızlı',
+        '+6 hasar',
+        { fork: [{ name: 'Kabuk Bombası', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Acımasız Kabuk', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +%10 alan' }] },
+        '+1 savuruş ve +6 hasar',
+      ],
     },
-    "quickAttack": {
-      "description": "Shift tuşuna veya atılma düğmesine bas: Önündeki düşmana doğru kısa bir atılma yaparsın, yolundaki her şeye vurur ve bir anlığına dokunulmaz olursun.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Gölge İzi",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Şimşek Adım",
-              "desc": "2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +11 hasar"
-            }
-          ]
-        },
-        "+6 hasar",
-        "Daha uzun atılma",
-        {
-          "fork": [
-            {
-              "name": "Sonik Darbe",
-              "desc": "Bayılttığı düşmanlar patlar; -0,3 sn bekleme süresi, -8 hasar"
-            },
-            {
-              "name": "Pusu Atılışı",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,3 sn bekleme süresi, +26 hasar"
-            }
-          ]
-        },
-        "+8 hasar ve +%20 alan"
-      ]
+    quickAttack: {
+      description: 'Shift tuşuna veya atılma düğmesine bas: Önündeki düşmana doğru kısa bir atılma yaparsın, yolundaki her şeye vurur ve bir anlığına dokunulmaz olursun.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Gölge İzi', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }, { name: 'Şimşek Adım', desc: '2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +11 hasar' }] },
+        '+6 hasar',
+        'Daha uzun atılma',
+        { fork: [{ name: 'Sonik Darbe', desc: 'Bayılttığı düşmanlar patlar; -0,3 sn bekleme süresi, -8 hasar' }, { name: 'Pusu Atılışı', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,3 sn bekleme süresi, +26 hasar' }] },
+        '+8 hasar ve +%20 alan',
+      ],
     },
-    "shockWave": {
-      "description": "Düşmandan düşmana atlayan ve her sıçrayışta zayıflayan bir elektrik şoku. Felç edebilir.",
-      "upgrades": [
-        "+1 sıçrama",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Aşırı Yükleme",
-              "desc": "Alt edilen düşmanlar patlar; bekleme süresi %6 daha hızlı"
-            },
-            {
-              "name": "Yankı Akımı",
-              "desc": "Zincir darbesi tekrar vurur (%50); -1 sıçrama"
-            }
-          ]
-        },
-        "+1 sıçrama",
-        "+5 hasar ve +%10 felç ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Statik Alan",
-              "desc": "Her sıçrayış kıvılcım bırakır; +%10 felç"
-            },
-            {
-              "name": "Dallanma",
-              "desc": "Her sıçrayış 2 düşmana daha ayrılır; -2 hasar"
-            }
-          ]
-        },
-        "+2 sıçrama"
-      ]
+    shockWave: {
+      description: 'Düşmandan düşmana atlayan ve her sıçrayışta zayıflayan bir elektrik şoku. Felç edebilir.',
+      upgrades: [
+        '+1 sıçrama',
+        '+4 hasar',
+        { fork: [{ name: 'Aşırı Yükleme', desc: 'Alt edilen düşmanlar patlar; bekleme süresi %6 daha hızlı' }, { name: 'Yankı Akımı', desc: 'Zincir darbesi tekrar vurur (%50); -1 sıçrama' }] },
+        '+1 sıçrama',
+        '+5 hasar ve +%10 felç ihtimali',
+        { fork: [{ name: 'Statik Alan', desc: 'Her sıçrayış kıvılcım bırakır; +%10 felç' }, { name: 'Dallanma', desc: 'Her sıçrayış 2 düşmana daha ayrılır; -2 hasar' }] },
+        '+2 sıçrama',
+      ],
     },
-    "hex": {
-      "description": "Düşmandan düşmana sıçrayan bir lanet. Durum etkisi altındaki düşmanlara ×1,7 hasar verir.",
-      "upgrades": [
-        "+1 sıçrama",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Lanet Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; -0,1 sn bekleme süresi, -6 hasar"
-            },
-            {
-              "name": "Ruh Emme",
-              "desc": "Vuruşları seni iyileştirir; -0,2 sn bekleme süresi, +8 hasar"
-            }
-          ]
-        },
-        "+1 sıçrama",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Hayalet Ateşi",
-              "desc": "Zeminde hasar veren alan bırakır; +%25 alan, -6 hasar"
-            },
-            {
-              "name": "Lanetli Yankı",
-              "desc": "Anında tekrar kullanılır (%50); +%10 alan, +11 hasar"
-            }
-          ]
-        },
-        "+2 sıçrama"
-      ]
+    hex: {
+      description: 'Düşmandan düşmana sıçrayan bir lanet. Durum etkisi altındaki düşmanlara ×1,7 hasar verir.',
+      upgrades: [
+        '+1 sıçrama',
+        '+4 hasar',
+        { fork: [{ name: 'Lanet Patlaması', desc: 'Bayılttığı düşmanlar patlar; -0,1 sn bekleme süresi, -6 hasar' }, { name: 'Ruh Emme', desc: 'Vuruşları seni iyileştirir; -0,2 sn bekleme süresi, +8 hasar' }] },
+        '+1 sıçrama',
+        '+5 hasar',
+        { fork: [{ name: 'Hayalet Ateşi', desc: 'Zeminde hasar veren alan bırakır; +%25 alan, -6 hasar' }, { name: 'Lanetli Yankı', desc: 'Anında tekrar kullanılır (%50); +%10 alan, +11 hasar' }] },
+        '+2 sıçrama',
+      ],
     },
-    "toxicSpikes": {
-      "description": "Zemine bir düşman bastığında patlayan zehirli dikenler bırakır. Kimse basmazsa yarı hasarla kendiliğinden patlarlar.",
-      "upgrades": [
-        "+6 hasar",
-        "+1 diken",
-        {
-          "fork": [
-            {
-              "name": "Statik Dikenler",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            },
-            {
-              "name": "Zehirli Su Birikintisi",
-              "desc": "Zeminde hasar veren alan bırakır; +%10 alan"
-            }
-          ]
-        },
-        "Diken süresi +2 sn",
-        "+8 hasar ve %25 daha güçlü zehir",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Reaksiyon",
-              "desc": "Bayılttığı düşmanlar patlar; +1 diken"
-            },
-            {
-              "name": "Acımasız Zehir",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +1 diken"
-            }
-          ]
-        },
-        "+%25 alan ve +6 hasar"
-      ]
+    toxicSpikes: {
+      description: 'Zemine bir düşman bastığında patlayan zehirli dikenler bırakır. Kimse basmazsa yarı hasarla kendiliğinden patlarlar.',
+      upgrades: [
+        '+6 hasar',
+        '+1 diken',
+        { fork: [{ name: 'Statik Dikenler', desc: '2 düşmana daha sıçrar; +%20 alan' }, { name: 'Zehirli Su Birikintisi', desc: 'Zeminde hasar veren alan bırakır; +%10 alan' }] },
+        'Diken süresi +2 sn',
+        '+8 hasar ve %25 daha güçlü zehir',
+        { fork: [{ name: 'Zincirleme Reaksiyon', desc: 'Bayılttığı düşmanlar patlar; +1 diken' }, { name: 'Acımasız Zehir', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +1 diken' }] },
+        '+%25 alan ve +6 hasar',
+      ],
     },
-    "willOWisp": {
-      "description": "Arkanda en yakındaki düşmana kendiliğinden ateş püskürten bir hayalet alevi bırakır. Yakabilir.",
-      "upgrades": [
-        "+3 hasar",
-        "Süre +1,5 sn",
-        {
-          "fork": [
-            {
-              "name": "Gezgin Alev",
-              "desc": "Zeminde hasar veren alan bırakır; +1 alev, +6 hasar"
-            },
-            {
-              "name": "Ateş Yığını",
-              "desc": "Bayılttığı düşmanlar patlar; +1 alev, -2 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 1 sn daha hızlı",
-        "+4 hasar ve +%10 yanma ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Çift Alev",
-              "desc": "Anında tekrar kullanılır (%50); +0,5 sn süre"
-            },
-            {
-              "name": "Fener",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +1,5 sn süre, +4 hasar"
-            }
-          ]
-        },
-        "Yaylım ateşi başına +1 alev ve +3 hasar"
-      ]
+    willOWisp: {
+      description: 'Arkanda en yakındaki düşmana kendiliğinden ateş püskürten bir hayalet alevi bırakır. Yakabilir.',
+      upgrades: [
+        '+3 hasar',
+        'Süre +1,5 sn',
+        { fork: [{ name: 'Gezgin Alev', desc: 'Zeminde hasar veren alan bırakır; +1 alev, +6 hasar' }, { name: 'Ateş Yığını', desc: 'Bayılttığı düşmanlar patlar; +1 alev, -2 hasar' }] },
+        'Bekleme süresi 1 sn daha hızlı',
+        '+4 hasar ve +%10 yanma ihtimali',
+        { fork: [{ name: 'Çift Alev', desc: 'Anında tekrar kullanılır (%50); +0,5 sn süre' }, { name: 'Fener', desc: 'Elitlere ve bosslara karşı ×1,5; +1,5 sn süre, +4 hasar' }] },
+        'Yaylım ateşi başına +1 alev ve +3 hasar',
+      ],
     },
-    "iceShard": {
-      "description": "Yavaşlayıp zemine saplanan, üzerine basan herkese hasar verip yavaşlatan buz parçacıkları fırlatır.",
-      "upgrades": [
-        "+1 parçacık",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Dönen Parçacıklar",
-              "desc": "Etrafında döner; +6 hasar"
-            },
-            {
-              "name": "Çift Yelpaze",
-              "desc": "Geriye doğru da ateşler; +0,5 sn süre, -2 hasar"
-            }
-          ]
-        },
-        "+1 parçacık",
-        "Bekleme süresi 0,2 sn daha hızlı",
-        {
-          "fork": [
-            {
-              "name": "Kıymık",
-              "desc": "İsabette 2'ye ayrılır; +3 hasar"
-            },
-            {
-              "name": "Kırma",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +%20 durum etkisi, +2 hasar"
-            }
-          ]
-        },
-        "+2 parçacık ve +%20 alan"
-      ]
+    iceShard: {
+      description: 'Yavaşlayıp zemine saplanan, üzerine basan herkese hasar verip yavaşlatan buz parçacıkları fırlatır.',
+      upgrades: [
+        '+1 parçacık',
+        '+3 hasar',
+        { fork: [{ name: 'Dönen Parçacıklar', desc: 'Etrafında döner; +6 hasar' }, { name: 'Çift Yelpaze', desc: 'Geriye doğru da ateşler; +0,5 sn süre, -2 hasar' }] },
+        '+1 parçacık',
+        'Bekleme süresi 0,2 sn daha hızlı',
+        { fork: [{ name: 'Kıymık', desc: "İsabette 2'ye ayrılır; +3 hasar" }, { name: 'Kırma', desc: 'Canı ≤%12 olan düşmanları bitirir; +%20 durum etkisi, +2 hasar' }] },
+        '+2 parçacık ve +%20 alan',
+      ],
     },
-    "rockTomb": {
-      "description": "En yakındaki düşmanların üzerine kayalar düşer; çarptığı düşmanları yere çivileyip yavaşlatır. Gölgeleri nereye düşeceklerini gösterir.",
-      "upgrades": [
-        "+1 kaya",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Moloz",
-              "desc": "Zeminde hasar veren alan bırakır; +%10 alan, +3 hasar"
-            },
-            {
-              "name": "Kaya Parçacıkları",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,3 sn daha hızlı",
-        "+1 kaya",
-        {
-          "fork": [
-            {
-              "name": "Heyelan",
-              "desc": "Bayılttığı düşmanlar patlar; +8 hasar"
-            },
-            {
-              "name": "Anıt Mezar",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +11 hasar"
-            }
-          ]
-        },
-        "+1 kaya ve +%20 alan"
-      ]
+    rockTomb: {
+      description: 'En yakındaki düşmanların üzerine kayalar düşer; çarptığı düşmanları yere çivileyip yavaşlatır. Gölgeleri nereye düşeceklerini gösterir.',
+      upgrades: [
+        '+1 kaya',
+        '+6 hasar',
+        { fork: [{ name: 'Moloz', desc: 'Zeminde hasar veren alan bırakır; +%10 alan, +3 hasar' }, { name: 'Kaya Parçacıkları', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        'Bekleme süresi 0,3 sn daha hızlı',
+        '+1 kaya',
+        { fork: [{ name: 'Heyelan', desc: 'Bayılttığı düşmanlar patlar; +8 hasar' }, { name: 'Anıt Mezar', desc: 'Elitlere ve bosslara karşı ×1,5; +11 hasar' }] },
+        '+1 kaya ve +%20 alan',
+      ],
     },
-    "pinMissile": {
-      "description": "Yanlarından çıkıp en yakındaki düşmana doğru kavis çizen bir iğne yaylım ateşi. Zehirleyebilir.",
-      "upgrades": [
-        "+1 iğne",
-        "+2 hasar",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker"
-            },
-            {
-              "name": "Oğul",
-              "desc": "Geriye doğru da ateşler; +1 iğne, -1 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha hızlı",
-        "1 düşmanı daha delip geçer",
-        {
-          "fork": [
-            {
-              "name": "İğneler",
-              "desc": "İsabette 2'ye ayrılır; +2 hasar"
-            },
-            {
-              "name": "Son İğne",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +5 hasar"
-            }
-          ]
-        },
-        "+2 iğne"
-      ]
+    pinMissile: {
+      description: 'Yanlarından çıkıp en yakındaki düşmana doğru kavis çizen bir iğne yaylım ateşi. Zehirleyebilir.',
+      upgrades: [
+        '+1 iğne',
+        '+2 hasar',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker' }, { name: 'Oğul', desc: 'Geriye doğru da ateşler; +1 iğne, -1 hasar' }] },
+        'Bekleme süresi 0,15 sn daha hızlı',
+        '1 düşmanı daha delip geçer',
+        { fork: [{ name: 'İğneler', desc: "İsabette 2'ye ayrılır; +2 hasar" }, { name: 'Son İğne', desc: 'Canı ≤%12 olan düşmanları bitirir; +5 hasar' }] },
+        '+2 iğne',
+      ],
     },
-    "dragonBreath": {
-      "description": "En yakındaki düşmana doğru koni şeklinde bir ejderha ateşi püskürtür; koninin tam ortası en sert darbeyi vurur. Yakabilir.",
-      "upgrades": [
-        "Koni +1 üfleme daha geniş",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çift Nefes",
-              "desc": "Geriye doğru da ateşler; +3 hasar"
-            },
-            {
-              "name": "Kavrulmuş Toprak",
-              "desc": "Zeminde hasar veren alan bırakır; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha hızlı",
-        "Koni +1 üfleme daha geniş",
-        {
-          "fork": [
-            {
-              "name": "Ejderha Gazabı",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Acımasız Alev",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +%20 durum ihtimali, +3 hasar"
-            }
-          ]
-        },
-        "Koni +2 üfleme daha geniş"
-      ]
+    dragonBreath: {
+      description: 'En yakındaki düşmana doğru koni şeklinde bir ejderha ateşi püskürtür; koninin tam ortası en sert darbeyi vurur. Yakabilir.',
+      upgrades: [
+        'Koni +1 üfleme daha geniş',
+        '+3 hasar',
+        { fork: [{ name: 'Çift Nefes', desc: 'Geriye doğru da ateşler; +3 hasar' }, { name: 'Kavrulmuş Toprak', desc: 'Zeminde hasar veren alan bırakır; +%20 alan' }] },
+        'Bekleme süresi 0,15 sn daha hızlı',
+        'Koni +1 üfleme daha geniş',
+        { fork: [{ name: 'Ejderha Gazabı', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'Acımasız Alev', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +%20 durum ihtimali, +3 hasar' }] },
+        'Koni +2 üfleme daha geniş',
+      ],
     },
-    "flameWheel": {
-      "description": "Seninle birlikte yuvarlanan bir ateş çemberi yürürken geçtiğin yolda alevler bırakır. Hareketsiz durmak hiçbir işe yaramaz: Daireler çizerek koş. Yakabilir.",
-      "upgrades": [
-        "+3 hasar",
-        "Alevlerin süresi +0,6 sn",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Çark",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            },
-            {
-              "name": "Kıvılcım Çarkı",
-              "desc": "2 düşmana daha sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+3 hasar ve +%10 yanma ihtimali",
-        "Alevlerin süresi +0,6 sn",
-        {
-          "fork": [
-            {
-              "name": "Patlama Çarkı",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Acımasız Çark",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +2 hasar"
-            }
-          ]
-        },
-        "+3 hasar ve +%25 alan"
-      ]
+    flameWheel: {
+      description: 'Seninle birlikte yuvarlanan bir ateş çemberi yürürken geçtiğin yolda alevler bırakır. Hareketsiz durmak hiçbir işe yaramaz: Daireler çizerek koş. Yakabilir.',
+      upgrades: [
+        '+3 hasar',
+        'Alevlerin süresi +0,6 sn',
+        { fork: [{ name: 'Can Veren Çark', desc: 'Vuruşları seni iyileştirir; +%10 alan' }, { name: 'Kıvılcım Çarkı', desc: '2 düşmana daha sıçrar; +%20 alan' }] },
+        '+3 hasar ve +%10 yanma ihtimali',
+        'Alevlerin süresi +0,6 sn',
+        { fork: [{ name: 'Patlama Çarkı', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'Acımasız Çark', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +2 hasar' }] },
+        '+3 hasar ve +%25 alan',
+      ],
     },
-    "solarBeam": {
-      "description": "1 sn boyunca ışık toplar, ardından en yakındaki düşmanın üzerinden 90° süpüren bir ışın ateşler. Yoğun güneş ışığı altındayken beklemeden anında ateşler.",
-      "upgrades": [
-        "+8 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Prizma Işını",
-              "desc": "2 düşmana daha sıçrar; -0,4 sn bekleme süresi, +9 hasar"
-            },
-            {
-              "name": "Kavrulmuş Yol",
-              "desc": "Zeminde hasar veren alan bırakır; -0,5 sn bekleme süresi"
-            }
-          ]
-        },
-        "+10 hasar",
-        "+1 ışın",
-        {
-          "fork": [
-            {
-              "name": "Süpernova",
-              "desc": "Bayılttığı düşmanlar patlar; +%20 alan"
-            },
-            {
-              "name": "Kavurucu Güneş",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +%10 alan"
-            }
-          ]
-        },
-        "+12 hasar ve bekleme süresi 0,4 sn daha hızlı"
-      ]
+    solarBeam: {
+      description: '1 sn boyunca ışık toplar, ardından en yakındaki düşmanın üzerinden 90° süpüren bir ışın ateşler. Yoğun güneş ışığı altındayken beklemeden anında ateşler.',
+      upgrades: [
+        '+8 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Prizma Işını', desc: '2 düşmana daha sıçrar; -0,4 sn bekleme süresi, +9 hasar' }, { name: 'Kavrulmuş Yol', desc: 'Zeminde hasar veren alan bırakır; -0,5 sn bekleme süresi' }] },
+        '+10 hasar',
+        '+1 ışın',
+        { fork: [{ name: 'Süpernova', desc: 'Bayılttığı düşmanlar patlar; +%20 alan' }, { name: 'Kavurucu Güneş', desc: 'Elitlere ve bosslara karşı ×1,5; +%10 alan' }] },
+        '+12 hasar ve bekleme süresi 0,4 sn daha hızlı',
+      ],
     },
-    "brine": {
-      "description": "Görüş alanındaki en çok yaralanmış düşmanlara tuzlu su fırlatır. Canı %50'nin altındaki herkese çift hasar verir: Tam bir infaz vuruşu.",
-      "upgrades": [
-        "+1 hedef",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama Arkı",
-              "desc": "2 düşmana daha sıçrar; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Tuz Havuzu",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi, +4 hasar"
-            }
-          ]
-        },
-        "+%25 alan",
-        "+1 hedef",
-        {
-          "fork": [
-            {
-              "name": "Bağışlayıcı Sıçrama",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +10 hasar"
-            },
-            {
-              "name": "Tuz Dalgası",
-              "desc": "Bayılttığı düşmanlar patlar; +7 hasar"
-            }
-          ]
-        },
-        "+1 hedef ve +5 hasar"
-      ]
+    brine: {
+      description: "Görüş alanındaki en çok yaralanmış düşmanlara tuzlu su fırlatır. Canı %50'nin altındaki herkese çift hasar verir: Tam bir infaz vuruşu.",
+      upgrades: [
+        '+1 hedef',
+        '+5 hasar',
+        { fork: [{ name: 'Sıçrama Arkı', desc: '2 düşmana daha sıçrar; -0,1 sn bekleme süresi' }, { name: 'Tuz Havuzu', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi, +4 hasar' }] },
+        '+%25 alan',
+        '+1 hedef',
+        { fork: [{ name: 'Bağışlayıcı Sıçrama', desc: 'Canı ≤%12 olan düşmanları bitirir; +10 hasar' }, { name: 'Tuz Dalgası', desc: 'Bayılttığı düşmanlar patlar; +7 hasar' }] },
+        '+1 hedef ve +5 hasar',
+      ],
     },
-    "electroBall": {
-      "description": "Hasarı ve boyutu hareket hızınla birlikte artan (en fazla ×2,2) bir elektrik küresi. Düşmanları delip geçer ve felç edebilir.",
-      "upgrades": [
-        "+5 hasar",
-        "1 düşmanı daha delip geçer",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü Küre",
-              "desc": "Düşmanları takip eder; -0,1 sn bekleme süresi, +20 hasar"
-            },
-            {
-              "name": "Deşarj",
-              "desc": "2 düşmana daha sıçrar; -0,2 sn bekleme süresi, -7 hasar"
-            }
-          ]
-        },
-        "+1 küre",
-        "+6 hasar ve +%10 felç ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Bölünen Küre",
-              "desc": "İsabette 2'ye ayrılır; +%15 alan"
-            },
-            {
-              "name": "Yoyo",
-              "desc": "Gidip geri döner; +%25 alan"
-            }
-          ]
-        },
-        "+1 küre ve +5 hasar"
-      ]
+    electroBall: {
+      description: 'Hasarı ve boyutu hareket hızınla birlikte artan (en fazla ×2,2) bir elektrik küresi. Düşmanları delip geçer ve felç edebilir.',
+      upgrades: [
+        '+5 hasar',
+        '1 düşmanı daha delip geçer',
+        { fork: [{ name: 'Güdümlü Küre', desc: 'Düşmanları takip eder; -0,1 sn bekleme süresi, +20 hasar' }, { name: 'Deşarj', desc: '2 düşmana daha sıçrar; -0,2 sn bekleme süresi, -7 hasar' }] },
+        '+1 küre',
+        '+6 hasar ve +%10 felç ihtimali',
+        { fork: [{ name: 'Bölünen Küre', desc: "İsabette 2'ye ayrılır; +%15 alan" }, { name: 'Yoyo', desc: 'Gidip geri döner; +%25 alan' }] },
+        '+1 küre ve +5 hasar',
+      ],
     },
-    "venoshock": {
-      "description": "Öncelikle zehirlenmiş düşmanları hedef alan ve onlara çift hasar veren güdümlü zehir damlaları.",
-      "upgrades": [
-        "+1 damla",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Damla Parçacıkları",
-              "desc": "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi"
-            },
-            {
-              "name": "Zehir İzi",
-              "desc": "Zeminde zehirleyen alan bırakır; -0,15 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 damla",
-        "+5 hasar ve +%10 zehirleme ihtimali",
-        {
-          "fork": [
-            {
-              "name": "Sıçrama",
-              "desc": "2 düşmana daha seker; +4 hasar"
-            },
-            {
-              "name": "Zehir Patlaması",
-              "desc": "Bayılttığı düşmanlar patlar; +1 delme"
-            }
-          ]
-        },
-        "+1 damla ve +4 hasar"
-      ]
+    venoshock: {
+      description: 'Öncelikle zehirlenmiş düşmanları hedef alan ve onlara çift hasar veren güdümlü zehir damlaları.',
+      upgrades: [
+        '+1 damla',
+        '+4 hasar',
+        { fork: [{ name: 'Damla Parçacıkları', desc: "İsabette 2'ye ayrılır; -0,1 sn bekleme süresi" }, { name: 'Zehir İzi', desc: 'Zeminde zehirleyen alan bırakır; -0,15 sn bekleme süresi' }] },
+        '+1 damla',
+        '+5 hasar ve +%10 zehirleme ihtimali',
+        { fork: [{ name: 'Sıçrama', desc: '2 düşmana daha seker; +4 hasar' }, { name: 'Zehir Patlaması', desc: 'Bayılttığı düşmanlar patlar; +1 delme' }] },
+        '+1 damla ve +4 hasar',
+      ],
     },
-    "selfDestruct": {
-      "description": "Manuel: Etrafında devasa bir patlama yaratmak için mevcut Canının %20'sini harcar ve seni bir anlığına dokunulmaz kılar.",
-      "upgrades": [
-        "+15 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Toparlanma",
-              "desc": "Patlama Can kazandırır; -0,7 sn bekleme süresi"
-            },
-            {
-              "name": "Yanan Krater",
-              "desc": "Zeminde hasar veren alan bırakır; -1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+20 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Reaksiyon",
-              "desc": "Bayılttığı düşmanlar patlar; -1 sn bekleme süresi"
-            },
-            {
-              "name": "Kamikaze",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,8 sn bekleme süresi"
-            }
-          ]
-        },
-        "+25 hasar ve +%20 alan"
-      ]
+    selfDestruct: {
+      description: "Manuel: Etrafında devasa bir patlama yaratmak için mevcut Canının %20'sini harcar ve seni bir anlığına dokunulmaz kılar.",
+      upgrades: [
+        '+15 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Toparlanma', desc: 'Patlama Can kazandırır; -0,7 sn bekleme süresi' }, { name: 'Yanan Krater', desc: 'Zeminde hasar veren alan bırakır; -1 sn bekleme süresi' }] },
+        '+20 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Zincirleme Reaksiyon', desc: 'Bayılttığı düşmanlar patlar; -1 sn bekleme süresi' }, { name: 'Kamikaze', desc: 'Elitlere ve bosslara karşı ×1,5; -0,8 sn bekleme süresi' }] },
+        '+25 hasar ve +%20 alan',
+      ],
     },
-    "roost": {
-      "description": "Tünemek için 1 sn hareketsiz dur: Bir tüy rüzgârı düşmanları iter ve yerinde kaldığın sürece saniyede maksimum Canının %2'sini yenilersin.",
-      "upgrades": [
-        "+6 rüzgâr hasarı",
+    roost: {
+      description: "Tünemek için 1 sn hareketsiz dur: Bir tüy rüzgârı düşmanları iter ve yerinde kaldığın sürece saniyede maksimum Canının %2'sini yenilersin.",
+      upgrades: [
+        '+6 rüzgâr hasarı',
         "Saniyede Canın %2,5'ini yeniler",
-        {
-          "fork": [
-            {
-              "name": "Hızlı Tüneme",
-              "desc": "İki kat hızlı tüner ama %30 daha az iyileştirir"
-            },
-            {
-              "name": "Rüzgâr Yuvası",
-              "desc": "Tüneme anı hasar veren rüzgâr bırakır; +%20 alan"
-            }
-          ]
-        },
-        "+%30 rüzgâr alanı",
+        { fork: [{ name: 'Hızlı Tüneme', desc: 'İki kat hızlı tüner ama %30 daha az iyileştirir' }, { name: 'Rüzgâr Yuvası', desc: 'Tüneme anı hasar veren rüzgâr bırakır; +%20 alan' }] },
+        '+%30 rüzgâr alanı',
         "Saniyede Canın %3'ünü yeniler",
-        {
-          "fork": [
-            {
-              "name": "Patlayan Tüyler",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Derin Dinlenme",
-              "desc": "%60 daha fazla iyileştirir ama tünemesi daha uzun sürer"
-            }
-          ]
-        },
-        "+10 rüzgâr hasarı ve saniyede Canın %3,5'ini yeniler"
-      ]
+        { fork: [{ name: 'Patlayan Tüyler', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'Derin Dinlenme', desc: '%60 daha fazla iyileştirir ama tünemesi daha uzun sürer' }] },
+        "+10 rüzgâr hasarı ve saniyede Canın %3,5'ini yeniler",
+      ],
     },
-    "focusPunch": {
-      "description": "Hasar almadığın sürece odaklanırsın ve aura büyür. Tam şarj olduğunda yakındaki bir sonraki düşmana yıkıcı bir yumruk indirir. Darbe almak şarjı sıfırlar.",
-      "upgrades": [
-        "+18 hasar",
-        "Daha hızlı şarj olur",
-        {
-          "fork": [
-            {
-              "name": "Zincirleme Dalga",
-              "desc": "2 düşmana daha sıçrar; +%10 alan, +31 hasar"
-            },
-            {
-              "name": "Usta Vuruşu",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +%20 alan"
-            }
-          ]
-        },
-        "+22 hasar",
-        "Daha hızlı şarj olur",
-        {
-          "fork": [
-            {
-              "name": "Sismik Yumruk",
-              "desc": "Bayılttığı düşmanlar patlar; +26 hasar"
-            },
-            {
-              "name": "Kısa Odaklanma",
-              "desc": "8 yerine 5 saniyede şarj olur; +4 hasar"
-            }
-          ]
-        },
-        "+22 hasar ve +%20 alan"
-      ]
+    focusPunch: {
+      description: 'Hasar almadığın sürece odaklanırsın ve aura büyür. Tam şarj olduğunda yakındaki bir sonraki düşmana yıkıcı bir yumruk indirir. Darbe almak şarjı sıfırlar.',
+      upgrades: [
+        '+18 hasar',
+        'Daha hızlı şarj olur',
+        { fork: [{ name: 'Zincirleme Dalga', desc: '2 düşmana daha sıçrar; +%10 alan, +31 hasar' }, { name: 'Usta Vuruşu', desc: 'Elitlere ve bosslara karşı ×1,5; +%20 alan' }] },
+        '+22 hasar',
+        'Daha hızlı şarj olur',
+        { fork: [{ name: 'Sismik Yumruk', desc: 'Bayılttığı düşmanlar patlar; +26 hasar' }, { name: 'Kısa Odaklanma', desc: '8 yerine 5 saniyede şarj olur; +4 hasar' }] },
+        '+22 hasar ve +%20 alan',
+      ],
     },
-    "gyroBall": {
-      "description": "Etrafında dönen çelik dişliler sen ne kadar yavaş hareket edersen o kadar sert vurur. Hareketsiz dururken ×2,2'ye kadar hasar verir.",
-      "upgrades": [
-        "+1 dişli",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Dişli",
-              "desc": "Vuruşları seni iyileştirir; +%10 alan"
-            },
-            {
-              "name": "Öğütücü",
-              "desc": "Düşmanları içine çeker; +%20 alan"
-            }
-          ]
-        },
-        "Dönüş %25 daha hızlı",
-        "+1 dişli",
-        {
-          "fork": [
-            {
-              "name": "Dişli Bombası",
-              "desc": "Bayılttığı düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Parçalayıcı",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +9 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve +%20 alan"
-      ]
+    gyroBall: {
+      description: "Etrafında dönen çelik dişliler sen ne kadar yavaş hareket edersen o kadar sert vurur. Hareketsiz dururken ×2,2'ye kadar hasar verir.",
+      upgrades: [
+        '+1 dişli',
+        '+3 hasar',
+        { fork: [{ name: 'Can Veren Dişli', desc: 'Vuruşları seni iyileştirir; +%10 alan' }, { name: 'Öğütücü', desc: 'Düşmanları içine çeker; +%20 alan' }] },
+        'Dönüş %25 daha hızlı',
+        '+1 dişli',
+        { fork: [{ name: 'Dişli Bombası', desc: 'Bayılttığı düşmanlar patlar; +4 hasar' }, { name: 'Parçalayıcı', desc: 'Canı ≤%12 olan düşmanları bitirir; +9 hasar' }] },
+        '+5 hasar ve +%20 alan',
+      ],
     },
-    "suckerPunch": {
-      "description": "Sinsi bir vuruş: Tam yanına yaklaşan herhangi bir düşmana, o sana dokunamadan anında vurur.",
-      "upgrades": [
-        "+4 hasar",
-        "Vuruş başına +1 hedef",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Karşı Darbe",
-              "desc": "Vuruşları seni iyileştirir; -0,05 sn bekleme süresi"
-            },
-            {
-              "name": "Zincirleme Vuruş",
-              "desc": "2 düşmana daha sıçrar; -0,08 sn bekleme süresi"
-            }
-          ]
-        },
-        "+%20 menzil",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kirli Numara",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 hedef, +11 hasar"
-            },
-            {
-              "name": "Tuzak",
-              "desc": "Bayılttığı düşmanlar patlar; +1 hedef"
-            }
-          ]
-        },
-        "+6 hasar ve bekleme süresi 0,08 sn daha hızlı"
-      ]
+    suckerPunch: {
+      description: 'Sinsi bir vuruş: Tam yanına yaklaşan herhangi bir düşmana, o sana dokunamadan anında vurur.',
+      upgrades: [
+        '+4 hasar',
+        'Vuruş başına +1 hedef',
+        { fork: [{ name: 'Can Veren Karşı Darbe', desc: 'Vuruşları seni iyileştirir; -0,05 sn bekleme süresi' }, { name: 'Zincirleme Vuruş', desc: '2 düşmana daha sıçrar; -0,08 sn bekleme süresi' }] },
+        '+%20 menzil',
+        '+6 hasar',
+        { fork: [{ name: 'Kirli Numara', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 hedef, +11 hasar' }, { name: 'Tuzak', desc: 'Bayılttığı düşmanlar patlar; +1 hedef' }] },
+        '+6 hasar ve bekleme süresi 0,08 sn daha hızlı',
+      ],
     },
-    "futureSight": {
-      "description": "Görüş alanındaki en kalabalık düşman gruplarını işaretler; 2 sn sonra işaretlerin üzerine medyum sütunları çöker.",
-      "upgrades": [
-        "+10 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Tekillik",
-              "desc": "Düşmanları içine çeker; +1 işaret"
-            },
-            {
-              "name": "Önceden Sezi",
-              "desc": "2 düşmana daha sıçrar; +1 işaret"
-            }
-          ]
-        },
-        "Bekleme süresi 0,6 sn daha hızlı",
-        "+14 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kehanet",
-              "desc": "Bayılttığı düşmanlar patlar; +1 işaret"
-            },
-            {
-              "name": "Kader",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +1 işaret, +13 hasar"
-            }
-          ]
-        },
-        "+14 hasar ve +%20 alan"
-      ]
+    futureSight: {
+      description: 'Görüş alanındaki en kalabalık düşman gruplarını işaretler; 2 sn sonra işaretlerin üzerine medyum sütunları çöker.',
+      upgrades: [
+        '+10 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Tekillik', desc: 'Düşmanları içine çeker; +1 işaret' }, { name: 'Önceden Sezi', desc: '2 düşmana daha sıçrar; +1 işaret' }] },
+        'Bekleme süresi 0,6 sn daha hızlı',
+        '+14 hasar',
+        { fork: [{ name: 'Kehanet', desc: 'Bayılttığı düşmanlar patlar; +1 işaret' }, { name: 'Kader', desc: 'Elitlere ve bosslara karşı ×1,5; +1 işaret, +13 hasar' }] },
+        '+14 hasar ve +%20 alan',
+      ],
     },
-    "bonemerang": {
-      "description": "Menzildeki en uzaktaki düşmana bir kemik fırlatır ve kemik bulunduğun yere geri döner; hem giderken hem dönerken çarpar.",
-      "upgrades": [
-        "+5 hasar",
-        "+1 kemik",
-        {
-          "fork": [
-            {
-              "name": "Kemik İzi",
-              "desc": "Zeminde hasar veren alan bırakır; +%15 alan"
-            },
-            {
-              "name": "Yüklü Kemik",
-              "desc": "2 düşmana daha sıçrar; +%25 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha hızlı",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Patlama Kemiği",
-              "desc": "Bayılttığı düşmanlar patlar; +1 kemik"
-            },
-            {
-              "name": "Temiz Vuruş",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; +1 kemik"
-            }
-          ]
-        },
-        "+6 hasar ve %25 daha hızlı uçar"
-      ]
+    bonemerang: {
+      description: 'Menzildeki en uzaktaki düşmana bir kemik fırlatır ve kemik bulunduğun yere geri döner; hem giderken hem dönerken çarpar.',
+      upgrades: [
+        '+5 hasar',
+        '+1 kemik',
+        { fork: [{ name: 'Kemik İzi', desc: 'Zeminde hasar veren alan bırakır; +%15 alan' }, { name: 'Yüklü Kemik', desc: '2 düşmana daha sıçrar; +%25 alan' }] },
+        'Bekleme süresi 0,2 sn daha hızlı',
+        '+6 hasar',
+        { fork: [{ name: 'Patlama Kemiği', desc: 'Bayılttığı düşmanlar patlar; +1 kemik' }, { name: 'Temiz Vuruş', desc: 'Canı ≤%12 olan düşmanları bitirir; +1 kemik' }] },
+        '+6 hasar ve %25 daha hızlı uçar',
+      ],
     },
-    "stealthRock": {
-      "description": "Bulunduğun yere 20 sn boyunca içeri giren herkese hasar veren sivri taşlardan bir çember kurar. Nerede savaşacağını sen seçersin.",
-      "upgrades": [
-        "+1 taş",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Mıknatıs Taşı",
-              "desc": "Düşmanları içine çeker; +3 sn süre"
-            },
-            {
-              "name": "Statik Taşlar",
-              "desc": "2 düşmana daha sıçrar; +3 sn süre"
-            }
-          ]
-        },
-        "+%20 alan",
-        "+2 taş",
-        {
-          "fork": [
-            {
-              "name": "Kaya Mayını",
-              "desc": "Bayılttığı düşmanlar patlar; +6 hasar"
-            },
-            {
-              "name": "Kale",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +4 hasar"
-            }
-          ]
-        },
-        "+6 hasar ve taş süresi +5 sn"
-      ]
+    stealthRock: {
+      description: 'Bulunduğun yere 20 sn boyunca içeri giren herkese hasar veren sivri taşlardan bir çember kurar. Nerede savaşacağını sen seçersin.',
+      upgrades: [
+        '+1 taş',
+        '+4 hasar',
+        { fork: [{ name: 'Mıknatıs Taşı', desc: 'Düşmanları içine çeker; +3 sn süre' }, { name: 'Statik Taşlar', desc: '2 düşmana daha sıçrar; +3 sn süre' }] },
+        '+%20 alan',
+        '+2 taş',
+        { fork: [{ name: 'Kaya Mayını', desc: 'Bayılttığı düşmanlar patlar; +6 hasar' }, { name: 'Kale', desc: 'Elitlere ve bosslara karşı ×1,5; +4 hasar' }] },
+        '+6 hasar ve taş süresi +5 sn',
+      ],
     },
-    "uTurn": {
-      "description": "Manuel: En yakındaki düşmanın içinden geçip başladığın noktaya geri atılır, her iki yönde de vurur ve bu süreçte tamamen dokunulmaz kalır.",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Hava Akımı",
-              "desc": "Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Can Veren Dönüş",
-              "desc": "Vuruşları seni iyileştirir; -0,3 sn bekleme süresi"
-            }
-          ]
-        },
-        "+8 hasar",
-        "Daha uzağa gider",
-        {
-          "fork": [
-            {
-              "name": "Patlamalı Dönüş",
-              "desc": "Bayılttığı düşmanlar patlar; -0,3 sn bekleme süresi"
-            },
-            {
-              "name": "Zikzak",
-              "desc": "2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +25 hasar"
-            }
-          ]
-        },
-        "+10 hasar ve +%20 alan"
-      ]
+    uTurn: {
+      description: 'Manuel: En yakındaki düşmanın içinden geçip başladığın noktaya geri atılır, her iki yönde de vurur ve bu süreçte tamamen dokunulmaz kalır.',
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Hava Akımı', desc: 'Zeminde hasar veren alan bırakır; -0,2 sn bekleme süresi' }, { name: 'Can Veren Dönüş', desc: 'Vuruşları seni iyileştirir; -0,3 sn bekleme süresi' }] },
+        '+8 hasar',
+        'Daha uzağa gider',
+        { fork: [{ name: 'Patlamalı Dönüş', desc: 'Bayılttığı düşmanlar patlar; -0,3 sn bekleme süresi' }, { name: 'Zikzak', desc: '2 düşmana daha sıçrar; -0,3 sn bekleme süresi, +25 hasar' }] },
+        '+10 hasar ve +%20 alan',
+      ],
     },
-    "dragonTail": {
-      "description": "Kuyruğun arkandaki kavisi süpürür ve düşmanları uzağa fırlatır; savrulan düşman çarptığı herkese hasar verir.",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Can Veren Kuyruk",
-              "desc": "Vuruşları seni iyileştirir; -0,15 sn bekleme süresi"
-            },
-            {
-              "name": "Titan Kuyruğu",
-              "desc": "Elitlere ve bosslara karşı ×1,5; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+7 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Patlama Fırlatışı",
-              "desc": "Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Son Kuyruk",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,2 sn bekleme süresi, +12 hasar"
-            }
-          ]
-        },
-        "+9 hasar"
-      ]
+    dragonTail: {
+      description: 'Kuyruğun arkandaki kavisi süpürür ve düşmanları uzağa fırlatır; savrulan düşman çarptığı herkese hasar verir.',
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Can Veren Kuyruk', desc: 'Vuruşları seni iyileştirir; -0,15 sn bekleme süresi' }, { name: 'Titan Kuyruğu', desc: 'Elitlere ve bosslara karşı ×1,5; -0,2 sn bekleme süresi' }] },
+        '+7 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Patlama Fırlatışı', desc: 'Bayılttığı düşmanlar patlar; -0,2 sn bekleme süresi' }, { name: 'Son Kuyruk', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,2 sn bekleme süresi, +12 hasar' }] },
+        '+9 hasar',
+      ],
     },
-    "sheerCold": {
-      "description": "Senden yayılan dondurucu bir halka: Hafifçe sıyırıp yavaşlatır ancak Canı %20'nin altındaki sıradan düşmanları anında parçalara ayırır.",
-      "upgrades": [
-        "+2 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Acımasız Don",
-              "desc": "Durum etkisi altındaki düşmanlara ×1,35; +6 hasar"
-            },
-            {
-              "name": "Parçalanan Buz",
-              "desc": "Bayılttığı düşmanlar patlar; -1 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,4 sn daha hızlı",
+    sheerCold: {
+      description: "Senden yayılan dondurucu bir halka: Hafifçe sıyırıp yavaşlatır ancak Canı %20'nin altındaki sıradan düşmanları anında parçalara ayırır.",
+      upgrades: [
+        '+2 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Acımasız Don', desc: 'Durum etkisi altındaki düşmanlara ×1,35; +6 hasar' }, { name: 'Parçalanan Buz', desc: 'Bayılttığı düşmanlar patlar; -1 hasar' }] },
+        'Bekleme süresi 0,4 sn daha hızlı',
         "+2 hasar ve %27'nin altındakileri parçalar",
-        {
-          "fork": [
-            {
-              "name": "Çift Dalga",
-              "desc": "Anında tekrar kullanılır (%50); +%10 alan"
-            },
-            {
-              "name": "Buzul Çağı",
-              "desc": "Elitlere ve bosslara karşı ×1,5; +%20 alan"
-            }
-          ]
-        },
-        "Bekleme süresi 0,4 sn daha hızlı ve %30'un altındakileri parçalar"
-      ]
-    },
-    "flamethrower": {
-      "description": "En yakındaki düşmana kesintisiz bir alev püskürtür; alevin bittiği yerde zemin tutuşur. Yakabilir.",
-      "upgrades": [
-        "+5 hasar ve daha geniş alev püskürtme",
-        "+2 alev ve daha uzun menzil",
-        "Yanan zemin süresi +0,8 sn ve yanıklar %30 daha güçlü",
-        "Bekleme süresi 0,15 sn daha hızlı ve +2 alev"
-      ]
-    },
-    "fireBlast": {
-      "description": "Zeminde yanmaya devam eden beş köşeli bir ateş yıldızına dönüşen ateş topları fırlatır.",
-      "upgrades": [
-        "+1 ateş topu",
-        "+8 hasar ve daha büyük yıldız",
-        "Yıldız +0,4 sn daha uzun yanar ve +%15 yanma ihtimali",
-        "Bekleme süresi 0,4 sn daha hızlı ve +8 hasar"
-      ]
-    },
-    "hydroPump": {
-      "description": "Yürüdüğün yöne doğru yüksek basınçlı çift su tazyiki: Her şeyi delip geçer ve düşmanları havaya savuran bir su sıçramasıyla son bulur.",
-      "upgrades": [
-        "+8 hasar",
-        "Daha kalın ve daha uzun tazyikler",
-        "+1 su tazyiki",
-        "Bekleme süresi 0,2 sn daha hızlı ve düşmanları daha uzağa savurur"
-      ]
-    },
-    "surf": {
-      "description": "Senden yayılan devasa dalgalar; ilki yürüdüğün yöne doğru akar ve yolundaki her şeyi süpürür, iter ve yavaşlatır.",
-      "upgrades": [
-        "+6 hasar",
-        "Daha geniş dalgalar",
-        "+1 dalga",
-        "Bekleme süresi 0,25 sn daha hızlı ve +4 hasar"
-      ]
-    },
-    "leafStorm": {
-      "description": "Etrafında dönen iki helezoni yaprak kolu kesiştiği her şeyi biçen bir fırtınaya dönüşerek genişler.",
-      "upgrades": [
-        "+4 yaprak",
-        "+6 hasar",
-        "Daha büyük yapraklar ve daha uzun süren fırtına",
-        "Bekleme süresi 0,25 sn daha hızlı ve daha hızlı dönüş"
-      ]
-    },
-    "powerWhip": {
-      "description": "Etrafında dönen devasa dikenli sarmaşıkların her biri yarım daire süpürerek düşmanları havaya savurur.",
-      "upgrades": [
-        "+10 hasar",
-        "Daha uzun sarmaşıklar",
-        "+1 sarmaşık",
-        "Bekleme süresi 0,25 sn daha hızlı ve düşmanları daha uzağa savurur"
-      ]
-    },
-    "triAttack": {
-      "description": "Üzerinde dönen bir prizma en yakındaki düşmanlara ateş, buz ve yıldırım ışınları fırlatır: Yakar, dondurur ve felç eder.",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 durum ihtimali ve daha kalın ışınlar",
-        "+3 ışın: İkinci bir üçgen",
-        "Bekleme süresi 0,25 sn daha hızlı ve +6 hasar"
-      ]
-    },
-    "wildboltStorm": {
-      "description": "Bir fırtına bulutu tüm ekrana yıldırımlar yağdırır ve her yıldırım yakındaki iki düşmana çatallanır. Felç edebilir.",
-      "upgrades": [
-        "+2 yıldırım",
-        "+10 hasar",
-        "Çatallar daha uzağa ulaşır ve +%15 felç ihtimali",
-        "Bekleme süresi 0,3 sn daha hızlı ve +2 yıldırım"
-      ]
-    },
-    "gunkShot": {
-      "description": "Güm diye yere düşüp zehirli su birikintilerine saçılan çöp yığınları fırlatır. Çoğunlukla zehirler.",
-      "upgrades": [
-        "+1 çöp yığını",
-        "+4 hasar ve %25 daha güçlü zehir",
-        "+0,6 sn daha uzun kalan daha büyük birikintiler",
-        "Bekleme süresi 0,4 sn daha hızlı ve +5 hasar"
-      ]
-    },
-    "hurricane": {
-      "description": "Etrafında dönen hortumlar yakındaki düşmanları içine çekip uzağa fırlatır.",
-      "upgrades": [
-        "+5 hasar",
-        "+1 hortum",
-        "+1 sn daha uzun kalan daha büyük hortumlar",
-        "Bekleme süresi 0,6 sn daha hızlı ve daha hızlı dönüş"
-      ]
-    },
-    "extremeSpeed": {
-      "description": "Shift tuşuna veya atılma düğmesine bas: Sürüyü yarıp geçen ve bir şok dalgasıyla son bulan ışık hızında bir atılma.",
-      "upgrades": [
-        "+10 hasar",
-        "Daha büyük atılma ve şok dalgası",
-        "Daha uzun atılma ve +6 hasar",
-        "+12 hasar ve düşmanları daha uzağa savurur"
-      ]
-    },
-    "thunderbolt": {
-      "description": "Gökten en yakındaki düşmanın üzerine bir yıldırım iner ve elektrik akımı düşmandan düşmana sıçrar. Felç edebilir.",
-      "upgrades": [
-        "+3 hedef",
-        "+8 hasar",
-        "Akım daha uzağa sıçrar ve +%15 felç şansı",
-        "0,2 sn daha kısa bekleme süresi ve +3 hedef"
-      ]
-    },
-    "barbBarrage": {
-      "description": "Dört bir yana zehirli dikenler saçar; dikenler patlayan ve geride zehirli bir bulut bırakan mayınlara dönüşür.",
-      "upgrades": [
-        "+2 diken",
-        "+10 hasar",
-        "Daha büyük patlamalar ve %30 daha güçlü zehir",
-        "0,2 sn daha kısa bekleme süresi ve +2 diken"
-      ]
-    },
-    "inferno": {
-      "description": "Ayaklarının dibinde etrafı ateş halkasıyla çevrili bir şenlik ateşi yakar; ateş düşmanlara alev patlamaları fırlatır. Sık sık yakar.",
-      "upgrades": [
-        "+6 hasar",
-        "Yaylım ateşi başına +1 atış",
-        "Daha geniş ateş halkası ve şenlik ateşi +2 sn kalır",
-        "1 sn daha kısa bekleme süresi ve +%15 yanma şansı"
-      ]
-    },
-    "blizzard": {
-      "description": "Etrafında bir tipi dönerken düşmanların üzerine buz sarkıtları iner; yere saplanan sarkıtlar yanından geçenleri yavaşlatır.",
-      "upgrades": [
-        "+3 buz sarkıtı",
-        "+6 hasar",
-        "Daha geniş darbeler ve buz +1 sn daha uzun kalır",
-        "0,3 sn daha kısa bekleme süresi ve +2 buz sarkıtı"
-      ]
-    },
-    "stoneEdge": {
-      "description": "Yerden en yakındaki düşmanlara doğru taş sütun sıraları fışkırır.",
-      "upgrades": [
-        "+10 hasar",
-        "+1 sütun sırası",
-        "Daha büyük sütunlar ve daha uzun sıralar",
-        "0,3 sn daha kısa bekleme süresi ve +6 hasar"
-      ]
-    },
-    "megahorn": {
-      "description": "Devasa boynuzlar sürüyü delip geçer ve bumerang gibi geri döner; hem giderken hem dönerken çarpar. Zehirleyebilir.",
-      "upgrades": [
-        "+10 hasar",
-        "+1 boynuz",
-        "Daha uzağa uçan daha büyük boynuzlar",
-        "0,25 sn daha kısa bekleme süresi ve +%20 zehirleme şansı"
-      ]
-    },
-    "outrage": {
-      "description": "Ejderha öfkesi: En yakındaki düşmana gittikçe genişleyen alev nefesleri püskürtür ve etraftaki herkesi savuran bir kükremeyle son bulur.",
-      "upgrades": [
-        "+5 hasar",
-        "Öfke nöbetinde +1 nefes",
-        "Daha geniş nefesler ve kükreme",
-        "0,25 sn daha kısa bekleme süresi ve +%15 yanma şansı"
-      ]
-    },
-    "jawLock": {
-      "description": "En yakındaki düşmanların altından gölge bir çene yükselir, onları sabitleyerek üç kez ısırır. Canı yarının altındaki düşmanlara ×1,6 vurur.",
-      "upgrades": [
-        "+1 çene",
-        "+8 hasar",
-        "+%25 alan ve 0,15 sn daha kısa bekleme süresi",
-        "+1 çene ve +6 hasar"
-      ]
-    },
-    "superpower": {
-      "description": "Önündeki düşmanları devasa bir darbeyle sürünün içine fırlatır (fırlatılanlar çarptığı düşmanlara hasar verir), ardından peş peşe yumruklar indirir.",
-      "upgrades": [
-        "+10 hasar",
-        "+3 yumruk",
-        "+%20 alan",
-        "0,25 sn daha kısa bekleme süresi ve +8 hasar"
-      ]
-    },
-    "fissure": {
-      "description": "Yer, senden dışarı doğru uzanan yarıklarla çatlar ve düşmanları uçuruma çeker. Canı %20'nin altına düşenler temelli içine düşer.",
-      "upgrades": [
-        "+1 yarık",
-        "+12 hasar",
-        "+%20 alan",
-        "+1 yarık ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "extrasensory": {
-      "description": "Düşmanların tepesinde psişik gözler açılır, patlamadan önce kalabalığı merkezine çeker. Düşmanların kafasını karıştırabilir: Kafası karışanlar birbirine çarpıp zarar verir.",
-      "upgrades": [
-        "+1 göz",
-        "+10 hasar ve +%20 kafa karışıklığı şansı",
-        "+%20 alan",
-        "+1 göz ve +0,3 sn daha uzun çeker"
-      ]
-    },
-    "steelBeam": {
-      "description": "En yakındaki düşmana kalın bir çelik ışın fırlatır ve hattını yavaşça süpürerek üzerindeki her şeye peş peşe çarpar.",
-      "upgrades": [
-        "+6 hasar",
-        "+1 ışın",
-        "+0,3 sn daha uzun sürer ve +%15 alan",
-        "+1 ışın ve +6 hasar"
-      ]
-    },
-    "infernalParade": {
-      "description": "Etrafında düşmanları yakan hayalet alevler süzülür. Durum etkisi altındaki düşmanlara ×1,7 hasar verir.",
-      "upgrades": [
-        "+2 alev",
-        "+5 hasar ve +%15 yanma şansı",
-        "+1 sn daha uzun sürer ve alevler daha hızlı hareket eder",
-        "+2 alev ve +4 hasar"
-      ]
-    },
-    "phantomForce": {
-      "description": "Gökyüzünde kaybolan bir ok yaylımı, en yakındaki düşmanların tepesine inerek onları oldukları yere prangalar.",
-      "upgrades": [
-        "+2 ok",
-        "+10 hasar",
-        "+%25 alan",
-        "+2 ok ve 0,2 sn daha kısa bekleme süresi"
-      ]
-    },
-    "aquaCutter": {
-      "description": "Devasa su şurikenleri düşmanların üzerine fırlar ve hem giderken hem dönerken keserek sana geri döner.",
-      "upgrades": [
-        "+1 şuriken",
-        "+7 hasar",
-        "+%25 alan",
-        "+1 şuriken ve daha fazla hız"
-      ]
-    },
-    "searingShot": {
-      "description": "Düşmanların üzerinde patlayan ve etrafa köz halkası saçan akkor alev topları fırlatır. Sık sık yakar.",
-      "upgrades": [
-        "+1 alev topu",
-        "+10 hasar",
-        "+%25 alan ve %25 daha güçlü yakar",
-        "+1 alev topu ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "gigaDrain": {
-      "description": "Sarmaşıklar en yakındaki düşmanlara kenetlenip enerjilerini sömürerek seni iyileştirir. Hedef devrilirse sarmaşık sıradakine sıçrar.",
-      "upgrades": [
-        "+1 sarmaşık",
-        "+4 hasar",
-        "+0,5 sn daha uzun sömürür",
-        "+2 sarmaşık ve +3 hasar"
-      ]
-    },
-    "burningJealousy": {
-      "description": "Bir kıskançlık ezgisi yankılanır ve ekrandaki en güçlü düşmanların altında ateş sütunları patlar. Elitlere ve bosslara ×1,5 vurur ve yakar.",
-      "upgrades": [
-        "+2 sütun",
-        "+12 hasar",
-        "+%25 alan ve %25 daha güçlü yakar",
-        "+2 sütun ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "trailblaze": {
-      "description": "Devasa yaprak bıçaklar, uzaktan etrafını neredeyse tam bir daire halinde süpürür.",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        "+1 bıçak",
-        "0,25 sn daha kısa bekleme süresi ve +8 hasar"
-      ]
-    },
-    "liquidation": {
-      "description": "Kabaran dalgalar ileri geri çarparak düşmanları devirir ve savunmalarını düşürür (işaret: daha fazla hasar alırlar).",
-      "upgrades": [
-        "+1 dalga",
-        "+10 hasar",
-        "+%20 alan ve +%20 işaretleme şansı",
-        "+1 dalga ve 0,2 sn daha kısa bekleme süresi"
-      ]
-    },
-    "alluringVoice": {
-      "description": "Senden dışarı doğru peş peşe kalp şeklinde şarkı dalgaları yayılır ve ulaştığı düşmanların kafasını karıştırabilir.",
-      "upgrades": [
-        "+1 dalga",
-        "+8 hasar ve +%15 kafa karışıklığı şansı",
-        "+%20 alan",
-        "+1 dalga ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "fieryDance": {
-      "description": "Alevler bir halka halinde dans ederek yayılır ve fır dönüp sana geri gelir. Yakabilirler ve her dansın %50 şansla saldırılarını 4 sn boyunca %15 güçlendirme olasılığı vardır.",
-      "upgrades": [
-        "+2 alev",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Yangın",
-              "desc": "Devrilen düşmanlar patlar; +%25 alan"
-            },
-            {
-              "name": "Kıvılcım",
-              "desc": "Darbe 2 düşmana sıçrar; +2 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+2 alev",
-        {
-          "fork": [
-            {
-              "name": "Canlı Köz",
-              "desc": "Durum etkisindekilere ×1,35; +%25 yanma şansı, %30 daha güçlü yakar"
-            },
-            {
-              "name": "Bis",
-              "desc": "Hemen ardından tekrar dans eder (%50); +3 hasar"
-            }
-          ]
-        },
-        "+4 hasar ve +%20 alan"
-      ]
-    },
-    "overdrive": {
-      "description": "Ritmik bir gitar rifi: Senden peş peşe elektrik halkaları yayılır; her ölçünün son vuruşu daha büyük ve serttir, felç edebilir.",
-      "upgrades": [
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Uzun Solo",
-              "desc": "Durum etkisindekilere ×1,35; +2 vuruş"
-            },
-            {
-              "name": "Distorsiyon",
-              "desc": "Darbe 2 düşmana sıçrar; +2 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Amfi",
-              "desc": "Elitlere ve bosslara ×1,5; +%25 alan"
-            },
-            {
-              "name": "Bis",
-              "desc": "Hemen ardından tekrar çalar (%50); +%25 felç şansı"
-            }
-          ]
-        },
-        "+2 vuruş ve +2 hasar"
-      ]
-    },
-    "gigatonHammer": {
-      "description": "En yakındaki düşmanın üzerine yeri sarsan devasa bir çekiç indirir. Çekiç peş peşe sallanamayacak kadar ağırdır: Her ağır darbenin ardından hafif bir vuruş gelir.",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Şarapnel",
-              "desc": "Devrilen düşmanlar patlar; +6 hasar"
-            },
-            {
-              "name": "Hafif Tutuş",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,3 sn bekleme süresi"
-            }
-          ]
-        },
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Gigaton",
-              "desc": "Elitlere ve bosslara ×1,5; +10 hasar"
-            },
-            {
-              "name": "Şok Dalgası",
-              "desc": "Darbe 2 düşmana sıçrar; +%30 alan"
-            }
-          ]
-        },
-        "+10 hasar ve 0,2 sn daha kısa bekleme süresi"
-      ]
-    },
-    "bitterBlade": {
-      "description": "Önüne doğru vurduğu hasarın yarısı kadar seni iyileştiren hayaletsi bir ateş kılıcı savurur. Yakabilir.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çifte Kılıç",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; ikinci bir kesiş geri döner"
-            },
-            {
-              "name": "Acı Köz",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Ruh Ateşi",
-              "desc": "Durum etkisindekilere ×1,35; +%30 yanma şansı"
-            },
-            {
-              "name": "Gezgin Alev",
-              "desc": "Darbe 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+6 hasar ve +%15 alan"
-      ]
-    },
-    "leechLife": {
-      "description": "Hemen yanındaki düşmanı seri ve minik ısırıklarla ısırıp vurulan hasarın yarısını Can olarak emer. Yalnızca çok yakındaki düşmanlara ulaşır.",
-      "upgrades": [
-        "+2 hasar",
-        "+1 düşman daha ısırır",
-        {
-          "fork": [
-            {
-              "name": "Susuzluk",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,08 sn bekleme süresi"
-            },
-            {
-              "name": "Bulaşma",
-              "desc": "Isırık 2 düşmana sıçrar; +1 hasar"
-            }
-          ]
-        },
-        "+2 hasar",
-        "+%30 menzil",
-        {
-          "fork": [
-            {
-              "name": "Sürü",
-              "desc": "Elitlere ve bosslara ×1,5; +1 düşman daha ısırır"
-            },
-            {
-              "name": "Kan Emici",
-              "desc": "Devrilen düşmanlar patlar; +3 hasar"
-            }
-          ]
-        },
-        "+3 hasar"
-      ]
-    },
-    "fireFang": {
-      "description": "En yakındaki düşmanı alevli dişlerle ısırır; yakabilir. Zaten yanan bir düşman bunun yerine bir anlığına irkilir.",
-      "upgrades": [
-        "+5 hasar",
-        "+%15 yanma şansı",
-        {
-          "fork": [
-            {
-              "name": "Çifte Diş",
-              "desc": "Durum etkisindekilere ×1,35; +1 düşman daha ısırır"
-            },
-            {
-              "name": "Köz",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Derin Yanık",
-              "desc": "Yerde ateş bırakır; %40 daha güçlü yakar"
-            },
-            {
-              "name": "Sıçrayan Ateş",
-              "desc": "Isırık 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+1 düşman daha ısırır ve +4 hasar"
-      ]
-    },
-    "furySwipes": {
-      "description": "Hemen yanındaki düşmana 2 ila 5 pençe atar: Düşmanların yakınında peş peşe yapılan her saldırı darbe sayısını artırır. Kavgadan uzaklaşınca bu çılgınlık diner.",
-      "upgrades": [
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çılgınlık",
-              "desc": "Durum etkisindekilere ×1,35; -0,15 sn bekleme süresi"
-            },
-            {
-              "name": "Uzun Pençeler",
-              "desc": "Pençe darbesi 2 düşmana sıçrar; +1 hasar"
-            }
-          ]
-        },
-        "+2 hasar",
-        "+1 pençe darbesi",
-        {
-          "fork": [
-            {
-              "name": "Hiddet",
-              "desc": "Devrilen düşmanlar patlar; +2 hasar"
-            },
-            {
-              "name": "Pati Tokadı",
-              "desc": "Elitlere ve bosslara ×1,5; +%25 alan"
-            }
-          ]
-        },
-        "+3 hasar"
-      ]
-    },
-    "heavySlam": {
-      "description": "Küçük bir sıçrama ve etrafına çelik gibi ağır bir gümleme. Ne kadar çok zırhın ve azami Canın varsa o kadar sert vurur (en fazla 3 katı).",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Ağır Adım",
-              "desc": "Düşmanları içeri çeker; -0,4 sn bekleme süresi"
-            },
-            {
-              "name": "Gürleme",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Rezonans",
-              "desc": "Gümleme 2 düşmana sıçrar; +4 hasar"
-            },
-            {
-              "name": "Ağır Sıklet",
-              "desc": "Elitlere ve bosslara ×1,5; +%20 alan"
-            }
-          ]
-        },
-        "+9 hasar"
-      ]
-    },
-    "bulldoze": {
-      "description": "Önüne doğru yuvarlanan bir toprak dalgası, içinden geçtiği her düşmanı yavaşlatır.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "İki Cephe",
-              "desc": "Durum etkisindekilere ×1,35; yelpaze şeklinde +1 dalga"
-            },
-            {
-              "name": "Heyelan",
-              "desc": "Devrilen düşmanlar patlar; +3 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Sur",
-              "desc": "Düşmanları içeri çeker; +%30 alan"
-            },
-            {
-              "name": "Sarsıntı",
-              "desc": "Darbe 2 düşmana sıçrar; +3 hasar, daha hızlı"
-            }
-          ]
-        },
-        "+1 dalga ve +4 hasar"
-      ]
-    },
-    "perishSong": {
-      "description": "Ürpertici bir şarkı 3 vuruş sayar: Üçüncü vuruşta şarkıyı duyan tüm sıradan düşmanlar yok olur, elitler ve bosslar ise ağır hasar alır.",
-      "upgrades": [
-        "+6 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Kresendo",
-              "desc": "Devrilen düşmanlar patlar; +6 hasar"
-            },
-            {
-              "name": "Tempo",
-              "desc": "Vuruşlar 0,2 sn daha hızlıdır; 0,4 sn daha kısa bekleme süresi"
-            }
-          ]
-        },
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Ağıt",
-              "desc": "Elitlere ve bosslara ×1,5; +8 hasar"
-            },
-            {
-              "name": "Rezonans",
-              "desc": "Şarkı 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+10 hasar ve 0,4 sn daha kısa bekleme süresi"
-      ]
-    },
-    "chargeBeam": {
-      "description": "En yakındaki düşmana kıvılcımlı bir yıldırım atar: Her kullanım %70 şansla 5 sn boyunca tüm saldırılarının hasarını %10 artırır (en fazla 3 kez birikir).",
-      "upgrades": [
-        "+3 hasar",
-        "+%10 güçlendirme şansı",
-        {
-          "fork": [
-            {
-              "name": "Dinamo",
-              "desc": "Güçlendirme 5 kata kadar birikir; -0,05 sn bekleme süresi"
-            },
-            {
-              "name": "Kondansatör",
-              "desc": "Darbe 2 düşmana sıçrar; +2 hasar"
-            }
-          ]
-        },
-        "+4 hasar",
-        "0,1 sn daha kısa bekleme süresi",
-        {
-          "fork": [
-            {
-              "name": "Aşırı Yükleme",
-              "desc": "Güçlendirme +2 sn daha uzun sürer; elitlere ve bosslara ×1,5"
-            },
-            {
-              "name": "Yay",
-              "desc": "Devrilen düşmanlar patlar; +3 hasar"
-            }
-          ]
-        },
-        "+4 hasar ve güçlendirme +1,5 sn daha uzun sürer"
-      ]
-    },
-    "moonblast": {
-      "description": "Ayın gücünü toplayıp en yakındaki düşmana onu zayıflatabilecek parlak bir küre fırlatır (daha az temas hasarı verir).",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Dolunay",
-              "desc": "Durum etkisindekilere ×1,35; +1 küre"
-            },
-            {
-              "name": "Ay Tozu",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Tutulma",
-              "desc": "+%25 zayıflatma şansı; yerde ay birikintisi bırakır"
-            },
-            {
-              "name": "Hilal",
-              "desc": "Darbe 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+1 küre ve +4 hasar"
-      ]
-    },
-    "frostBreath": {
-      "description": "En yakındaki düşmana daima kritik vuran buz gibi bir nefes üfler: İki kat hasar verir.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Derin Dondurma",
-              "desc": "Canı ≤%12 olan düşmanları bitirir; -0,15 sn bekleme süresi"
-            },
-            {
-              "name": "Dondurucu Rüzgâr",
-              "desc": "Nefes 2 düşmana sıçrar; +3 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Ebedi Buzul",
-              "desc": "Yerde buzlu zemin bırakır; %40 daha sert yavaşlatır"
-            },
-            {
-              "name": "Buz Parçası",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "+6 hasar ve +%15 alan"
-      ]
-    },
-    "avalanche": {
-      "description": "En yakındaki düşmanların üzerine buz kütleleri düşer. Son 2 saniye içinde darbe aldıysan iki kat daha sert vurur.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "İntikam",
-              "desc": "Darbe aldıktan sonra 2,5 kat vurur; -0,2 sn bekleme süresi"
-            },
-            {
-              "name": "Çığ",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Buzul Duvarı",
-              "desc": "+1 buz kütlesi; düşmanları içeri çeker"
-            },
-            {
-              "name": "Buz Yanığı",
-              "desc": "Darbe 2 düşmana sıçrar; +%25 alan"
-            }
-          ]
-        },
-        "+1 buz kütlesi ve +5 hasar"
-      ]
-    },
-    "rockSlide": {
-      "description": "En yakındaki düşmanların tepesine dev kayalar iner ve onları irkiltebilir.",
-      "upgrades": [
-        "+5 hasar",
-        "+1 kaya",
-        {
-          "fork": [
-            {
-              "name": "Taş Ocağı",
-              "desc": "Elitlere ve bosslara ×1,5; +1 kaya"
-            },
-            {
-              "name": "Heyelan",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Ağır Kayalar",
-              "desc": "+%25 irkiltme şansı; geride kaya enkazı bırakır"
-            },
-            {
-              "name": "Sekme",
-              "desc": "Darbe 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+1 kaya ve +5 hasar"
-      ]
-    },
-    "yawn": {
-      "description": "Kocaman bir esneme en yakındaki düşmanı 2 sn sonra uyutur: Uyuyan düşman donakalır ve sıradaki saldırından iki kat hasar alır.",
-      "upgrades": [
-        "+1 hedef",
-        "0,5 sn daha hızlı uyutur",
-        {
-          "fork": [
-            {
-              "name": "Bulaşıcı",
-              "desc": "Esneme 2 komşuya yayılır; -0,3 sn bekleme süresi"
-            },
-            {
-              "name": "Ağır Uyku",
-              "desc": "Uyku +1,5 sn daha uzun sürer; devrilen düşmanlar patlar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi",
-        "+1 hedef",
-        {
-          "fork": [
-            {
-              "name": "Kâbus",
-              "desc": "Sonraki darbe 2,5 kat vurur; +%25 alan"
-            },
-            {
-              "name": "Zincirleme Esneme",
-              "desc": "Darbe 2 düşmana sıçrar; -0,2 sn bekleme süresi"
-            }
-          ]
-        },
-        "+1 hedef ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "iceBeam": {
-      "description": "En yakındaki düşmana doğru buzdan bir ışın ateşler ve hattı süpürerek sıradaki düşmanlara çarpar. Dondurabilir.",
-      "upgrades": [
-        "+5 hasar",
-        "+%15 donma şansı",
-        {
-          "fork": [
-            {
-              "name": "Kriyo Işın",
-              "desc": "Durum etkisindekilere ×1,35; +1 ışın"
-            },
-            {
-              "name": "Tuzla Buz",
-              "desc": "Devrilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Mutlak Soğuk",
-              "desc": "Yerde donmuş zemin bırakır; %25 daha uzun süre dondurur"
-            },
-            {
-              "name": "Prizma",
-              "desc": "Işın çarptığında bölünür; +%20 alan"
-            }
-          ]
-        },
-        "+1 ışın ve +5 hasar"
-      ]
-    },
-    "discharge": {
-      "description": "Etrafında her yana elektrik patlaması saçar ve menzildeki tüm düşmanlara çarpar. Sık sık felç eder.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Statik Alan",
-              "desc": "+%25 felç şansı; geride kıvılcımlar bırakır"
-            },
-            {
-              "name": "Kısa Devre",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Yüksek Voltaj",
-              "desc": "Elitlere ve bosslara ×1,5; +%25 alan"
-            },
-            {
-              "name": "Zincir Yıldırım",
-              "desc": "Parlama 2 düşmana sıçrar; +3 hasar"
-            }
-          ]
-        },
-        "+6 hasar ve +%15 alan"
-      ]
-    },
-    "heatWave": {
-      "description": "Kavurucu sıcak bir rüzgâr dışarı doğru eserek düşmanların içinden geçer ve onları geri iter. Sık sık yakar.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Siroko",
-              "desc": "Yerde ateş bırakır; %30 daha güçlü yakar"
-            },
-            {
-              "name": "Patlama Dalgası",
-              "desc": "Devrilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Termal Parlama",
-              "desc": "Durum etkisindekilere ×1,35; +%25 alan"
-            },
-            {
-              "name": "Hava Akımı",
-              "desc": "Düşmanları içeri çeker; dalga geri döner"
-            }
-          ]
-        },
-        "+7 hasar ve +%15 alan"
-      ]
-    },
-    "thunderFang": {
-      "description": "En yakındaki düşmanı elektrikli dişlerle ısırır; felç edebilir. Zaten felç olmuş bir düşman bunun yerine iki kat hasar alır.",
-      "upgrades": [
-        "+5 hasar",
-        "+%15 felç şansı",
-        {
-          "fork": [
-            {
-              "name": "Çifte Diş",
-              "desc": "Durum etkisindekilere ×1,35; +1 düşman daha ısırır"
-            },
-            {
-              "name": "Kıvılcım",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Statik Yük",
-              "desc": "Yerde kıvılcımlar bırakır; %25 daha uzun süre şoklar"
-            },
-            {
-              "name": "Yay Isırığı",
-              "desc": "Isırık 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+1 düşman daha ısırır ve +4 hasar"
-      ]
-    },
-    "lavaPlume": {
-      "description": "Etrafında kızıl alevler bir halka halinde püskürür ve dokunduğu her şeyi yakar. Sık sık yakar.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Magma Göleti",
-              "desc": "Yerde lav bırakır; %30 daha güçlü yakar"
-            },
-            {
-              "name": "Püskürme",
-              "desc": "Devrilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kaldera",
-              "desc": "Elitlere ve bosslara ×1,5; +%25 alan"
-            },
-            {
-              "name": "Gayzer",
-              "desc": "Püskürme 2 düşmana sıçrar; +3 hasar"
-            }
-          ]
-        },
-        "+7 hasar ve +%15 alan"
-      ]
-    },
-    "auroraBeam": {
-      "description": "En yakındaki düşmana parıldayan gökkuşağı renginde bir ışın ateşler ve hattı süpürerek çarptığı her şeyi zayıflatır.",
-      "upgrades": [
-        "+4 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Kuzey Işıkları",
-              "desc": "Durum etkisindekilere ×1,35; +1 ışın"
-            },
-            {
-              "name": "Prizmatik Patlama",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kutup Işıması",
-              "desc": "+%25 zayıflatma şansı; geride parıldayan zemin bırakır"
-            },
-            {
-              "name": "Gökkuşağı Kırılması",
-              "desc": "Işın çarptığında bölünür; +%20 alan"
-            }
-          ]
-        },
-        "+1 ışın ve +4 hasar"
-      ]
-    },
-    "meteorBeam": {
-      "description": "Bir anlığına kozmik enerji toplar, ardından ileri doğru gerisinde yanan bir krater bırakan devasa bir göktaşı fırlatır.",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Süpernova",
-              "desc": "Devrilen düşmanlar patlar; +8 hasar"
-            },
-            {
-              "name": "Yıldız Işığı",
-              "desc": "0,4 sn daha hızlı şarj olur; +1 göktaşı"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi",
-        "+10 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çarpma Krateri",
-              "desc": "Elitlere ve bosslara ×1,5; krater +2 sn daha uzun kalır"
-            },
-            {
-              "name": "Kozmik Toz",
-              "desc": "Patlama 2 düşmana sıçrar; +%25 alan"
-            }
-          ]
-        },
-        "+12 hasar ve +%20 alan"
-      ]
-    },
-    "icyWind": {
-      "description": "Önüne doğru geniş bir koni halinde esen dondurucu rüzgâr, içinden geçtiği tüm düşmanları yavaşlatır.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Bora",
-              "desc": "Yerde kar bırakır; %30 daha sert yavaşlatır"
-            },
-            {
-              "name": "Buz Şoku",
-              "desc": "Devrilen düşmanlar patlar; +3 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Kutup Girdabı",
-              "desc": "Durum etkisindekilere ×1,35; daha geniş koni"
-            },
-            {
-              "name": "Dondurucu Esinti",
-              "desc": "Rüzgâr 2 düşmana sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+5 hasar ve +%15 alan"
-      ]
-    },
-    "ironHead": {
-      "description": "Bir saniyeliğine sertleşerek daha az hasar alır, ardından önündeki düşmanlara kafa atarak çarpar.",
-      "upgrades": [
-        "+6 hasar",
-        "+0,5 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Şarapnel",
-              "desc": "+4 parça; çelik patlamasıyla devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Çelik Refleks",
-              "desc": "Bekleme süresi −0,8 sn ve tekrar sertleşir; -4 hasar"
-            }
-          ]
-        },
-        "+8 hasar",
-        "+0,5 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Sert Kafa",
-              "desc": "+8 hasar; darbe 2 komşuya sıçrar"
-            },
-            {
-              "name": "Gözdağı",
-              "desc": "+%25 irkiltme şansı; geride çelik bir iz bırakır"
-            }
-          ]
-        },
-        "+10 hasar ve bekleme süresi 0,5 sn daha kısa"
-      ]
-    },
-    "psystrike": {
-      "description": "Etrafında toplanan psişik küreler farklı düşmanlara doğru fırlar; kalkanlar dahil her şeyin içinden geçer.",
-      "upgrades": [
-        "+1 küre",
-        "+5 hasar",
-        {
-          "fork": [
-            {
-              "name": "Geri Dönüş",
-              "desc": "Küreler geri dönüp tekrar çarpar; +3 hasar"
-            },
-            {
-              "name": "Zihin Kilidi",
-              "desc": "+1 küre ve hedefe yönelirler; -3 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,2 sn daha kısa",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çifte Dalga",
-              "desc": "+1 küre; arkaya doğru da ateşler"
-            },
-            {
-              "name": "Bölünme",
-              "desc": "Çarptığında 2'ye bölünür; +5 hasar"
-            }
-          ]
-        },
-        "+1 küre ve +5 hasar"
-      ]
-    },
-    "payDay": {
-      "description": "En yakındaki düşmanlara madeni paralar fırlatır. Her vuruş yere bir 10₽ düşürebilir (koşu başına en fazla 120).",
-      "upgrades": [
-        "+1 madeni para",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Büyük İkramiye",
-              "desc": "+%3 ₽ şansı ve +2 hasar; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Bozuk Para",
-              "desc": "Çarptığında bölünen +2 para; -2 hasar"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha kısa",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Para Yağmuru",
-              "desc": "+2 para ve hemen ardından tekrar fırlatır (%50)"
-            },
-            {
-              "name": "Sekme",
-              "desc": "+4 hasar ve +%2 ₽; paralar seker"
-            }
-          ]
-        },
-        "+1 madeni para ve +3 hasar"
-      ]
-    },
-    "thief": {
-      "description": "Gölge bir pençe menzildeki düşmanlara vurur; öncelik Alfa ve boss düşmanlardadır (onlara +%30 hasar). Alfa veya bossların taşıdığı eşyayı çalabilir: Düşman başına bir kez olmak üzere bir eşya ve 50₽.",
-      "upgrades": [
-        "+5 hasar",
-        "+1 pençe",
-        {
-          "fork": [
-            {
-              "name": "Yankesici",
-              "desc": "+1 pençe; darbe 2 komşuya sıçrar"
-            },
-            {
-              "name": "Göz Koyma",
-              "desc": "+4 hasar; vurulan hasarın bir kısmıyla iyileşir"
-            }
-          ]
-        },
-        "Bekleme süresi 0,15 sn daha kısa",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Düşürme",
-              "desc": "+6 hasar; elitlerde ve bosslarda daha güçlüdür"
-            },
-            {
-              "name": "Gece Kesisi",
-              "desc": "+%30 alan; devrilen düşmanlar patlar"
-            }
-          ]
-        },
-        "+1 pençe ve +5 hasar"
-      ]
-    },
-    "protect": {
-      "description": "Her 12 sn'de bir seni 1 sn boyunca koruyan bir balon belirir: Hiçbir darbe geçemez ve dokunan her şey geriye savrulur.",
-      "upgrades": [
-        "+0,2 sn daha uzun sürer",
-        "Bekleme süresi 1 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Dikenli Kalkan",
-              "desc": "+8 hasar; balonun devirdiği düşmanlar patlar"
-            },
-            {
-              "name": "Sezi",
-              "desc": "+0,3 sn daha uzun sürer ve hemen ardından tekrar kalkan açar"
-            }
-          ]
-        },
-        "+0,2 sn daha uzun sürer",
-        "Bekleme süresi 1 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Zehirli Sığınak",
-              "desc": "+6 hasar; balon vuruşlarıyla iyileşir"
-            },
-            {
-              "name": "Hızlı Koruma",
-              "desc": "Bekleme süresi −1,5 sn ve +%20 alan; itme etkisi sıçrar"
-            }
-          ]
-        },
-        "+0,3 sn daha uzun sürer ve bekleme süresi 1 sn daha kısa"
-      ]
-    },
-    "hyperBeam": {
-      "description": "Bir anlığına şarj olur, ardından en yakındaki düşmana doğru hattındaki her şeye peş peşe vuran devasa bir ışın ateşler. Sonrasında toparlanmak için bir an hareketsiz kalırsın.",
-      "upgrades": [
-        "+8 hasar",
-        "Bekleme süresi 0,8 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Aşırı Yükleme",
-              "desc": "+12 hasar; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Kavrulmuş Hat",
-              "desc": "+%25 alan; yeri yanar halde bırakır"
-            }
-          ]
-        },
-        "+10 hasar",
-        "Bekleme süresi 0,8 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Giga Işın",
-              "desc": "+10 hasar; elitlerde ve bosslarda daha güçlüdür"
-            },
-            {
-              "name": "Çifte Işın",
-              "desc": "+1 ışın ve darbe sıçrar; -6 hasar"
-            }
-          ]
-        },
-        "+14 hasar ve +%15 alan"
-      ]
-    },
-    "rainDance": {
-      "description": "Dans ederek 40 sn boyunca yağmur çağırırsın; koşunun normal havası yağmur bitince geri döner. Sürdüğü müddetçe etrafındaki düşmanların üzerine ağır damlalar iner. Yağmurda Su türü saldırılar %50 daha sert, Ateş türü saldırılar ise daha zayıf vurur (düşmanlarınki de dahil).",
-      "upgrades": [
-        "+2 hasar",
-        "Yağmur +5 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Sağanak",
-              "desc": "Yağmur +15 sn daha uzun sürer ve +1 damla; darbe komşulara sıçrar"
-            },
-            {
-              "name": "Huzurlu Yağmur",
-              "desc": "Üzerine yağdığı sürece saniyede %0,8 Can yeniler; damlalar hasarıyla iyileştirir"
-            }
-          ]
-        },
-        "Bekleme süresi 8 sn daha kısa",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Fırtına",
-              "desc": "+4 hasar; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Tufan",
-              "desc": "+%40 alan; damlalar yerde hasar veren su birikintileri bırakır"
-            }
-          ]
-        },
-        "+1 damla ve +2 hasar"
-      ]
-    },
-    "sunnyDay": {
-      "description": "40 sn boyunca yakıcı bir güneş çağırırsın; koşunun normal havası güneş bitince geri döner. Sürdüğü müddetçe etrafındaki düşmanların üzerine güneş ışınları iner. Güneş altında Ateş türü saldırılar %50 daha sert, Su türü saldırılar ise daha zayıf vurur (düşmanlarınki de dahil).",
-      "upgrades": [
-        "+2 hasar",
-        "Güneş +5 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Uzun Yaz",
-              "desc": "Güneş +15 sn daha uzun sürer ve +1 ışın; düştüğü yer yanar"
-            },
-            {
-              "name": "Kavurucu Güneş",
-              "desc": "Etrafındaki aydınlık halkaya basanları yakar; ışınlar durum etkisindekilere daha sert vurur"
-            }
-          ]
-        },
-        "Bekleme süresi 8 sn daha kısa",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Güneş Işını",
-              "desc": "+4 hasar; elitlerde ve bosslarda daha güçlüdür"
-            },
-            {
-              "name": "Parlama",
-              "desc": "+%40 alan; devrilen düşmanlar patlar"
-            }
-          ]
-        },
-        "+1 ışın ve +2 hasar"
-      ]
-    },
-    "swordsDance": {
-      "description": "Etrafında kılıçlar döner ve bu dans 5 sn boyunca sana +%8 hasar kazandırır. Süresi bitmeden tekrar dans edersen etki birikir (en fazla 3 kez).",
-      "upgrades": [
-        "Bekleme süresi 1 sn daha kısa",
-        "+1,2 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Daha Keskin Kılıçlar",
-              "desc": "5 kata kadar birikir ve +2 hasar; ikinci bir kılıç halkası"
-            },
-            {
-              "name": "Uzun Dans",
-              "desc": "+3 sn daha uzun sürer; kılıçlar elitlere ve bosslara daha sert vurur"
-            }
-          ]
-        },
-        "Bekleme süresi 0,5 sn daha kısa",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çelik Girdap",
-              "desc": "+2 kılıç; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Vampir Kılıç",
-              "desc": "+2 sn daha uzun sürer ve +2 hasar; kılıçlar hasarıyla iyileştirir"
-            }
-          ]
-        },
-        "+3 hasar ve +1 kılıç"
-      ]
-    },
-    "drainPunch": {
-      "description": "En yakındaki düşmana vurulan hasarın %35'i kadar seni iyileştiren parıldayan bir yumruk atar (saniyede en fazla Canının %4'ü kadar).",
-      "upgrades": [
-        "+4 hasar",
-        "Bekleme süresi 0,1 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Yumruk Yağmuru",
-              "desc": "+%40 alan ve yelpaze şeklinde +1 yumruk; hemen ardından tekrar yumruk atar (%50)"
-            },
-            {
-              "name": "Sülük",
-              "desc": "Hasarın +%20'si kadar daha iyileştirir; canı az kalanları bitirir"
-            }
-          ]
-        },
-        "+5 hasar",
-        "Bekleme süresi 0,1 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Patlayıcı Yumruk",
-              "desc": "+6 hasar; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Tam Sömürü",
-              "desc": "Hasarın +%10'u kadar daha iyileştirir ve +3 hasar; elitlerde ve bosslarda daha güçlüdür"
-            }
-          ]
-        },
-        "+6 hasar ve +%15 alan"
-      ]
-    },
-    "thunderWave": {
-      "description": "En yakındaki düşmana doğru statik bir koni yayarak üzerinden geçtiği herkesi 2 sn boyunca felç eder (bosslar etkisini çabuk atlatır).",
-      "upgrades": [
-        "Bekleme süresi 0,3 sn daha kısa",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Geniş Dalga",
-              "desc": "Daha geniş bir koni; kıvılcım komşulara sıçrar"
-            },
-            {
-              "name": "Statik",
-              "desc": "Felç +1,5 sn daha uzun sürer; durum etkisindekilere daha sert vurur"
-            }
-          ]
-        },
-        "Bekleme süresi 0,3 sn daha kısa",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çifte Dalga",
-              "desc": "Daha da geniş bir koni ve +%20 alan; hemen ardından tekrar dalga gelir (%50)"
-            },
-            {
-              "name": "Şok",
-              "desc": "Felç +1 sn daha uzun sürer ve +4 hasar; elitlerde ve bosslarda daha güçlüdür"
-            }
-          ]
-        },
-        "Felç +0,5 sn daha uzun sürer ve +3 hasar"
-      ]
-    },
-    "fly": {
-      "description": "Her 7 sn'de bir anlığına göğe havalanırsın: Hiçbir darbe sana değmez ve düşmanlar seni gözden kaybeder. Hareket etmeyi sürdürürsün ve inişte sertçe yere inerek etraftaki herkese hasar verip onları savurursun.",
-      "upgrades": [
-        "+6 hasar",
-        "Bekleme süresi 0,7 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Pike Bombası",
-              "desc": "+%35 alan ve +6 hasar; devrilen düşmanlar patlar"
-            },
-            {
-              "name": "Hızlı Uçuş",
-              "desc": "Bekleme süresi 1,5 sn daha kısa; iniş yerde keskin bir rüzgâr bırakır"
-            }
-          ]
-        },
-        "+8 hasar",
-        "Bekleme süresi 0,7 sn daha kısa",
-        {
-          "fork": [
-            {
-              "name": "Hava Ası",
-              "desc": "+10 hasar ve +%15 alan; elitlerde ve bosslarda daha güçlüdür"
-            },
-            {
-              "name": "Süzülüş",
-              "desc": "Bekleme süresi 1 sn daha kısa; darbe komşulara sıçrar"
-            }
-          ]
-        },
-        "+10 hasar"
-      ]
-    },
-    "ragingFury": {
-      "description": "Alevlere bürünerek öfkeyle koşarsın: Yürürken sana dokunan herkes yanar, geçtiğin yol yanan bir ize dönüşür ve birkaç adımda bir bu öfke alevden bir halkayla patlar. Hareketsiz durursan yalnızca tüter. Yakabilir.",
-      "upgrades": [
-        "+4 hasar",
-        "Alevler +0,6 sn daha uzun sürer ve +%15 alan",
-        "+5 hasar ve +%15 yanma şansı",
-        "+5 hasar ve +%20 alan"
-      ]
-    },
-    "seedFlare": {
-      "description": "Üzerinde küçük bir güneş büyür ve tam bir daireyi süpüren ışınlarla patlar; bittiği yerde ışık tohumları patlayarak açar. Yakıcı güneşte ışınlar etrafı iki kez süpürür.",
-      "upgrades": [
-        "+10 hasar",
-        "+1 ışın",
-        "+%20 alan",
-        "+12 hasar ve 0,4 sn daha kısa bekleme süresi"
-      ]
-    },
-    "waterSpout": {
-      "description": "Senden fışkıran bir gayzer, görüş alanındaki en çok yaralanmış düşmanların üzerine ağır damlalar yağdırır. Canın ne kadar çoksa o kadar sert yağar; Canı %50'nin altındaki düşmanlar iki kat hasar alır.",
-      "upgrades": [
-        "+2 damla",
-        "+8 hasar",
-        "+%25 alan",
-        "+2 damla ve 0,2 sn daha kısa bekleme süresi"
-      ]
-    },
-    "electroDrift": {
-      "description": "Senden dışarı doğru genişleyen bir spiral halinde elektrik küreleri yayılır; aralarındaki yıldırımlar araya giren herkesi çarpar. Ne kadar hızlıysan o kadar büyür ve güçlenirler. Felç edebilir.",
-      "upgrades": [
-        "+1 küre",
-        "+7 hasar",
-        "+0,4 sn daha uzun sürer ve +%20 alan",
-        "+1 küre ve +%15 felç şansı"
-      ]
-    },
-    "sludgeWave": {
-      "description": "Senden dışarı doğru peş peşe balçık dalgaları yayılır ve zehirleyebilir. Zaten zehirlenmiş düşmanlar iki kat hasar alır ve patlayarak etraftakileri zehirleyen zehirli bir gayzere dönüşür.",
-      "upgrades": [
-        "+3 hasar",
-        "+1 dalga",
-        "+%20 alan ve +%15 zehirleme şansı",
-        "+3 hasar ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "explosion": {
-      "description": "Manuel: Mevcut Canının beşte birini harcayarak devasa bir patlama yaratır ve içinde sen güvendesindir. Yendiği her düşman da patlar ve bu patlamalar daha fazlasını devirebilir.",
-      "upgrades": [
-        "+25 hasar",
-        "+%15 alan",
-        "1,2 sn daha kısa bekleme süresi",
-        "+30 hasar ve +%15 alan"
-      ]
-    },
-    "oblivionWing": {
-      "description": "Ardı sıra kızıl kanatlar açılır ve en yakındaki düşmanlara ışınlar saçarak hasarın yarısını Can olarak emer. Bir anlığına hareketsiz durursan iki kat fazla ışın ateşler.",
-      "upgrades": [
-        "+9 hasar",
-        "+1 ışın",
-        "0,2 sn daha kısa bekleme süresi",
-        "+1 ışın ve +9 hasar"
-      ]
-    },
-    "skyUppercut": {
-      "description": "Focus Punch gibi şarj olur (darbe almak sıfırlar), ancak yumruk aşağıdan gelir: Görüş alanındaki en zorlu düşmanların (öncelik bosslarda) altından etrafında şok dalgasıyla devasa bir yumruk fırlar.",
-      "upgrades": [
-        "+20 hasar",
-        "+1 yumruk",
-        "+%20 alan",
-        "+24 hasar ve +1 yumruk"
-      ]
-    },
-    "gearGrind": {
-      "description": "Dev dişliler en yakındaki düşmanlara doğru yuvarlanarak önlerindeki her şeyi biçer ve sana geri döner. Gyro Ball gibi, ne kadar yavaş hareket edersen o kadar sert çarparlar.",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        "+1 dişli",
-        "+7 hasar ve 0,25 sn daha kısa bekleme süresi"
-      ]
-    },
-    "kowtowCleave": {
-      "description": "Sucker Punch gibi etrafındaki zemini kollar: İçeri adım atan bir düşman, üzerine doğru geniş bir kavisle inen kılıç biçişiyle vurulur. Asla ıskalamaz ve korumaları delip geçer.",
-      "upgrades": [
-        "+10 hasar",
-        "+1 biçme",
-        "+%20 alan",
-        "+11 hasar ve 0,12 sn daha kısa bekleme süresi"
-      ]
-    },
-    "hyperspaceHole": {
-      "description": "Görüş alanındaki en yoğun grupların üzerinde uzayda halkalar açılır ve etraftaki düşmanları içine çeker; ardından her biri patlayarak çöker.",
-      "upgrades": [
-        "+14 hasar",
-        "+1 halka",
-        "+%20 alan ve +0,3 sn daha uzun çekerler",
-        "+16 hasar ve 0,5 sn daha kısa bekleme süresi"
-      ]
-    },
-    "thousandArrows": {
-      "description": "Etrafındaki yerden bir ok yağmuru yükselir ve menzildeki en uzaktaki düşmanların tepesine yağar. Uçanları yere indirir: Uçan düşmanlar iki kat hasar alır.",
-      "upgrades": [
-        "+3 ok",
-        "+9 hasar",
-        "+%25 alan",
-        "+3 ok ve 0,2 sn daha kısa bekleme süresi"
-      ]
-    },
-    "stoneAxe": {
-      "description": "Büyük bir taş balta en yakındaki düşmanın üzerine iner ve çarpmanın etkisiyle Stealth Rock misali etrafa havada asılı duran kıymıklar saçar: İçine yürüyen her düşmana hasar verirler.",
-      "upgrades": [
-        "+10 hasar",
-        "+1 kıymık",
-        "Kıymıklar +4 sn daha uzun kalır ve +%15 alan",
-        "+12 hasar ve +1 kıymık"
-      ]
-    },
-    "firstImpression": {
-      "description": "Manuel: Her biri sıradaki en yakın düşmanın içinden geçen zikzak atılmalar serisi; boyunca dokunulmaz kalırsın ve indiğin yerde bir patlamayla biter.",
-      "upgrades": [
-        "+9 hasar",
-        "+1 atılma",
-        "0,3 sn daha kısa bekleme süresi",
-        "+10 hasar ve +1 atılma"
-      ]
-    },
-    "breakingSwipe": {
-      "description": "Kuyruğun etrafında tam bir turdan fazla savrulur: Menzildeki her düşman darbe alır, zayıflar (temas hasarı azalır) ve geriye savrularak çarptığı diğer düşmanlara da hasar verir.",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        "0,3 sn daha kısa bekleme süresi",
-        "+10 hasar ve +%15 alan"
-      ]
-    },
-    "glacialLance": {
-      "description": "Devasa buz mızrakları düz bir hat boyunca sürüyü delip geçer: Canı %25'in altındaki sıradan düşmanları anında parçalar, diğerlerini dondurabilir; menzilin sonunda ise ayaza bürünerek patlar.",
-      "upgrades": [
-        "+1 mızrak",
-        "+10 hasar",
-        "+%20 alan ve +%15 donma şansı",
-        "+1 mızrak ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "braveBird": {
-      "description": "Ateş mavisi kanatlara bürünerek en çok düşmanın bulunduğu hatta doğru dimdik dalar. Çarpılan her düşman azami Canının %2'sine mal olur (dalış başına en fazla %6, asla son Can puanını almaz).",
-      "upgrades": [
-        "+6 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Sert İniş",
-              "desc": "Devrilen düşmanlar patlar; +6 hasar"
-            },
-            {
-              "name": "Tüy İzi",
-              "desc": "Geçtiği hatta kesici zemin bırakır; 0,3 sn daha kısa bekleme süresi"
-            }
-          ]
-        },
-        "+6 hasar",
-        "0,3 sn daha kısa bekleme süresi",
-        {
-          "fork": [
-            {
-              "name": "Voltaj Kanadı",
-              "desc": "Kıvılcımlar yakındaki düşmanlara sıçrar; +4 hasar"
-            },
-            {
-              "name": "İkinci Uçuş",
-              "desc": "Hemen ardından tekrar dalar (%50); -4 hasar"
-            }
-          ]
-        },
-        "+8 hasar ve +%20 alan"
-      ]
-    },
-    "weatherBall": {
-      "description": "En yakındaki düşmana hava durumuna göre değişen bir küre fırlatır: Açık havada Normal, güneşte yakan Ateş, yağmurda yavaşlatan Su, kum fırtınasında zayıflatan Kaya ve karda dondurabilen Buz. Herhangi bir hava durumu altındayken ×1,5 vurur.",
-      "upgrades": [
-        "+4 hasar",
-        "+1 top",
-        {
-          "fork": [
-            {
-              "name": "Soğuk Cephe",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            },
-            {
-              "name": "Yerel Hava",
-              "desc": "Düştüğü yerde hava durumuna özel zemin bırakır; +%25 alan"
-            }
-          ]
-        },
-        "0,25 sn daha kısa bekleme süresi",
-        "+4 hasar ve +%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Top Yağmuru",
-              "desc": "+1 top; elitlere ve bosslara ×1,5"
-            },
-            {
-              "name": "Çifte Cephe",
-              "desc": "Hemen ardından tekrar fırlatır (%50); -3 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve +%15 etki şansı"
-      ]
-    },
-    "accelerock": {
-      "description": "Senden fırlayan bir kaya silüeti en yakındaki düşmana anında çarpar ve yoluna çıkan herkese de vurur. Çok kısa bekleme süresine sahiptir.",
-      "upgrades": [
-        "+2 hasar",
-        "0,08 sn daha kısa bekleme süresi",
-        {
-          "fork": [
-            {
-              "name": "Parçacıklar",
-              "desc": "Taş parçacıkları yakındaki düşmanlara sıçrar; +1 hasar"
-            },
-            {
-              "name": "Darbe",
-              "desc": "Devrilen düşmanlar patlar; +3 hasar"
-            }
-          ]
-        },
-        "+3 hasar",
-        "+1 atılma",
-        {
-          "fork": [
-            {
-              "name": "Sürü",
-              "desc": "+1 atılma ve durum etkisindekilere ×1,35; -1 hasar"
-            },
-            {
-              "name": "Kaya Yankısı",
-              "desc": "Hemen ardından tekrar atılır (%50); daha kısa bekleme süresi"
-            }
-          ]
-        },
-        "+4 hasar ve 0,06 sn daha kısa bekleme süresi"
-      ]
-    },
-    "zapCannon": {
-      "description": "Yavaş ve devasa bir elektrik küresi sürünün içinden süzülür; çarptığı her şeyi çarparak daima felç eder.",
-      "upgrades": [
-        "+3 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Güdümlü",
-              "desc": "Küre en yakındaki düşmana yönelir; +2 hasar"
-            },
-            {
-              "name": "Elektrik Alanı",
-              "desc": "Geçtiği hat boyunca elektrikli zemin bırakır; +%15 alan"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Voltaik Yay",
-              "desc": "Kıvılcımlar yakındaki düşmanlara sıçrar; +2 hasar"
-            },
-            {
-              "name": "Çifte Top",
-              "desc": "+1 küre ve vuruşlar seni iyileştirir; -3 hasar"
-            }
-          ]
-        },
-        "+5 hasar ve +%20 alan"
-      ]
-    },
-    "aerialAce": {
-      "description": "En yakındaki düşmanlara asla ıskalamayan çevik rüzgâr kesikleri savurur: Korumaları kesip geçer ve dirençli eşleşmelere bile normal vurur.",
-      "upgrades": [
-        "+3 hasar",
-        "+1 kesiş",
-        {
-          "fork": [
-            {
-              "name": "Kuş Sürüsü",
-              "desc": "+1 kesiş; elitlere ve bosslara ×1,5"
-            },
-            {
-              "name": "Bitirici Darbe",
-              "desc": "Devrilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "0,2 sn daha kısa bekleme süresi",
-        "+4 hasar",
-        {
-          "fork": [
-            {
-              "name": "Çifte Kesik",
-              "desc": "Hemen ardından tekrar keser (%50); -3 hasar"
-            },
-            {
-              "name": "Keskin Rüzgâr",
-              "desc": "Rüzgâr kıvılcımları yakındaki düşmanlara sıçrar; +2 hasar"
-            }
-          ]
-        },
-        "+1 kesiş ve +4 hasar"
-      ]
-    },
-    "crossPoison": {
-      "description": "İki zehir kılıcı en yakındaki düşmanın üzerinde X şeklinde kesişir. Zehirleyebilir. Her dört vuruştan biri kritiktir: ×2 hasar.",
-      "upgrades": [
-        "+4 hasar",
-        "+%15 zehirleme şansı",
-        {
-          "fork": [
-            {
-              "name": "Zehirli Zemin",
-              "desc": "Yerde zehir birikintisi bırakır; +%20 zehirleme şansı"
-            },
-            {
-              "name": "Ölümcül Vuruş",
-              "desc": "Devrilen düşmanlar patlar; +6 hasar"
-            }
-          ]
-        },
-        "+%20 alan",
-        "+1 X",
-        {
-          "fork": [
-            {
-              "name": "Çifte Çapraz",
-              "desc": "Hemen ardından tekrar keser (%50); -3 hasar"
-            },
-            {
-              "name": "Sıçrayan Toksin",
-              "desc": "Zehir kıvılcımları yakındaki düşmanlara sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+6 hasar ve %30 daha güçlü zehir"
-      ]
-    },
-    "bubbleBeam": {
-      "description": "En yakındaki düşmana doğru bir baloncuk akımı püskürtür; patlayan her baloncuk hedefini yavaşlatır.",
-      "upgrades": [
-        "+2 baloncuk",
-        "+2 hasar",
-        {
-          "fork": [
-            {
-              "name": "Köpük",
-              "desc": "Baloncuklar çarptığında 2'ye bölünür; -1 hasar"
-            },
-            {
-              "name": "Güdümlü Baloncuklar",
-              "desc": "Baloncuklar düşmanlara yönelir; daha yavaş uçarlar"
-            }
-          ]
-        },
-        "+2 baloncuk",
-        "+2 hasar ve +%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Sekme",
-              "desc": "Baloncuklar başka bir düşmana seker; +1 hasar"
-            },
-            {
-              "name": "Çift Akıntı",
-              "desc": "Arkaya doğru da ateşler; +0,1 sn bekleme süresi"
-            }
-          ]
-        },
-        "+3 baloncuk ve +1 hasar"
-      ]
-    },
-    "rockBlast": {
-      "description": "En yakındaki düşmana peş peşe 2 ila 5 kaya fırlatır (her kullanımda rastgele belirlenir; yükseltmeler sayıyı artırır).",
-      "upgrades": [
-        "+3 hasar",
-        "0,15 sn daha kısa bekleme süresi",
-        {
-          "fork": [
-            {
-              "name": "Çakıl",
-              "desc": "Kayalar çarptığında 2'ye bölünür; -2 hasar"
-            },
-            {
-              "name": "Sıçrama",
-              "desc": "Kayalar başka bir düşmana seker; +3 hasar"
-            }
-          ]
-        },
-        "+1 kaya",
-        "+4 hasar ve +%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Patlayıcı Kaya",
-              "desc": "Devrilen düşmanlar patlar; +2 hasar"
-            },
-            {
-              "name": "Güdümlü Kayalar",
-              "desc": "Kayalar düşmanlara yönelir; daha yavaş uçarlar"
-            }
-          ]
-        },
-        "+1 kaya ve +4 hasar"
-      ]
-    },
-    "cottonSpore": {
-      "description": "En büyük kalabalığın üzerine kabarık bir pamuk bulutu çöker ve orada kalır: İçindeki düşmanlar adeta sürünürcesine yavaşlar.",
-      "upgrades": [
-        "+%20 alan",
-        "+1 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Daha Çok Pamuk",
-              "desc": "Hemen ardından bir bulut daha bırakır (%50); +2 hasar"
-            },
-            {
-              "name": "Statik Pamuk",
-              "desc": "Kıvılcımlar yakındaki düşmanlara sıçrar; +3 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi",
-        "+%20 alan ve +2 hasar",
-        {
-          "fork": [
-            {
-              "name": "İki Bulut",
-              "desc": "Başka bir kalabalığa +1 bulut; düşmanları içeri çekerler"
-            },
-            {
-              "name": "Patlayıcı Pamuk",
-              "desc": "Devrilen düşmanlar patlar; +%30 alan"
-            }
-          ]
-        },
-        "+1,5 sn daha uzun sürer ve +2 hasar"
-      ]
-    },
-    "wildCharge": {
-      "description": "Elektrikle çıtırdar, daha hızlı koşarsın ve temas ettiğin her düşmanı çarparsın. Her şok azami Canının %1'ine mal olur (hücum başına en fazla %5).",
-      "upgrades": [
-        "+4 hasar",
-        "+0,4 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "Kıvılcım İzi",
-              "desc": "Koştuğun yerde elektrikli zemin bırakır; +1 hasar"
-            },
-            {
-              "name": "Kısa Devre",
-              "desc": "Devrilen düşmanlar patlar; +4 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi",
-        "+5 hasar ve +%10 felç şansı",
-        {
-          "fork": [
-            {
-              "name": "İkinci Soluk",
-              "desc": "+0,6 sn daha uzun sürer ve elektrik şokları seni iyileştirir"
-            },
-            {
-              "name": "Zincir Yıldırım",
-              "desc": "Kıvılcımlar yakındaki düşmanlara sıçrar; +2 hasar"
-            }
-          ]
-        },
-        "+6 hasar ve +%20 alan"
-      ]
-    },
-    "playRough": {
-      "description": "En yakındaki düşmanın üzerinde çizgi film misali bir kavga bulutu patlak verir (yıldızlar, yumruklar, bir kalp): Onu zayıflatabilecek seri darbeler indirir (daha az temas hasarı verir).",
-      "upgrades": [
-        "+2 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Yaygara",
-              "desc": "Başka bir düşmana +1 bulut; durum etkisindekilere ×1,35"
-            },
-            {
-              "name": "Kirli Dövüş",
-              "desc": "Devrilen düşmanlar patlar; +2 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+3 hasar",
-        {
-          "fork": [
-            {
-              "name": "Rövanş",
-              "desc": "Hemen ardından tekrar kavga çıkarır (%50); -1 hasar"
-            },
-            {
-              "name": "Kışkırtma",
-              "desc": "+%25 zayıflatma şansı, +%20 alan; düşmanları içeri çeker"
-            }
-          ]
-        },
-        "+1 bulut ve +2 hasar"
-      ]
-    },
-    "spore": {
-      "description": "Etrafındaki spor bulutu düşmanları uyutur. Hasar vermediğinden yalnızca başka bir saldırı çarptığında uyanırlar.",
-      "upgrades": [
-        "+%20 alan",
-        "+%10 uyutma şansı",
-        {
-          "fork": [
-            {
-              "name": "Etki Sporu",
-              "desc": "Uyuyanlar zehirlenir de"
-            },
-            {
-              "name": "Ağır Spor",
-              "desc": "+%30 alan; uyuyanlar yavaş uyanır"
-            }
-          ]
-        },
-        "Uyku +0,5 sn daha uzun sürer",
-        "0,8 sn daha kısa bekleme süresi",
-        {
-          "fork": [
-            {
-              "name": "Çifte Spor",
-              "desc": "Hemen ardından tekrar yayılır; 0,4 sn daha kısa bekleme süresi"
-            },
-            {
-              "name": "Rüya Tozu",
-              "desc": "Uyuyanlar işaretlenir ve daha fazla hasar alır"
-            }
-          ]
-        },
-        "+%20 alan ve uyku +0,5 sn daha uzun sürer"
-      ]
-    },
-    "waterfall": {
-      "description": "En yakındaki düşmana doğru bir hat boyunca peş peşe su sütunları yükselir ve çarptıklarını irkiltir. Magikarp iken zayıftır; evrimleşince sele dönüşür.",
-      "upgrades": [
-        "+4 hasar",
-        "+1 sütun",
-        {
-          "fork": [
-            {
-              "name": "Uzun Şelale",
-              "desc": "+2 sütun; elitlere ve bosslara ×1,5"
-            },
-            {
-              "name": "Dip Akıntısı",
-              "desc": "Devrilen düşmanlar patlar; +5 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi",
-        "+5 hasar ve +%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Çifte Düşüş",
-              "desc": "Hemen ardından tekrar yükselir (%50); -3 hasar"
-            },
-            {
-              "name": "Sıçramalar",
-              "desc": "Su damlacıkları yakındaki düşmanlara sıçrar; +%20 alan"
-            }
-          ]
-        },
-        "+7 hasar ve +1 sütun"
-      ]
-    },
-    "lastResort": {
-      "description": "En yakındaki düşmanın üzerine devasa bir yıldız darbesi indirir. Tam gücüne ancak 4 saldırı daha öğrenildiğinde ulaşır (öncesinde yalnızca hafif bir dokunuştur).",
-      "upgrades": [
-        "+8 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Ya Hep Ya Hiç",
-              "desc": "+10 hasar; elitlere ve bosslara ×1,5"
-            },
-            {
-              "name": "Süpernova",
-              "desc": "Devrilen düşmanlar patlar; +%30 alan"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi",
-        "+10 hasar",
-        {
-          "fork": [
-            {
-              "name": "Dinlenmek Yok",
-              "desc": "0,3 sn daha kısa bekleme süresi; canı az kalan düşmanları bitirir"
-            },
-            {
-              "name": "Bis",
-              "desc": "Hemen ardından tekrar çarpar (%50); -8 hasar"
-            }
-          ]
-        },
-        "+12 hasar ve +%20 alan"
-      ]
-    },
-    "firePledge": {
-      "description": "Etrafında bir halka halinde ateş sütunları patlar ve içindeki zemin, üzerinde duran herkesi yakan bir ateş denizine dönüşür.",
-      "upgrades": [
-        "+2 sütun ve +10 hasar",
-        "Ateş denizi +1 sn daha uzun sürer ve +%15 alan",
-        "+16 hasar ve %25 daha güçlü yakar",
-        "+2 sütun ve 0,4 sn daha kısa bekleme süresi"
-      ]
-    },
-    "waterPledge": {
-      "description": "Kalabalıkların altında gayzerler fışkırır ve bir gökkuşağı belirir: Parladığı sürece saldırıların +%25 durum etkisi şansı kazanır.",
-      "upgrades": [
-        "+1 gayzer ve +10 hasar",
-        "Gökkuşağı +1,2 sn daha uzun kalır",
-        "+%25 alan ve +12 hasar",
-        "+2 gayzer ve 0,35 sn daha kısa bekleme süresi"
-      ]
-    },
-    "grassPledge": {
-      "description": "Etrafına yayılan ve seninle birlikte hareket eden bir bataklık içindeki her düşmanı yavaşlatırken, yakaladıklarının altından sarmaşık sütunları fışkırır.",
-      "upgrades": [
-        "+1 sütun ve +7 hasar",
-        "+%20 bataklık alanı",
-        "+10 hasar",
-        "+2 sütun ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "fusionFlare": {
-      "description": "En büyük kalabalığın tepesine akkor bir kuyruklu yıldız iner, patlar ve zemini tüter halde bırakır. Yakar.",
-      "upgrades": [
-        "+1 kuyruklu yıldız",
-        "+18 hasar ve +%15 alan",
-        "Közler +1 sn daha uzun kalır ve +%15 yanma şansı",
-        "+1 kuyruklu yıldız ve 0,4 sn daha kısa bekleme süresi"
-      ]
-    },
-    "fusionBolt": {
-      "description": "En büyük kalabalığın tepesine yıldırımdan bir kuyruklu yıldız iner, patlar ve zemini çıtırdar halde bırakır. Felç eder.",
-      "upgrades": [
-        "+1 kuyruklu yıldız",
-        "+36 hasar ve +%15 alan",
-        "Kıvılcımlar +1 sn daha uzun kalır ve +%15 felç şansı",
-        "+1 kuyruklu yıldız ve 0,4 sn daha kısa bekleme süresi"
-      ]
-    },
-    "ionDeluge": {
-      "description": "Düşmanların altında iletken su birikintileri belirir: Aralarında uzanan arklarla birlikte üzerindeki herkesi aynı anda çarpar. Yağmurda +1 birikinti.",
-      "upgrades": [
-        "+1 birikinti",
-        "+9 hasar ve birikintiler +1 sn daha uzun kalır",
-        "+%25 alan ve +%10 felç şansı",
-        "+1 birikinti ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "freezeDry": {
-      "description": "Etrafına dondurucu bir sis yayılır ve düşmanları dondurur (sonraki darbe iki kat vurarak buzu kırar). Donmuş düşmanlara ×1,4.",
-      "upgrades": [
-        "+1 sis dalgası",
-        "+6 hasar ve +%15 donma şansı",
-        "+%25 alan",
-        "+%15 alan ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "nightmare": {
-      "description": "Zehirleyen zincirleme bir Hex ve hemen ardından her hedefi tekrar ısıran bir kurukafa: Durum etkisindekilere ×2, zehirlenmişlerse bir de ×1,5 vurur.",
-      "upgrades": [
-        "+2 hedef",
-        "+14 hasar ve +%15 zehirleme şansı",
-        "+%25 menzil ve %25 daha güçlü zehir",
-        "+2 hedef ve 0,3 sn daha kısa bekleme süresi"
-      ]
-    },
-    "whirlwind": {
-      "description": "Lugia'nın gümüş siklonu en büyük kalabalığın üzerinde yükselip alanda dolaşır, düşmanları fırtınanın gözüne çeker. Hepsini savuran güçlü bir rüzgârla son bulur.",
-      "upgrades": [
-        "+5 hasar",
-        "+%20 alan ve +0,5 sn daha uzun sürer",
-        {
-          "fork": [
-            {
-              "name": "İkiz Fırtına",
-              "desc": "+1 siklon; -3 hasar"
-            },
-            {
-              "name": "Gök Gürültüsü",
-              "desc": "Vuruşlar yakındaki düşmanlara kıvılcım sıçratır; +6 hasar"
-            }
-          ]
-        },
-        "0,7 sn daha kısa bekleme süresi ve +5 hasar"
-      ]
-    },
-    "sacredFire": {
-      "description": "Ho-Oh'nun kutsal ateşten anka kuşu kalabalığın içinden hızla geçer ve yerde gökkuşağı renginde bir alev hattı bırakır. Sık sık yakar.",
-      "upgrades": [
-        "+9 hasar",
-        "Alevler +0,6 sn daha uzun kalır ve +%15 yanma şansı",
-        {
-          "fork": [
-            {
-              "name": "Arındırıcı Alev",
-              "desc": "Devrilen düşmanlar alev alarak patlar; +6 hasar"
-            },
-            {
-              "name": "Anka Çifti",
-              "desc": "+1 anka kuşu; -5 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +1 anka kuşu"
-      ]
-    },
-    "originPulse": {
-      "description": "Kyogre'nin gücü: Senden ekranın ucuna kadar yayılan parıldayan bir su halkası her şeyi geriye iter ve dört bir yana mavi ışık huzmeleri saçar.",
-      "upgrades": [
-        "+8 hasar",
-        "+2 ışın ve +%10 alan",
-        {
-          "fork": [
-            {
-              "name": "Çifte Gelgit",
-              "desc": "Ardından ikinci bir dalga gelir; +%20 alan"
-            },
-            {
-              "name": "Canlı Akım",
-              "desc": "Vuruşlar yakındaki düşmanlara kıvılcım sıçratır; +10 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi ve +2 ışın"
-      ]
-    },
-    "scorchingSands": {
-      "description": "Groudon'un sıcaklığı: Düşmanların üzerine doğru kabaran kavurucu bir kum duvarı, gerisinde üzerinde duran herkesi yakan akkor zemin bırakır.",
-      "upgrades": [
-        "+7 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "İki Dalga",
-              "desc": "+1 kum duvarı"
-            },
-            {
-              "name": "Erimiş Kum",
-              "desc": "Sıcak zemin +1 sn daha uzun kalır, %30 daha güçlü yakar, devrilenler patlar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +8 hasar"
-      ]
-    },
-    "dragonAscent": {
-      "description": "Rayquaza gibi yeşil bir hat çizerek göğe yükselir ve peş peşe en büyük kalabalıkların tepesine bir kuyruklu yıldız gibi dalarsın.",
-      "upgrades": [
-        "+15 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Üçlü Dalış",
-              "desc": "+1 dalış"
-            },
-            {
-              "name": "Meteor Darbesi",
-              "desc": "Devrilen düşmanlar patlar; +20 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +1 dalış"
-      ]
-    },
-    "roarOfTime": {
-      "description": "Dialga'nın kükremesi zamanı durdurur: Senden tüm ekrana yayılan bir saat kadranı düşmanları dondurur ve onlara yapılan bir sonraki vuruş iki kat hasar verir. Zaman yeniden akmaya başladığında üzerlerine çöker.",
-      "upgrades": [
-        "+25 hasar",
-        "+%15 alan ve zaman +0,3 sn daha uzun durur",
-        {
-          "fork": [
-            {
-              "name": "Zaman Bükülmesi",
-              "desc": "0,7 sn daha kısa bekleme süresi"
-            },
-            {
-              "name": "Zamanın Sonu",
-              "desc": "Devrilen düşmanlar patlar; +30 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi ve +25 hasar"
-      ]
-    },
-    "mistBall": {
-      "description": "Latias'ın sis küreleri farklı düşmanlara süzülür ve geride kalan, içindekileri yaralayıp zayıflatan bir sise dönüşerek patlar (daha az temas hasarı verirler).",
-      "upgrades": [
-        "+7 hasar",
-        "+1 küre",
-        {
-          "fork": [
-            {
-              "name": "Yoğun Sis",
-              "desc": "Her kullanım yarı güçte yankılanır; +%25 alan"
-            },
-            {
-              "name": "Yüklü Sis",
-              "desc": "Vuruşlar kıvılcım saçar; sis +1 sn daha uzun kalır ve +5 hasar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +1 küre"
-      ]
-    },
-    "lusterPurge": {
-      "description": "Latios'un ışık huzmesi önündeki düşmanları bir o yana bir bu yana süpürür. Savunmalarını düşürebilir (işaretlenirler: daha fazla hasar alırlar).",
-      "upgrades": [
-        "+9 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Çapraz Işın",
-              "desc": "Ters yöne doğru +1 ışın"
-            },
-            {
-              "name": "Kör Edici Işık",
-              "desc": "Vuruşlar kıvılcım saçar; +8 hasar, +%30 işaretleme şansı"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +9 hasar"
-      ]
-    },
-    "psychoBoost": {
-      "description": "Deoxys'in gücü tepedeki bir çekirdekte toplanır ve farklı düşmanları kovalayıp üzerlerinde patlayan psişik kuyruklu yıldızlar ateşler.",
-      "upgrades": [
-        "+10 hasar",
-        "+2 kuyruklu yıldız",
-        {
-          "fork": [
-            {
-              "name": "Aşırı Yükleme",
-              "desc": "Devrilen düşmanlar patlar; +12 hasar"
-            },
-            {
-              "name": "Kuyruklu Yıldız Yağmuru",
-              "desc": "Kıvılcım saçan +2 kuyruklu yıldız; -6 hasar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +10 hasar"
-      ]
-    },
-    "wish": {
-      "description": "Jirachi'nin dileği: Tüm ekrandaki düşmanların üzerine bir yıldız yağmuru iner ve vurulan hasarın bir kısmı seni iyileştirir.",
-      "upgrades": [
-        "+2 yıldız",
-        "+10 hasar",
-        {
-          "fork": [
-            {
-              "name": "Gerçekleşen Dilek",
-              "desc": "Devrilen düşmanlar patlar; +%25 alan"
-            },
-            {
-              "name": "Bin Dilek",
-              "desc": "+3 yıldız ve yağmur yarı güçte tekrarlanır; -6 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +2 yıldız"
-      ]
-    },
-    "ancientPower": {
-      "description": "Mew'nun gücüyle etrafında kadim taşlar yükselir ve düşmanlara fırlar. Bazen (%30) birkaç saniyeliğine tüm özelliklerin yükselir.",
-      "upgrades": [
-        "+8 hasar",
-        "+2 taş",
-        {
-          "fork": [
-            {
-              "name": "İlkel Güç",
-              "desc": "Özellikler %60 şansla ve +2 sn daha uzun süreliğine artar"
-            },
-            {
-              "name": "Temel Taşı",
-              "desc": "Devrilen düşmanlar patlar; +10 hasar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +8 hasar"
-      ]
-    },
-    "magicalLeaf": {
-      "description": "Celebi'nin büyülü yaprakları etrafında bir halka halinde açılır ve her biri kendi hedefini kovalar: Asla ıskalamazlar.",
-      "upgrades": [
-        "+2 yaprak",
-        "+6 hasar",
-        {
-          "fork": [
-            {
-              "name": "Zaman Yankısı",
-              "desc": "Her kullanım yarı güçte yankılanır; +2 hasar"
-            },
-            {
-              "name": "Yaprak Fırtınası",
-              "desc": "+4 yaprak; -4 hasar"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi ve +6 hasar"
-      ]
-    },
-    "snowscape": {
-      "description": "Articuno'nun kanatları etrafına buz kristallerinden bir kar tanesi saçar. Havada asılı kalarak dokunanları üşütür (yavaşlatır), ardından hepsi birden kırılarak dondurabilir (sonraki darbe iki kat daha sert iner).",
-      "upgrades": [
-        "+10 hasar",
-        "+2 kristal kolu",
-        {
-          "fork": [
-            {
-              "name": "Tipi",
-              "desc": "Her kullanım yarı güçte yankılanır; +%20 alan ve +%20 donma şansı"
-            },
-            {
-              "name": "Ebedi Buz",
-              "desc": "Devrilen düşmanlar patlar; +14 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +10 hasar"
-      ]
-    },
-    "electricTerrain": {
-      "description": "Zapdos etrafındaki zemini elektriklendirir: Seninle birlikte hareket eden, her vuruşta içindeki bir düşmanın tepesine yıldırım indiren çıtırtılı bir alan. Felç edebilir.",
-      "upgrades": [
-        "+7 hasar",
-        "+%20 alan ve alan +0,4 sn daha uzun kalır",
-        {
-          "fork": [
-            {
-              "name": "Gök Gürültülü Fırtına",
-              "desc": "Vuruş başına +1 yıldırım; -4 hasar"
-            },
-            {
-              "name": "Zincirleme Yıldırım",
-              "desc": "Vuruşlar yakındaki düşmanlara kıvılcım saçar; +8 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi ve +7 hasar"
-      ]
-    },
-    "overheat": {
-      "description": "Moltres'in sıcaklığı gittikçe artar: İlk iki kullanım alevli tüy yelpazeleri fırlatır, üçüncü kullanım ise aşırı ısınıp etrafında ulaştığı her şeyi yakan bir ateş patlamasına dönüşür.",
-      "upgrades": [
-        "+8 hasar",
-        "+2 tüy",
-        {
-          "fork": [
-            {
-              "name": "Süpernova",
-              "desc": "Devrilen düşmanlar patlar; +%25 alan"
-            },
-            {
-              "name": "Köz İzi",
-              "desc": "Tüyler yerde ateş bırakır; 0,2 sn daha kısa bekleme süresi"
-            }
-          ]
-        },
-        "0,3 sn daha kısa bekleme süresi ve +6 hasar"
-      ]
-    },
-    "thunderclap": {
-      "description": "Raikou'nun yıldırımı gözün seçemeyeceği bir hızla düşmandan düşmana sıçrar ve son düşman, etrafındaki kalabalığı sarsan bir gök gürültüsüyle vurulur. Felç edebilir.",
-      "upgrades": [
-        "+13 hasar",
-        "+2 sıçrama ve +%10 alan",
-        {
-          "fork": [
-            {
-              "name": "Yıldırım Hızı",
-              "desc": "+4 sıçrama ve +4 hasar"
-            },
-            {
-              "name": "Son Yıldırım",
-              "desc": "Devrilen düşmanlar patlar; +16 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +13 hasar"
-      ]
-    },
-    "burningBulwark": {
-      "description": "Entei'nin volkanik kabuğu seni sarar: Sıradaki darbeyi engeller ve dokunan her şeyi yakar. Kırıldığında veya süresi bittiğinde iki magma halkası halinde püskürür.",
-      "upgrades": [
-        "+18 hasar",
-        "Kabuk +0,5 sn daha uzun sürer ve +%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Yanardağ",
-              "desc": "Halka başına +4 gayzer"
-            },
-            {
-              "name": "Canlı Magma",
-              "desc": "Devrilen düşmanlar patlar; +20 hasar"
-            }
-          ]
-        },
-        "0,7 sn daha kısa bekleme süresi ve +18 hasar"
-      ]
-    },
-    "aquaRing": {
-      "description": "Suicune kuzey rüzgârıyla senden dışarı doğru spiral çizerek düşmanları süpürür. Üzerinde koştuğu berrak su, onları geri iten ve seni biraz iyileştiren bir halkaya dönüşür.",
-      "upgrades": [
-        "+8 hasar",
-        "+%15 alan ve halka +0,6 sn daha uzun kalır",
-        {
-          "fork": [
-            {
-              "name": "Kuzey Rüzgârı",
-              "desc": "Her kullanım yarı güçte yankılanır; +4 halka parçası ve +1 sn daha uzun sürer"
-            },
-            {
-              "name": "Arınmış Su",
-              "desc": "Vuruşlar daha çok iyileştirir; +10 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi ve +8 hasar"
-      ]
-    },
-    "rockWrecker": {
-      "description": "Regirock en yoğun kalabalığın tepesine devasa bir kaya fırlatır: Yeri sarsarak iner ve doğrudan düşmanların içinden yuvarlanmaya devam eder.",
-      "upgrades": [
-        "+22 hasar",
-        "+%20 alan",
-        {
-          "fork": [
-            {
-              "name": "Kaya Düşüşü",
-              "desc": "+1 kaya; -10 hasar"
-            },
-            {
-              "name": "Yıkım Kayası",
-              "desc": "Devrilen düşmanlar patlar; +26 hasar ve +0,4 sn daha yuvarlanır"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +22 hasar"
-      ]
-    },
-    "glaciate": {
-      "description": "Regice'ın soğuğu etrafında donmuş havadan bir kubbe gibi yayılarak içindeki her şeyi yavaşlatır. Ardından mutlak sıfıra düşer: İçindeki her şey parçalanır, son demlerindeki sıradan düşmanlar anında kırılır ve dondurabilir.",
-      "upgrades": [
-        "+22 hasar",
-        "+%15 alan",
-        {
-          "fork": [
-            {
-              "name": "Mutlak Sıfır",
-              "desc": "0,6 sn daha kısa bekleme süresi ve +%20 donma şansı"
-            },
-            {
-              "name": "Kırık Buz",
-              "desc": "Devrilen düşmanlar patlar; +26 hasar"
-            }
-          ]
-        },
-        "0,6 sn daha kısa bekleme süresi ve +22 hasar"
-      ]
-    },
-    "metalBurst": {
-      "description": "Registeel'ın Iron Defense savunması seni sertleştirir (aldığın her darbe 2 hasar kaybeder), ardından senden çelik bir patlama ve parçacık halkası fırlar. Bir önceki kullanımdan bu yana aldığın her darbe patlamayı daha da güçlendirir.",
-      "upgrades": [
-        "+15 hasar",
-        "+4 parça",
-        {
-          "fork": [
-            {
-              "name": "Demir Duvar",
-              "desc": "İki kat savunma, +1,2 sn daha uzun sürer ve +2 parça"
-            },
-            {
-              "name": "Yüklü Çelik",
-              "desc": "Vuruşlar yakındaki düşmanlara kıvılcım saçar; +16 hasar"
-            }
-          ]
-        },
-        "0,5 sn daha kısa bekleme süresi ve +15 hasar"
-      ]
-    },
-    "telekinesis": {
-      "description": "Mewtwo'nun zihni en yakındaki düşmanları kavrar ve oldukları yerde dondurarak yerden kaldırır. Ardından onları kalabalığın içine savurur: Yollarına çıkanlara çarparlar ve yere çarpış iki kat daha sert vurur. Bosslar uçmaz ama ezilirler.",
-      "upgrades": [
-        "+12 hasar",
-        "+2 düşman daha kaldırır",
-        {
-          "fork": [
-            {
-              "name": "Sınırsız Zihin",
-              "desc": "+3 düşman daha kaldırır; -8 hasar"
-            },
-            {
-              "name": "Ölümcül Fırlatma",
-              "desc": "Devrilen düşmanlar patlar; +14 hasar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +12 hasar"
-      ]
-    },
-    "judgment": {
-      "description": "Arceus'un altın çarkı tepede döner ve her levha düşmanları delip geçen bir ışık mızrağı fırlatır. Çoklu tip: Türü bulunduğu bölgeye uyum sağlar (Route 1'de Çimen, Viridian Forest'ta Böcek, Mt. Moon'da Kaya, Mt. Silver'da Buz, Lavender Tower'da Hayalet).",
-      "upgrades": [
-        "+15 hasar",
-        "+2 mızrak",
-        {
-          "fork": [
-            {
-              "name": "Çifte Hüküm",
-              "desc": "Her kullanım yarı güçte yankılanır; +%25 alan"
-            },
-            {
-              "name": "Son Hüküm",
-              "desc": "Elitlere ve bosslara fazladan hasar; +18 hasar"
-            }
-          ]
-        },
-        "0,4 sn daha kısa bekleme süresi ve +15 hasar"
-      ]
-    }
+        { fork: [{ name: 'Çift Dalga', desc: 'Anında tekrar kullanılır (%50); +%10 alan' }, { name: 'Buzul Çağı', desc: 'Elitlere ve bosslara karşı ×1,5; +%20 alan' }] },
+        "Bekleme süresi 0,4 sn daha hızlı ve %30'un altındakileri parçalar",
+      ],
+    },
+    flamethrower: {
+      description: 'En yakındaki düşmana kesintisiz bir alev püskürtür; alevin bittiği yerde zemin tutuşur. Yakabilir.',
+      upgrades: [
+        '+5 hasar ve daha geniş alev püskürtme',
+        '+2 alev ve daha uzun menzil',
+        'Yanan zemin süresi +0,8 sn ve yanıklar %30 daha güçlü',
+        'Bekleme süresi 0,15 sn daha hızlı ve +2 alev',
+      ],
+    },
+    fireBlast: {
+      description: 'Zeminde yanmaya devam eden beş köşeli bir ateş yıldızına dönüşen ateş topları fırlatır.',
+      upgrades: [
+        '+1 ateş topu',
+        '+8 hasar ve daha büyük yıldız',
+        'Yıldız +0,4 sn daha uzun yanar ve +%15 yanma ihtimali',
+        'Bekleme süresi 0,4 sn daha hızlı ve +8 hasar',
+      ],
+    },
+    hydroPump: {
+      description: 'Yürüdüğün yöne doğru yüksek basınçlı çift su tazyiki: Her şeyi delip geçer ve düşmanları havaya savuran bir su sıçramasıyla son bulur.',
+      upgrades: [
+        '+8 hasar',
+        'Daha kalın ve daha uzun tazyikler',
+        '+1 su tazyiki',
+        'Bekleme süresi 0,2 sn daha hızlı ve düşmanları daha uzağa savurur',
+      ],
+    },
+    surf: {
+      description: 'Senden yayılan devasa dalgalar; ilki yürüdüğün yöne doğru akar ve yolundaki her şeyi süpürür, iter ve yavaşlatır.',
+      upgrades: [
+        '+6 hasar',
+        'Daha geniş dalgalar',
+        '+1 dalga',
+        'Bekleme süresi 0,25 sn daha hızlı ve +4 hasar',
+      ],
+    },
+    leafStorm: {
+      description: 'Etrafında dönen iki helezoni yaprak kolu kesiştiği her şeyi biçen bir fırtınaya dönüşerek genişler.',
+      upgrades: [
+        '+4 yaprak',
+        '+6 hasar',
+        'Daha büyük yapraklar ve daha uzun süren fırtına',
+        'Bekleme süresi 0,25 sn daha hızlı ve daha hızlı dönüş',
+      ],
+    },
+    powerWhip: {
+      description: 'Etrafında dönen devasa dikenli sarmaşıkların her biri yarım daire süpürerek düşmanları havaya savurur.',
+      upgrades: [
+        '+10 hasar',
+        'Daha uzun sarmaşıklar',
+        '+1 sarmaşık',
+        'Bekleme süresi 0,25 sn daha hızlı ve düşmanları daha uzağa savurur',
+      ],
+    },
+    triAttack: {
+      description: 'Üzerinde dönen bir prizma en yakındaki düşmanlara ateş, buz ve yıldırım ışınları fırlatır: Yakar, dondurur ve felç eder.',
+      upgrades: [
+        '+6 hasar',
+        '+%20 durum ihtimali ve daha kalın ışınlar',
+        '+3 ışın: İkinci bir üçgen',
+        'Bekleme süresi 0,25 sn daha hızlı ve +6 hasar',
+      ],
+    },
+    wildboltStorm: {
+      description: 'Bir fırtına bulutu tüm ekrana yıldırımlar yağdırır ve her yıldırım yakındaki iki düşmana çatallanır. Felç edebilir.',
+      upgrades: [
+        '+2 yıldırım',
+        '+10 hasar',
+        'Çatallar daha uzağa ulaşır ve +%15 felç ihtimali',
+        'Bekleme süresi 0,3 sn daha hızlı ve +2 yıldırım',
+      ],
+    },
+    gunkShot: {
+      description: 'Güm diye yere düşüp zehirli su birikintilerine saçılan çöp yığınları fırlatır. Çoğunlukla zehirler.',
+      upgrades: [
+        '+1 çöp yığını',
+        '+4 hasar ve %25 daha güçlü zehir',
+        '+0,6 sn daha uzun kalan daha büyük birikintiler',
+        'Bekleme süresi 0,4 sn daha hızlı ve +5 hasar',
+      ],
+    },
+    hurricane: {
+      description: 'Etrafında dönen hortumlar yakındaki düşmanları içine çekip uzağa fırlatır.',
+      upgrades: [
+        '+5 hasar',
+        '+1 hortum',
+        '+1 sn daha uzun kalan daha büyük hortumlar',
+        'Bekleme süresi 0,6 sn daha hızlı ve daha hızlı dönüş',
+      ],
+    },
+    extremeSpeed: {
+      description: 'Shift tuşuna veya atılma düğmesine bas: Sürüyü yarıp geçen ve bir şok dalgasıyla son bulan ışık hızında bir atılma.',
+      upgrades: [
+        '+10 hasar',
+        'Daha büyük atılma ve şok dalgası',
+        'Daha uzun atılma ve +6 hasar',
+        '+12 hasar ve düşmanları daha uzağa savurur',
+      ],
+    },
+    thunderbolt: {
+      description: 'Gökten en yakındaki düşmanın üzerine bir yıldırım iner ve elektrik akımı düşmandan düşmana sıçrar. Felç edebilir.',
+      upgrades: [
+        '+3 hedef',
+        '+8 hasar',
+        'Akım daha uzağa sıçrar ve +%15 felç şansı',
+        '0,2 sn daha kısa bekleme süresi ve +3 hedef',
+      ],
+    },
+    barbBarrage: {
+      description: 'Dört bir yana zehirli dikenler saçar; dikenler patlayan ve geride zehirli bir bulut bırakan mayınlara dönüşür.',
+      upgrades: [
+        '+2 diken',
+        '+10 hasar',
+        'Daha büyük patlamalar ve %30 daha güçlü zehir',
+        '0,2 sn daha kısa bekleme süresi ve +2 diken',
+      ],
+    },
+    inferno: {
+      description: 'Ayaklarının dibinde etrafı ateş halkasıyla çevrili bir şenlik ateşi yakar; ateş düşmanlara alev patlamaları fırlatır. Sık sık yakar.',
+      upgrades: [
+        '+6 hasar',
+        'Yaylım ateşi başına +1 atış',
+        'Daha geniş ateş halkası ve şenlik ateşi +2 sn kalır',
+        '1 sn daha kısa bekleme süresi ve +%15 yanma şansı',
+      ],
+    },
+    blizzard: {
+      description: 'Etrafında bir tipi dönerken düşmanların üzerine buz sarkıtları iner; yere saplanan sarkıtlar yanından geçenleri yavaşlatır.',
+      upgrades: [
+        '+3 buz sarkıtı',
+        '+6 hasar',
+        'Daha geniş darbeler ve buz +1 sn daha uzun kalır',
+        '0,3 sn daha kısa bekleme süresi ve +2 buz sarkıtı',
+      ],
+    },
+    stoneEdge: {
+      description: 'Yerden en yakındaki düşmanlara doğru taş sütun sıraları fışkırır.',
+      upgrades: [
+        '+10 hasar',
+        '+1 sütun sırası',
+        'Daha büyük sütunlar ve daha uzun sıralar',
+        '0,3 sn daha kısa bekleme süresi ve +6 hasar',
+      ],
+    },
+    megahorn: {
+      description: 'Devasa boynuzlar sürüyü delip geçer ve bumerang gibi geri döner; hem giderken hem dönerken çarpar. Zehirleyebilir.',
+      upgrades: [
+        '+10 hasar',
+        '+1 boynuz',
+        'Daha uzağa uçan daha büyük boynuzlar',
+        '0,25 sn daha kısa bekleme süresi ve +%20 zehirleme şansı',
+      ],
+    },
+    outrage: {
+      description: 'Ejderha öfkesi: En yakındaki düşmana gittikçe genişleyen alev nefesleri püskürtür ve etraftaki herkesi savuran bir kükremeyle son bulur.',
+      upgrades: [
+        '+5 hasar',
+        'Öfke nöbetinde +1 nefes',
+        'Daha geniş nefesler ve kükreme',
+        '0,25 sn daha kısa bekleme süresi ve +%15 yanma şansı',
+      ],
+    },
+    jawLock: {
+      description: 'En yakındaki düşmanların altından gölge bir çene yükselir, onları sabitleyerek üç kez ısırır. Canı yarının altındaki düşmanlara ×1,6 vurur.',
+      upgrades: [
+        '+1 çene',
+        '+8 hasar',
+        '+%25 alan ve 0,15 sn daha kısa bekleme süresi',
+        '+1 çene ve +6 hasar',
+      ],
+    },
+    superpower: {
+      description: 'Önündeki düşmanları devasa bir darbeyle sürünün içine fırlatır (fırlatılanlar çarptığı düşmanlara hasar verir), ardından peş peşe yumruklar indirir.',
+      upgrades: [
+        '+10 hasar',
+        '+3 yumruk',
+        '+%20 alan',
+        '0,25 sn daha kısa bekleme süresi ve +8 hasar',
+      ],
+    },
+    fissure: {
+      description: "Yer, senden dışarı doğru uzanan yarıklarla çatlar ve düşmanları uçuruma çeker. Canı %20'nin altına düşenler temelli içine düşer.",
+      upgrades: [
+        '+1 yarık',
+        '+12 hasar',
+        '+%20 alan',
+        '+1 yarık ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    extrasensory: {
+      description: 'Düşmanların tepesinde psişik gözler açılır, patlamadan önce kalabalığı merkezine çeker. Düşmanların kafasını karıştırabilir: Kafası karışanlar birbirine çarpıp zarar verir.',
+      upgrades: [
+        '+1 göz',
+        '+10 hasar ve +%20 kafa karışıklığı şansı',
+        '+%20 alan',
+        '+1 göz ve +0,3 sn daha uzun çeker',
+      ],
+    },
+    steelBeam: {
+      description: 'En yakındaki düşmana kalın bir çelik ışın fırlatır ve hattını yavaşça süpürerek üzerindeki her şeye peş peşe çarpar.',
+      upgrades: [
+        '+6 hasar',
+        '+1 ışın',
+        '+0,3 sn daha uzun sürer ve +%15 alan',
+        '+1 ışın ve +6 hasar',
+      ],
+    },
+    infernalParade: {
+      description: 'Etrafında düşmanları yakan hayalet alevler süzülür. Durum etkisi altındaki düşmanlara ×1,7 hasar verir.',
+      upgrades: [
+        '+2 alev',
+        '+5 hasar ve +%15 yanma şansı',
+        '+1 sn daha uzun sürer ve alevler daha hızlı hareket eder',
+        '+2 alev ve +4 hasar',
+      ],
+    },
+    phantomForce: {
+      description: 'Gökyüzünde kaybolan bir ok yaylımı, en yakındaki düşmanların tepesine inerek onları oldukları yere prangalar.',
+      upgrades: [
+        '+2 ok',
+        '+10 hasar',
+        '+%25 alan',
+        '+2 ok ve 0,2 sn daha kısa bekleme süresi',
+      ],
+    },
+    aquaCutter: {
+      description: 'Devasa su şurikenleri düşmanların üzerine fırlar ve hem giderken hem dönerken keserek sana geri döner.',
+      upgrades: [
+        '+1 şuriken',
+        '+7 hasar',
+        '+%25 alan',
+        '+1 şuriken ve daha fazla hız',
+      ],
+    },
+    searingShot: {
+      description: 'Düşmanların üzerinde patlayan ve etrafa köz halkası saçan akkor alev topları fırlatır. Sık sık yakar.',
+      upgrades: [
+        '+1 alev topu',
+        '+10 hasar',
+        '+%25 alan ve %25 daha güçlü yakar',
+        '+1 alev topu ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    gigaDrain: {
+      description: 'Sarmaşıklar en yakındaki düşmanlara kenetlenip enerjilerini sömürerek seni iyileştirir. Hedef devrilirse sarmaşık sıradakine sıçrar.',
+      upgrades: [
+        '+1 sarmaşık',
+        '+4 hasar',
+        '+0,5 sn daha uzun sömürür',
+        '+2 sarmaşık ve +3 hasar',
+      ],
+    },
+    burningJealousy: {
+      description: 'Bir kıskançlık ezgisi yankılanır ve ekrandaki en güçlü düşmanların altında ateş sütunları patlar. Elitlere ve bosslara ×1,5 vurur ve yakar.',
+      upgrades: [
+        '+2 sütun',
+        '+12 hasar',
+        '+%25 alan ve %25 daha güçlü yakar',
+        '+2 sütun ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    trailblaze: {
+      description: 'Devasa yaprak bıçaklar, uzaktan etrafını neredeyse tam bir daire halinde süpürür.',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        '+1 bıçak',
+        '0,25 sn daha kısa bekleme süresi ve +8 hasar',
+      ],
+    },
+    liquidation: {
+      description: 'Kabaran dalgalar ileri geri çarparak düşmanları devirir ve savunmalarını düşürür (işaret: daha fazla hasar alırlar).',
+      upgrades: [
+        '+1 dalga',
+        '+10 hasar',
+        '+%20 alan ve +%20 işaretleme şansı',
+        '+1 dalga ve 0,2 sn daha kısa bekleme süresi',
+      ],
+    },
+    alluringVoice: {
+      description: 'Senden dışarı doğru peş peşe kalp şeklinde şarkı dalgaları yayılır ve ulaştığı düşmanların kafasını karıştırabilir.',
+      upgrades: [
+        '+1 dalga',
+        '+8 hasar ve +%15 kafa karışıklığı şansı',
+        '+%20 alan',
+        '+1 dalga ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    fieryDance: {
+      description: 'Alevler bir halka halinde dans ederek yayılır ve fır dönüp sana geri gelir. Yakabilirler ve her dansın %50 şansla saldırılarını 4 sn boyunca %15 güçlendirme olasılığı vardır.',
+      upgrades: [
+        '+2 alev',
+        '+3 hasar',
+        { fork: [{ name: 'Yangın', desc: 'Devrilen düşmanlar patlar; +%25 alan' }, { name: 'Kıvılcım', desc: 'Darbe 2 düşmana sıçrar; +2 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+2 alev',
+        { fork: [{ name: 'Canlı Köz', desc: 'Durum etkisindekilere ×1,35; +%25 yanma şansı, %30 daha güçlü yakar' }, { name: 'Bis', desc: 'Hemen ardından tekrar dans eder (%50); +3 hasar' }] },
+        '+4 hasar ve +%20 alan',
+      ],
+    },
+    overdrive: {
+      description: 'Ritmik bir gitar rifi: Senden peş peşe elektrik halkaları yayılır; her ölçünün son vuruşu daha büyük ve serttir, felç edebilir.',
+      upgrades: [
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Uzun Solo', desc: 'Durum etkisindekilere ×1,35; +2 vuruş' }, { name: 'Distorsiyon', desc: 'Darbe 2 düşmana sıçrar; +2 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+3 hasar',
+        { fork: [{ name: 'Amfi', desc: 'Elitlere ve bosslara ×1,5; +%25 alan' }, { name: 'Bis', desc: 'Hemen ardından tekrar çalar (%50); +%25 felç şansı' }] },
+        '+2 vuruş ve +2 hasar',
+      ],
+    },
+    gigatonHammer: {
+      description: 'En yakındaki düşmanın üzerine yeri sarsan devasa bir çekiç indirir. Çekiç peş peşe sallanamayacak kadar ağırdır: Her ağır darbenin ardından hafif bir vuruş gelir.',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Şarapnel', desc: 'Devrilen düşmanlar patlar; +6 hasar' }, { name: 'Hafif Tutuş', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,3 sn bekleme süresi' }] },
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Gigaton', desc: 'Elitlere ve bosslara ×1,5; +10 hasar' }, { name: 'Şok Dalgası', desc: 'Darbe 2 düşmana sıçrar; +%30 alan' }] },
+        '+10 hasar ve 0,2 sn daha kısa bekleme süresi',
+      ],
+    },
+    bitterBlade: {
+      description: 'Önüne doğru vurduğu hasarın yarısı kadar seni iyileştiren hayaletsi bir ateş kılıcı savurur. Yakabilir.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çifte Kılıç', desc: 'Canı ≤%12 olan düşmanları bitirir; ikinci bir kesiş geri döner' }, { name: 'Acı Köz', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Ruh Ateşi', desc: 'Durum etkisindekilere ×1,35; +%30 yanma şansı' }, { name: 'Gezgin Alev', desc: 'Darbe 2 düşmana sıçrar; +%20 alan' }] },
+        '+6 hasar ve +%15 alan',
+      ],
+    },
+    leechLife: {
+      description: 'Hemen yanındaki düşmanı seri ve minik ısırıklarla ısırıp vurulan hasarın yarısını Can olarak emer. Yalnızca çok yakındaki düşmanlara ulaşır.',
+      upgrades: [
+        '+2 hasar',
+        '+1 düşman daha ısırır',
+        { fork: [{ name: 'Susuzluk', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,08 sn bekleme süresi' }, { name: 'Bulaşma', desc: 'Isırık 2 düşmana sıçrar; +1 hasar' }] },
+        '+2 hasar',
+        '+%30 menzil',
+        { fork: [{ name: 'Sürü', desc: 'Elitlere ve bosslara ×1,5; +1 düşman daha ısırır' }, { name: 'Kan Emici', desc: 'Devrilen düşmanlar patlar; +3 hasar' }] },
+        '+3 hasar',
+      ],
+    },
+    fireFang: {
+      description: 'En yakındaki düşmanı alevli dişlerle ısırır; yakabilir. Zaten yanan bir düşman bunun yerine bir anlığına irkilir.',
+      upgrades: [
+        '+5 hasar',
+        '+%15 yanma şansı',
+        { fork: [{ name: 'Çifte Diş', desc: 'Durum etkisindekilere ×1,35; +1 düşman daha ısırır' }, { name: 'Köz', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Derin Yanık', desc: 'Yerde ateş bırakır; %40 daha güçlü yakar' }, { name: 'Sıçrayan Ateş', desc: 'Isırık 2 düşmana sıçrar; +%20 alan' }] },
+        '+1 düşman daha ısırır ve +4 hasar',
+      ],
+    },
+    furySwipes: {
+      description: 'Hemen yanındaki düşmana 2 ila 5 pençe atar: Düşmanların yakınında peş peşe yapılan her saldırı darbe sayısını artırır. Kavgadan uzaklaşınca bu çılgınlık diner.',
+      upgrades: [
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çılgınlık', desc: 'Durum etkisindekilere ×1,35; -0,15 sn bekleme süresi' }, { name: 'Uzun Pençeler', desc: 'Pençe darbesi 2 düşmana sıçrar; +1 hasar' }] },
+        '+2 hasar',
+        '+1 pençe darbesi',
+        { fork: [{ name: 'Hiddet', desc: 'Devrilen düşmanlar patlar; +2 hasar' }, { name: 'Pati Tokadı', desc: 'Elitlere ve bosslara ×1,5; +%25 alan' }] },
+        '+3 hasar',
+      ],
+    },
+    heavySlam: {
+      description: 'Küçük bir sıçrama ve etrafına çelik gibi ağır bir gümleme. Ne kadar çok zırhın ve azami Canın varsa o kadar sert vurur (en fazla 3 katı).',
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Ağır Adım', desc: 'Düşmanları içeri çeker; -0,4 sn bekleme süresi' }, { name: 'Gürleme', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Rezonans', desc: 'Gümleme 2 düşmana sıçrar; +4 hasar' }, { name: 'Ağır Sıklet', desc: 'Elitlere ve bosslara ×1,5; +%20 alan' }] },
+        '+9 hasar',
+      ],
+    },
+    bulldoze: {
+      description: 'Önüne doğru yuvarlanan bir toprak dalgası, içinden geçtiği her düşmanı yavaşlatır.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'İki Cephe', desc: 'Durum etkisindekilere ×1,35; yelpaze şeklinde +1 dalga' }, { name: 'Heyelan', desc: 'Devrilen düşmanlar patlar; +3 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Sur', desc: 'Düşmanları içeri çeker; +%30 alan' }, { name: 'Sarsıntı', desc: 'Darbe 2 düşmana sıçrar; +3 hasar, daha hızlı' }] },
+        '+1 dalga ve +4 hasar',
+      ],
+    },
+    perishSong: {
+      description: 'Ürpertici bir şarkı 3 vuruş sayar: Üçüncü vuruşta şarkıyı duyan tüm sıradan düşmanlar yok olur, elitler ve bosslar ise ağır hasar alır.',
+      upgrades: [
+        '+6 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Kresendo', desc: 'Devrilen düşmanlar patlar; +6 hasar' }, { name: 'Tempo', desc: 'Vuruşlar 0,2 sn daha hızlıdır; 0,4 sn daha kısa bekleme süresi' }] },
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Ağıt', desc: 'Elitlere ve bosslara ×1,5; +8 hasar' }, { name: 'Rezonans', desc: 'Şarkı 2 düşmana sıçrar; +%20 alan' }] },
+        '+10 hasar ve 0,4 sn daha kısa bekleme süresi',
+      ],
+    },
+    chargeBeam: {
+      description: 'En yakındaki düşmana kıvılcımlı bir yıldırım atar: Her kullanım %70 şansla 5 sn boyunca tüm saldırılarının hasarını %10 artırır (en fazla 3 kez birikir).',
+      upgrades: [
+        '+3 hasar',
+        '+%10 güçlendirme şansı',
+        { fork: [{ name: 'Dinamo', desc: 'Güçlendirme 5 kata kadar birikir; -0,05 sn bekleme süresi' }, { name: 'Kondansatör', desc: 'Darbe 2 düşmana sıçrar; +2 hasar' }] },
+        '+4 hasar',
+        '0,1 sn daha kısa bekleme süresi',
+        { fork: [{ name: 'Aşırı Yükleme', desc: 'Güçlendirme +2 sn daha uzun sürer; elitlere ve bosslara ×1,5' }, { name: 'Yay', desc: 'Devrilen düşmanlar patlar; +3 hasar' }] },
+        '+4 hasar ve güçlendirme +1,5 sn daha uzun sürer',
+      ],
+    },
+    moonblast: {
+      description: 'Ayın gücünü toplayıp en yakındaki düşmana onu zayıflatabilecek parlak bir küre fırlatır (daha az temas hasarı verir).',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Dolunay', desc: 'Durum etkisindekilere ×1,35; +1 küre' }, { name: 'Ay Tozu', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Tutulma', desc: '+%25 zayıflatma şansı; yerde ay birikintisi bırakır' }, { name: 'Hilal', desc: 'Darbe 2 düşmana sıçrar; +%20 alan' }] },
+        '+1 küre ve +4 hasar',
+      ],
+    },
+    frostBreath: {
+      description: 'En yakındaki düşmana daima kritik vuran buz gibi bir nefes üfler: İki kat hasar verir.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Derin Dondurma', desc: 'Canı ≤%12 olan düşmanları bitirir; -0,15 sn bekleme süresi' }, { name: 'Dondurucu Rüzgâr', desc: 'Nefes 2 düşmana sıçrar; +3 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Ebedi Buzul', desc: 'Yerde buzlu zemin bırakır; %40 daha sert yavaşlatır' }, { name: 'Buz Parçası', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '+6 hasar ve +%15 alan',
+      ],
+    },
+    avalanche: {
+      description: 'En yakındaki düşmanların üzerine buz kütleleri düşer. Son 2 saniye içinde darbe aldıysan iki kat daha sert vurur.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'İntikam', desc: 'Darbe aldıktan sonra 2,5 kat vurur; -0,2 sn bekleme süresi' }, { name: 'Çığ', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Buzul Duvarı', desc: '+1 buz kütlesi; düşmanları içeri çeker' }, { name: 'Buz Yanığı', desc: 'Darbe 2 düşmana sıçrar; +%25 alan' }] },
+        '+1 buz kütlesi ve +5 hasar',
+      ],
+    },
+    rockSlide: {
+      description: 'En yakındaki düşmanların tepesine dev kayalar iner ve onları irkiltebilir.',
+      upgrades: [
+        '+5 hasar',
+        '+1 kaya',
+        { fork: [{ name: 'Taş Ocağı', desc: 'Elitlere ve bosslara ×1,5; +1 kaya' }, { name: 'Heyelan', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Ağır Kayalar', desc: '+%25 irkiltme şansı; geride kaya enkazı bırakır' }, { name: 'Sekme', desc: 'Darbe 2 düşmana sıçrar; +%20 alan' }] },
+        '+1 kaya ve +5 hasar',
+      ],
+    },
+    yawn: {
+      description: 'Kocaman bir esneme en yakındaki düşmanı 2 sn sonra uyutur: Uyuyan düşman donakalır ve sıradaki saldırından iki kat hasar alır.',
+      upgrades: [
+        '+1 hedef',
+        '0,5 sn daha hızlı uyutur',
+        { fork: [{ name: 'Bulaşıcı', desc: 'Esneme 2 komşuya yayılır; -0,3 sn bekleme süresi' }, { name: 'Ağır Uyku', desc: 'Uyku +1,5 sn daha uzun sürer; devrilen düşmanlar patlar' }] },
+        '0,4 sn daha kısa bekleme süresi',
+        '+1 hedef',
+        { fork: [{ name: 'Kâbus', desc: 'Sonraki darbe 2,5 kat vurur; +%25 alan' }, { name: 'Zincirleme Esneme', desc: 'Darbe 2 düşmana sıçrar; -0,2 sn bekleme süresi' }] },
+        '+1 hedef ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    iceBeam: {
+      description: 'En yakındaki düşmana doğru buzdan bir ışın ateşler ve hattı süpürerek sıradaki düşmanlara çarpar. Dondurabilir.',
+      upgrades: [
+        '+5 hasar',
+        '+%15 donma şansı',
+        { fork: [{ name: 'Kriyo Işın', desc: 'Durum etkisindekilere ×1,35; +1 ışın' }, { name: 'Tuzla Buz', desc: 'Devrilen düşmanlar patlar; +5 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Mutlak Soğuk', desc: 'Yerde donmuş zemin bırakır; %25 daha uzun süre dondurur' }, { name: 'Prizma', desc: 'Işın çarptığında bölünür; +%20 alan' }] },
+        '+1 ışın ve +5 hasar',
+      ],
+    },
+    discharge: {
+      description: 'Etrafında her yana elektrik patlaması saçar ve menzildeki tüm düşmanlara çarpar. Sık sık felç eder.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Statik Alan', desc: '+%25 felç şansı; geride kıvılcımlar bırakır' }, { name: 'Kısa Devre', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Yüksek Voltaj', desc: 'Elitlere ve bosslara ×1,5; +%25 alan' }, { name: 'Zincir Yıldırım', desc: 'Parlama 2 düşmana sıçrar; +3 hasar' }] },
+        '+6 hasar ve +%15 alan',
+      ],
+    },
+    heatWave: {
+      description: 'Kavurucu sıcak bir rüzgâr dışarı doğru eserek düşmanların içinden geçer ve onları geri iter. Sık sık yakar.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Siroko', desc: 'Yerde ateş bırakır; %30 daha güçlü yakar' }, { name: 'Patlama Dalgası', desc: 'Devrilen düşmanlar patlar; +5 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Termal Parlama', desc: 'Durum etkisindekilere ×1,35; +%25 alan' }, { name: 'Hava Akımı', desc: 'Düşmanları içeri çeker; dalga geri döner' }] },
+        '+7 hasar ve +%15 alan',
+      ],
+    },
+    thunderFang: {
+      description: 'En yakındaki düşmanı elektrikli dişlerle ısırır; felç edebilir. Zaten felç olmuş bir düşman bunun yerine iki kat hasar alır.',
+      upgrades: [
+        '+5 hasar',
+        '+%15 felç şansı',
+        { fork: [{ name: 'Çifte Diş', desc: 'Durum etkisindekilere ×1,35; +1 düşman daha ısırır' }, { name: 'Kıvılcım', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Statik Yük', desc: 'Yerde kıvılcımlar bırakır; %25 daha uzun süre şoklar' }, { name: 'Yay Isırığı', desc: 'Isırık 2 düşmana sıçrar; +%20 alan' }] },
+        '+1 düşman daha ısırır ve +4 hasar',
+      ],
+    },
+    lavaPlume: {
+      description: 'Etrafında kızıl alevler bir halka halinde püskürür ve dokunduğu her şeyi yakar. Sık sık yakar.',
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Magma Göleti', desc: 'Yerde lav bırakır; %30 daha güçlü yakar' }, { name: 'Püskürme', desc: 'Devrilen düşmanlar patlar; +5 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+6 hasar',
+        { fork: [{ name: 'Kaldera', desc: 'Elitlere ve bosslara ×1,5; +%25 alan' }, { name: 'Gayzer', desc: 'Püskürme 2 düşmana sıçrar; +3 hasar' }] },
+        '+7 hasar ve +%15 alan',
+      ],
+    },
+    auroraBeam: {
+      description: 'En yakındaki düşmana parıldayan gökkuşağı renginde bir ışın ateşler ve hattı süpürerek çarptığı her şeyi zayıflatır.',
+      upgrades: [
+        '+4 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Kuzey Işıkları', desc: 'Durum etkisindekilere ×1,35; +1 ışın' }, { name: 'Prizmatik Patlama', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+5 hasar',
+        { fork: [{ name: 'Kutup Işıması', desc: '+%25 zayıflatma şansı; geride parıldayan zemin bırakır' }, { name: 'Gökkuşağı Kırılması', desc: 'Işın çarptığında bölünür; +%20 alan' }] },
+        '+1 ışın ve +4 hasar',
+      ],
+    },
+    meteorBeam: {
+      description: 'Bir anlığına kozmik enerji toplar, ardından ileri doğru gerisinde yanan bir krater bırakan devasa bir göktaşı fırlatır.',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Süpernova', desc: 'Devrilen düşmanlar patlar; +8 hasar' }, { name: 'Yıldız Işığı', desc: '0,4 sn daha hızlı şarj olur; +1 göktaşı' }] },
+        '0,4 sn daha kısa bekleme süresi',
+        '+10 hasar',
+        { fork: [{ name: 'Çarpma Krateri', desc: 'Elitlere ve bosslara ×1,5; krater +2 sn daha uzun kalır' }, { name: 'Kozmik Toz', desc: 'Patlama 2 düşmana sıçrar; +%25 alan' }] },
+        '+12 hasar ve +%20 alan',
+      ],
+    },
+    icyWind: {
+      description: 'Önüne doğru geniş bir koni halinde esen dondurucu rüzgâr, içinden geçtiği tüm düşmanları yavaşlatır.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Bora', desc: 'Yerde kar bırakır; %30 daha sert yavaşlatır' }, { name: 'Buz Şoku', desc: 'Devrilen düşmanlar patlar; +3 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+4 hasar',
+        { fork: [{ name: 'Kutup Girdabı', desc: 'Durum etkisindekilere ×1,35; daha geniş koni' }, { name: 'Dondurucu Esinti', desc: 'Rüzgâr 2 düşmana sıçrar; +%20 alan' }] },
+        '+5 hasar ve +%15 alan',
+      ],
+    },
+    ironHead: {
+      description: 'Bir saniyeliğine sertleşerek daha az hasar alır, ardından önündeki düşmanlara kafa atarak çarpar.',
+      upgrades: [
+        '+6 hasar',
+        '+0,5 sn daha uzun sürer',
+        { fork: [{ name: 'Şarapnel', desc: '+4 parça; çelik patlamasıyla devrilen düşmanlar patlar' }, { name: 'Çelik Refleks', desc: 'Bekleme süresi −0,8 sn ve tekrar sertleşir; -4 hasar' }] },
+        '+8 hasar',
+        '+0,5 sn daha uzun sürer',
+        { fork: [{ name: 'Sert Kafa', desc: '+8 hasar; darbe 2 komşuya sıçrar' }, { name: 'Gözdağı', desc: '+%25 irkiltme şansı; geride çelik bir iz bırakır' }] },
+        '+10 hasar ve bekleme süresi 0,5 sn daha kısa',
+      ],
+    },
+    psystrike: {
+      description: 'Etrafında toplanan psişik küreler farklı düşmanlara doğru fırlar; kalkanlar dahil her şeyin içinden geçer.',
+      upgrades: [
+        '+1 küre',
+        '+5 hasar',
+        { fork: [{ name: 'Geri Dönüş', desc: 'Küreler geri dönüp tekrar çarpar; +3 hasar' }, { name: 'Zihin Kilidi', desc: '+1 küre ve hedefe yönelirler; -3 hasar' }] },
+        'Bekleme süresi 0,2 sn daha kısa',
+        '+6 hasar',
+        { fork: [{ name: 'Çifte Dalga', desc: '+1 küre; arkaya doğru da ateşler' }, { name: 'Bölünme', desc: "Çarptığında 2'ye bölünür; +5 hasar" }] },
+        '+1 küre ve +5 hasar',
+      ],
+    },
+    payDay: {
+      description: 'En yakındaki düşmanlara madeni paralar fırlatır. Her vuruş yere bir 10₽ düşürebilir (koşu başına en fazla 120).',
+      upgrades: [
+        '+1 madeni para',
+        '+3 hasar',
+        { fork: [{ name: 'Büyük İkramiye', desc: '+%3 ₽ şansı ve +2 hasar; devrilen düşmanlar patlar' }, { name: 'Bozuk Para', desc: 'Çarptığında bölünen +2 para; -2 hasar' }] },
+        'Bekleme süresi 0,15 sn daha kısa',
+        '+4 hasar',
+        { fork: [{ name: 'Para Yağmuru', desc: '+2 para ve hemen ardından tekrar fırlatır (%50)' }, { name: 'Sekme', desc: '+4 hasar ve +%2 ₽; paralar seker' }] },
+        '+1 madeni para ve +3 hasar',
+      ],
+    },
+    thief: {
+      description: 'Gölge bir pençe menzildeki düşmanlara vurur; öncelik Alfa ve boss düşmanlardadır (onlara +%30 hasar). Alfa veya bossların taşıdığı eşyayı çalabilir: Düşman başına bir kez olmak üzere bir eşya ve 50₽.',
+      upgrades: [
+        '+5 hasar',
+        '+1 pençe',
+        { fork: [{ name: 'Yankesici', desc: '+1 pençe; darbe 2 komşuya sıçrar' }, { name: 'Göz Koyma', desc: '+4 hasar; vurulan hasarın bir kısmıyla iyileşir' }] },
+        'Bekleme süresi 0,15 sn daha kısa',
+        '+6 hasar',
+        { fork: [{ name: 'Düşürme', desc: '+6 hasar; elitlerde ve bosslarda daha güçlüdür' }, { name: 'Gece Kesisi', desc: '+%30 alan; devrilen düşmanlar patlar' }] },
+        '+1 pençe ve +5 hasar',
+      ],
+    },
+    protect: {
+      description: "Her 12 sn'de bir seni 1 sn boyunca koruyan bir balon belirir: Hiçbir darbe geçemez ve dokunan her şey geriye savrulur.",
+      upgrades: [
+        '+0,2 sn daha uzun sürer',
+        'Bekleme süresi 1 sn daha kısa',
+        { fork: [{ name: 'Dikenli Kalkan', desc: '+8 hasar; balonun devirdiği düşmanlar patlar' }, { name: 'Sezi', desc: '+0,3 sn daha uzun sürer ve hemen ardından tekrar kalkan açar' }] },
+        '+0,2 sn daha uzun sürer',
+        'Bekleme süresi 1 sn daha kısa',
+        { fork: [{ name: 'Zehirli Sığınak', desc: '+6 hasar; balon vuruşlarıyla iyileşir' }, { name: 'Hızlı Koruma', desc: 'Bekleme süresi −1,5 sn ve +%20 alan; itme etkisi sıçrar' }] },
+        '+0,3 sn daha uzun sürer ve bekleme süresi 1 sn daha kısa',
+      ],
+    },
+    hyperBeam: {
+      description: 'Bir anlığına şarj olur, ardından en yakındaki düşmana doğru hattındaki her şeye peş peşe vuran devasa bir ışın ateşler. Sonrasında toparlanmak için bir an hareketsiz kalırsın.',
+      upgrades: [
+        '+8 hasar',
+        'Bekleme süresi 0,8 sn daha kısa',
+        { fork: [{ name: 'Aşırı Yükleme', desc: '+12 hasar; devrilen düşmanlar patlar' }, { name: 'Kavrulmuş Hat', desc: '+%25 alan; yeri yanar halde bırakır' }] },
+        '+10 hasar',
+        'Bekleme süresi 0,8 sn daha kısa',
+        { fork: [{ name: 'Giga Işın', desc: '+10 hasar; elitlerde ve bosslarda daha güçlüdür' }, { name: 'Çifte Işın', desc: '+1 ışın ve darbe sıçrar; -6 hasar' }] },
+        '+14 hasar ve +%15 alan',
+      ],
+    },
+    rainDance: {
+      description: 'Dans ederek 40 sn boyunca yağmur çağırırsın; koşunun normal havası yağmur bitince geri döner. Sürdüğü müddetçe etrafındaki düşmanların üzerine ağır damlalar iner. Yağmurda Su türü saldırılar %50 daha sert, Ateş türü saldırılar ise daha zayıf vurur (düşmanlarınki de dahil).',
+      upgrades: [
+        '+2 hasar',
+        'Yağmur +5 sn daha uzun sürer',
+        { fork: [{ name: 'Sağanak', desc: 'Yağmur +15 sn daha uzun sürer ve +1 damla; darbe komşulara sıçrar' }, { name: 'Huzurlu Yağmur', desc: 'Üzerine yağdığı sürece saniyede %0,8 Can yeniler; damlalar hasarıyla iyileştirir' }] },
+        'Bekleme süresi 8 sn daha kısa',
+        '+3 hasar',
+        { fork: [{ name: 'Fırtına', desc: '+4 hasar; devrilen düşmanlar patlar' }, { name: 'Tufan', desc: '+%40 alan; damlalar yerde hasar veren su birikintileri bırakır' }] },
+        '+1 damla ve +2 hasar',
+      ],
+    },
+    sunnyDay: {
+      description: '40 sn boyunca yakıcı bir güneş çağırırsın; koşunun normal havası güneş bitince geri döner. Sürdüğü müddetçe etrafındaki düşmanların üzerine güneş ışınları iner. Güneş altında Ateş türü saldırılar %50 daha sert, Su türü saldırılar ise daha zayıf vurur (düşmanlarınki de dahil).',
+      upgrades: [
+        '+2 hasar',
+        'Güneş +5 sn daha uzun sürer',
+        { fork: [{ name: 'Uzun Yaz', desc: 'Güneş +15 sn daha uzun sürer ve +1 ışın; düştüğü yer yanar' }, { name: 'Kavurucu Güneş', desc: 'Etrafındaki aydınlık halkaya basanları yakar; ışınlar durum etkisindekilere daha sert vurur' }] },
+        'Bekleme süresi 8 sn daha kısa',
+        '+3 hasar',
+        { fork: [{ name: 'Güneş Işını', desc: '+4 hasar; elitlerde ve bosslarda daha güçlüdür' }, { name: 'Parlama', desc: '+%40 alan; devrilen düşmanlar patlar' }] },
+        '+1 ışın ve +2 hasar',
+      ],
+    },
+    swordsDance: {
+      description: 'Etrafında kılıçlar döner ve bu dans 5 sn boyunca sana +%8 hasar kazandırır. Süresi bitmeden tekrar dans edersen etki birikir (en fazla 3 kez).',
+      upgrades: [
+        'Bekleme süresi 1 sn daha kısa',
+        '+1,2 sn daha uzun sürer',
+        { fork: [{ name: 'Daha Keskin Kılıçlar', desc: '5 kata kadar birikir ve +2 hasar; ikinci bir kılıç halkası' }, { name: 'Uzun Dans', desc: '+3 sn daha uzun sürer; kılıçlar elitlere ve bosslara daha sert vurur' }] },
+        'Bekleme süresi 0,5 sn daha kısa',
+        '+3 hasar',
+        { fork: [{ name: 'Çelik Girdap', desc: '+2 kılıç; devrilen düşmanlar patlar' }, { name: 'Vampir Kılıç', desc: '+2 sn daha uzun sürer ve +2 hasar; kılıçlar hasarıyla iyileştirir' }] },
+        '+3 hasar ve +1 kılıç',
+      ],
+    },
+    drainPunch: {
+      description: "En yakındaki düşmana vurulan hasarın %35'i kadar seni iyileştiren parıldayan bir yumruk atar (saniyede en fazla Canının %4'ü kadar).",
+      upgrades: [
+        '+4 hasar',
+        'Bekleme süresi 0,1 sn daha kısa',
+        { fork: [{ name: 'Yumruk Yağmuru', desc: '+%40 alan ve yelpaze şeklinde +1 yumruk; hemen ardından tekrar yumruk atar (%50)' }, { name: 'Sülük', desc: "Hasarın +%20'si kadar daha iyileştirir; canı az kalanları bitirir" }] },
+        '+5 hasar',
+        'Bekleme süresi 0,1 sn daha kısa',
+        { fork: [{ name: 'Patlayıcı Yumruk', desc: '+6 hasar; devrilen düşmanlar patlar' }, { name: 'Tam Sömürü', desc: "Hasarın +%10'u kadar daha iyileştirir ve +3 hasar; elitlerde ve bosslarda daha güçlüdür" }] },
+        '+6 hasar ve +%15 alan',
+      ],
+    },
+    thunderWave: {
+      description: 'En yakındaki düşmana doğru statik bir koni yayarak üzerinden geçtiği herkesi 2 sn boyunca felç eder (bosslar etkisini çabuk atlatır).',
+      upgrades: [
+        'Bekleme süresi 0,3 sn daha kısa',
+        '+3 hasar',
+        { fork: [{ name: 'Geniş Dalga', desc: 'Daha geniş bir koni; kıvılcım komşulara sıçrar' }, { name: 'Statik', desc: 'Felç +1,5 sn daha uzun sürer; durum etkisindekilere daha sert vurur' }] },
+        'Bekleme süresi 0,3 sn daha kısa',
+        '+3 hasar',
+        { fork: [{ name: 'Çifte Dalga', desc: 'Daha da geniş bir koni ve +%20 alan; hemen ardından tekrar dalga gelir (%50)' }, { name: 'Şok', desc: 'Felç +1 sn daha uzun sürer ve +4 hasar; elitlerde ve bosslarda daha güçlüdür' }] },
+        'Felç +0,5 sn daha uzun sürer ve +3 hasar',
+      ],
+    },
+    fly: {
+      description: "Her 7 sn'de bir anlığına göğe havalanırsın: Hiçbir darbe sana değmez ve düşmanlar seni gözden kaybeder. Hareket etmeyi sürdürürsün ve inişte sertçe yere inerek etraftaki herkese hasar verip onları savurursun.",
+      upgrades: [
+        '+6 hasar',
+        'Bekleme süresi 0,7 sn daha kısa',
+        { fork: [{ name: 'Pike Bombası', desc: '+%35 alan ve +6 hasar; devrilen düşmanlar patlar' }, { name: 'Hızlı Uçuş', desc: 'Bekleme süresi 1,5 sn daha kısa; iniş yerde keskin bir rüzgâr bırakır' }] },
+        '+8 hasar',
+        'Bekleme süresi 0,7 sn daha kısa',
+        { fork: [{ name: 'Hava Ası', desc: '+10 hasar ve +%15 alan; elitlerde ve bosslarda daha güçlüdür' }, { name: 'Süzülüş', desc: 'Bekleme süresi 1 sn daha kısa; darbe komşulara sıçrar' }] },
+        '+10 hasar',
+      ],
+    },
+    ragingFury: {
+      description: 'Alevlere bürünerek öfkeyle koşarsın: Yürürken sana dokunan herkes yanar, geçtiğin yol yanan bir ize dönüşür ve birkaç adımda bir bu öfke alevden bir halkayla patlar. Hareketsiz durursan yalnızca tüter. Yakabilir.',
+      upgrades: [
+        '+4 hasar',
+        'Alevler +0,6 sn daha uzun sürer ve +%15 alan',
+        '+5 hasar ve +%15 yanma şansı',
+        '+5 hasar ve +%20 alan',
+      ],
+    },
+    seedFlare: {
+      description: 'Üzerinde küçük bir güneş büyür ve tam bir daireyi süpüren ışınlarla patlar; bittiği yerde ışık tohumları patlayarak açar. Yakıcı güneşte ışınlar etrafı iki kez süpürür.',
+      upgrades: [
+        '+10 hasar',
+        '+1 ışın',
+        '+%20 alan',
+        '+12 hasar ve 0,4 sn daha kısa bekleme süresi',
+      ],
+    },
+    waterSpout: {
+      description: "Senden fışkıran bir gayzer, görüş alanındaki en çok yaralanmış düşmanların üzerine ağır damlalar yağdırır. Canın ne kadar çoksa o kadar sert yağar; Canı %50'nin altındaki düşmanlar iki kat hasar alır.",
+      upgrades: [
+        '+2 damla',
+        '+8 hasar',
+        '+%25 alan',
+        '+2 damla ve 0,2 sn daha kısa bekleme süresi',
+      ],
+    },
+    electroDrift: {
+      description: 'Senden dışarı doğru genişleyen bir spiral halinde elektrik küreleri yayılır; aralarındaki yıldırımlar araya giren herkesi çarpar. Ne kadar hızlıysan o kadar büyür ve güçlenirler. Felç edebilir.',
+      upgrades: [
+        '+1 küre',
+        '+7 hasar',
+        '+0,4 sn daha uzun sürer ve +%20 alan',
+        '+1 küre ve +%15 felç şansı',
+      ],
+    },
+    sludgeWave: {
+      description: 'Senden dışarı doğru peş peşe balçık dalgaları yayılır ve zehirleyebilir. Zaten zehirlenmiş düşmanlar iki kat hasar alır ve patlayarak etraftakileri zehirleyen zehirli bir gayzere dönüşür.',
+      upgrades: [
+        '+3 hasar',
+        '+1 dalga',
+        '+%20 alan ve +%15 zehirleme şansı',
+        '+3 hasar ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    explosion: {
+      description: 'Manuel: Mevcut Canının beşte birini harcayarak devasa bir patlama yaratır ve içinde sen güvendesindir. Yendiği her düşman da patlar ve bu patlamalar daha fazlasını devirebilir.',
+      upgrades: [
+        '+25 hasar',
+        '+%15 alan',
+        '1,2 sn daha kısa bekleme süresi',
+        '+30 hasar ve +%15 alan',
+      ],
+    },
+    oblivionWing: {
+      description: 'Ardı sıra kızıl kanatlar açılır ve en yakındaki düşmanlara ışınlar saçarak hasarın yarısını Can olarak emer. Bir anlığına hareketsiz durursan iki kat fazla ışın ateşler.',
+      upgrades: [
+        '+9 hasar',
+        '+1 ışın',
+        '0,2 sn daha kısa bekleme süresi',
+        '+1 ışın ve +9 hasar',
+      ],
+    },
+    skyUppercut: {
+      description: 'Focus Punch gibi şarj olur (darbe almak sıfırlar), ancak yumruk aşağıdan gelir: Görüş alanındaki en zorlu düşmanların (öncelik bosslarda) altından etrafında şok dalgasıyla devasa bir yumruk fırlar.',
+      upgrades: [
+        '+20 hasar',
+        '+1 yumruk',
+        '+%20 alan',
+        '+24 hasar ve +1 yumruk',
+      ],
+    },
+    gearGrind: {
+      description: 'Dev dişliler en yakındaki düşmanlara doğru yuvarlanarak önlerindeki her şeyi biçer ve sana geri döner. Gyro Ball gibi, ne kadar yavaş hareket edersen o kadar sert çarparlar.',
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        '+1 dişli',
+        '+7 hasar ve 0,25 sn daha kısa bekleme süresi',
+      ],
+    },
+    kowtowCleave: {
+      description: 'Sucker Punch gibi etrafındaki zemini kollar: İçeri adım atan bir düşman, üzerine doğru geniş bir kavisle inen kılıç biçişiyle vurulur. Asla ıskalamaz ve korumaları delip geçer.',
+      upgrades: [
+        '+10 hasar',
+        '+1 biçme',
+        '+%20 alan',
+        '+11 hasar ve 0,12 sn daha kısa bekleme süresi',
+      ],
+    },
+    hyperspaceHole: {
+      description: 'Görüş alanındaki en yoğun grupların üzerinde uzayda halkalar açılır ve etraftaki düşmanları içine çeker; ardından her biri patlayarak çöker.',
+      upgrades: [
+        '+14 hasar',
+        '+1 halka',
+        '+%20 alan ve +0,3 sn daha uzun çekerler',
+        '+16 hasar ve 0,5 sn daha kısa bekleme süresi',
+      ],
+    },
+    thousandArrows: {
+      description: 'Etrafındaki yerden bir ok yağmuru yükselir ve menzildeki en uzaktaki düşmanların tepesine yağar. Uçanları yere indirir: Uçan düşmanlar iki kat hasar alır.',
+      upgrades: [
+        '+3 ok',
+        '+9 hasar',
+        '+%25 alan',
+        '+3 ok ve 0,2 sn daha kısa bekleme süresi',
+      ],
+    },
+    stoneAxe: {
+      description: 'Büyük bir taş balta en yakındaki düşmanın üzerine iner ve çarpmanın etkisiyle Stealth Rock misali etrafa havada asılı duran kıymıklar saçar: İçine yürüyen her düşmana hasar verirler.',
+      upgrades: [
+        '+10 hasar',
+        '+1 kıymık',
+        'Kıymıklar +4 sn daha uzun kalır ve +%15 alan',
+        '+12 hasar ve +1 kıymık',
+      ],
+    },
+    firstImpression: {
+      description: 'Manuel: Her biri sıradaki en yakın düşmanın içinden geçen zikzak atılmalar serisi; boyunca dokunulmaz kalırsın ve indiğin yerde bir patlamayla biter.',
+      upgrades: [
+        '+9 hasar',
+        '+1 atılma',
+        '0,3 sn daha kısa bekleme süresi',
+        '+10 hasar ve +1 atılma',
+      ],
+    },
+    breakingSwipe: {
+      description: 'Kuyruğun etrafında tam bir turdan fazla savrulur: Menzildeki her düşman darbe alır, zayıflar (temas hasarı azalır) ve geriye savrularak çarptığı diğer düşmanlara da hasar verir.',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        '0,3 sn daha kısa bekleme süresi',
+        '+10 hasar ve +%15 alan',
+      ],
+    },
+    glacialLance: {
+      description: "Devasa buz mızrakları düz bir hat boyunca sürüyü delip geçer: Canı %25'in altındaki sıradan düşmanları anında parçalar, diğerlerini dondurabilir; menzilin sonunda ise ayaza bürünerek patlar.",
+      upgrades: [
+        '+1 mızrak',
+        '+10 hasar',
+        '+%20 alan ve +%15 donma şansı',
+        '+1 mızrak ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    braveBird: {
+      description: "Ateş mavisi kanatlara bürünerek en çok düşmanın bulunduğu hatta doğru dimdik dalar. Çarpılan her düşman azami Canının %2'sine mal olur (dalış başına en fazla %6, asla son Can puanını almaz).",
+      upgrades: [
+        '+6 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Sert İniş', desc: 'Devrilen düşmanlar patlar; +6 hasar' }, { name: 'Tüy İzi', desc: 'Geçtiği hatta kesici zemin bırakır; 0,3 sn daha kısa bekleme süresi' }] },
+        '+6 hasar',
+        '0,3 sn daha kısa bekleme süresi',
+        { fork: [{ name: 'Voltaj Kanadı', desc: 'Kıvılcımlar yakındaki düşmanlara sıçrar; +4 hasar' }, { name: 'İkinci Uçuş', desc: 'Hemen ardından tekrar dalar (%50); -4 hasar' }] },
+        '+8 hasar ve +%20 alan',
+      ],
+    },
+    weatherBall: {
+      description: 'En yakındaki düşmana hava durumuna göre değişen bir küre fırlatır: Açık havada Normal, güneşte yakan Ateş, yağmurda yavaşlatan Su, kum fırtınasında zayıflatan Kaya ve karda dondurabilen Buz. Herhangi bir hava durumu altındayken ×1,5 vurur.',
+      upgrades: [
+        '+4 hasar',
+        '+1 top',
+        { fork: [{ name: 'Soğuk Cephe', desc: 'Devrilen düşmanlar patlar; +4 hasar' }, { name: 'Yerel Hava', desc: 'Düştüğü yerde hava durumuna özel zemin bırakır; +%25 alan' }] },
+        '0,25 sn daha kısa bekleme süresi',
+        '+4 hasar ve +%15 alan',
+        { fork: [{ name: 'Top Yağmuru', desc: '+1 top; elitlere ve bosslara ×1,5' }, { name: 'Çifte Cephe', desc: 'Hemen ardından tekrar fırlatır (%50); -3 hasar' }] },
+        '+5 hasar ve +%15 etki şansı',
+      ],
+    },
+    accelerock: {
+      description: 'Senden fırlayan bir kaya silüeti en yakındaki düşmana anında çarpar ve yoluna çıkan herkese de vurur. Çok kısa bekleme süresine sahiptir.',
+      upgrades: [
+        '+2 hasar',
+        '0,08 sn daha kısa bekleme süresi',
+        { fork: [{ name: 'Parçacıklar', desc: 'Taş parçacıkları yakındaki düşmanlara sıçrar; +1 hasar' }, { name: 'Darbe', desc: 'Devrilen düşmanlar patlar; +3 hasar' }] },
+        '+3 hasar',
+        '+1 atılma',
+        { fork: [{ name: 'Sürü', desc: '+1 atılma ve durum etkisindekilere ×1,35; -1 hasar' }, { name: 'Kaya Yankısı', desc: 'Hemen ardından tekrar atılır (%50); daha kısa bekleme süresi' }] },
+        '+4 hasar ve 0,06 sn daha kısa bekleme süresi',
+      ],
+    },
+    zapCannon: {
+      description: 'Yavaş ve devasa bir elektrik küresi sürünün içinden süzülür; çarptığı her şeyi çarparak daima felç eder.',
+      upgrades: [
+        '+3 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Güdümlü', desc: 'Küre en yakındaki düşmana yönelir; +2 hasar' }, { name: 'Elektrik Alanı', desc: 'Geçtiği hat boyunca elektrikli zemin bırakır; +%15 alan' }] },
+        '0,4 sn daha kısa bekleme süresi',
+        '+4 hasar',
+        { fork: [{ name: 'Voltaik Yay', desc: 'Kıvılcımlar yakındaki düşmanlara sıçrar; +2 hasar' }, { name: 'Çifte Top', desc: '+1 küre ve vuruşlar seni iyileştirir; -3 hasar' }] },
+        '+5 hasar ve +%20 alan',
+      ],
+    },
+    aerialAce: {
+      description: 'En yakındaki düşmanlara asla ıskalamayan çevik rüzgâr kesikleri savurur: Korumaları kesip geçer ve dirençli eşleşmelere bile normal vurur.',
+      upgrades: [
+        '+3 hasar',
+        '+1 kesiş',
+        { fork: [{ name: 'Kuş Sürüsü', desc: '+1 kesiş; elitlere ve bosslara ×1,5' }, { name: 'Bitirici Darbe', desc: 'Devrilen düşmanlar patlar; +5 hasar' }] },
+        '0,2 sn daha kısa bekleme süresi',
+        '+4 hasar',
+        { fork: [{ name: 'Çifte Kesik', desc: 'Hemen ardından tekrar keser (%50); -3 hasar' }, { name: 'Keskin Rüzgâr', desc: 'Rüzgâr kıvılcımları yakındaki düşmanlara sıçrar; +2 hasar' }] },
+        '+1 kesiş ve +4 hasar',
+      ],
+    },
+    crossPoison: {
+      description: 'İki zehir kılıcı en yakındaki düşmanın üzerinde X şeklinde kesişir. Zehirleyebilir. Her dört vuruştan biri kritiktir: ×2 hasar.',
+      upgrades: [
+        '+4 hasar',
+        '+%15 zehirleme şansı',
+        { fork: [{ name: 'Zehirli Zemin', desc: 'Yerde zehir birikintisi bırakır; +%20 zehirleme şansı' }, { name: 'Ölümcül Vuruş', desc: 'Devrilen düşmanlar patlar; +6 hasar' }] },
+        '+%20 alan',
+        '+1 X',
+        { fork: [{ name: 'Çifte Çapraz', desc: 'Hemen ardından tekrar keser (%50); -3 hasar' }, { name: 'Sıçrayan Toksin', desc: 'Zehir kıvılcımları yakındaki düşmanlara sıçrar; +%20 alan' }] },
+        '+6 hasar ve %30 daha güçlü zehir',
+      ],
+    },
+    bubbleBeam: {
+      description: 'En yakındaki düşmana doğru bir baloncuk akımı püskürtür; patlayan her baloncuk hedefini yavaşlatır.',
+      upgrades: [
+        '+2 baloncuk',
+        '+2 hasar',
+        { fork: [{ name: 'Köpük', desc: "Baloncuklar çarptığında 2'ye bölünür; -1 hasar" }, { name: 'Güdümlü Baloncuklar', desc: 'Baloncuklar düşmanlara yönelir; daha yavaş uçarlar' }] },
+        '+2 baloncuk',
+        '+2 hasar ve +%20 alan',
+        { fork: [{ name: 'Sekme', desc: 'Baloncuklar başka bir düşmana seker; +1 hasar' }, { name: 'Çift Akıntı', desc: 'Arkaya doğru da ateşler; +0,1 sn bekleme süresi' }] },
+        '+3 baloncuk ve +1 hasar',
+      ],
+    },
+    rockBlast: {
+      description: 'En yakındaki düşmana peş peşe 2 ila 5 kaya fırlatır (her kullanımda rastgele belirlenir; yükseltmeler sayıyı artırır).',
+      upgrades: [
+        '+3 hasar',
+        '0,15 sn daha kısa bekleme süresi',
+        { fork: [{ name: 'Çakıl', desc: "Kayalar çarptığında 2'ye bölünür; -2 hasar" }, { name: 'Sıçrama', desc: 'Kayalar başka bir düşmana seker; +3 hasar' }] },
+        '+1 kaya',
+        '+4 hasar ve +%15 alan',
+        { fork: [{ name: 'Patlayıcı Kaya', desc: 'Devrilen düşmanlar patlar; +2 hasar' }, { name: 'Güdümlü Kayalar', desc: 'Kayalar düşmanlara yönelir; daha yavaş uçarlar' }] },
+        '+1 kaya ve +4 hasar',
+      ],
+    },
+    cottonSpore: {
+      description: 'En büyük kalabalığın üzerine kabarık bir pamuk bulutu çöker ve orada kalır: İçindeki düşmanlar adeta sürünürcesine yavaşlar.',
+      upgrades: [
+        '+%20 alan',
+        '+1 sn daha uzun sürer',
+        { fork: [{ name: 'Daha Çok Pamuk', desc: 'Hemen ardından bir bulut daha bırakır (%50); +2 hasar' }, { name: 'Statik Pamuk', desc: 'Kıvılcımlar yakındaki düşmanlara sıçrar; +3 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi',
+        '+%20 alan ve +2 hasar',
+        { fork: [{ name: 'İki Bulut', desc: 'Başka bir kalabalığa +1 bulut; düşmanları içeri çekerler' }, { name: 'Patlayıcı Pamuk', desc: 'Devrilen düşmanlar patlar; +%30 alan' }] },
+        '+1,5 sn daha uzun sürer ve +2 hasar',
+      ],
+    },
+    wildCharge: {
+      description: "Elektrikle çıtırdar, daha hızlı koşarsın ve temas ettiğin her düşmanı çarparsın. Her şok azami Canının %1'ine mal olur (hücum başına en fazla %5).",
+      upgrades: [
+        '+4 hasar',
+        '+0,4 sn daha uzun sürer',
+        { fork: [{ name: 'Kıvılcım İzi', desc: 'Koştuğun yerde elektrikli zemin bırakır; +1 hasar' }, { name: 'Kısa Devre', desc: 'Devrilen düşmanlar patlar; +4 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi',
+        '+5 hasar ve +%10 felç şansı',
+        { fork: [{ name: 'İkinci Soluk', desc: '+0,6 sn daha uzun sürer ve elektrik şokları seni iyileştirir' }, { name: 'Zincir Yıldırım', desc: 'Kıvılcımlar yakındaki düşmanlara sıçrar; +2 hasar' }] },
+        '+6 hasar ve +%20 alan',
+      ],
+    },
+    playRough: {
+      description: 'En yakındaki düşmanın üzerinde çizgi film misali bir kavga bulutu patlak verir (yıldızlar, yumruklar, bir kalp): Onu zayıflatabilecek seri darbeler indirir (daha az temas hasarı verir).',
+      upgrades: [
+        '+2 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Yaygara', desc: 'Başka bir düşmana +1 bulut; durum etkisindekilere ×1,35' }, { name: 'Kirli Dövüş', desc: 'Devrilen düşmanlar patlar; +2 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+3 hasar',
+        { fork: [{ name: 'Rövanş', desc: 'Hemen ardından tekrar kavga çıkarır (%50); -1 hasar' }, { name: 'Kışkırtma', desc: '+%25 zayıflatma şansı, +%20 alan; düşmanları içeri çeker' }] },
+        '+1 bulut ve +2 hasar',
+      ],
+    },
+    spore: {
+      description: 'Etrafındaki spor bulutu düşmanları uyutur. Hasar vermediğinden yalnızca başka bir saldırı çarptığında uyanırlar.',
+      upgrades: [
+        '+%20 alan',
+        '+%10 uyutma şansı',
+        { fork: [{ name: 'Etki Sporu', desc: 'Uyuyanlar zehirlenir de' }, { name: 'Ağır Spor', desc: '+%30 alan; uyuyanlar yavaş uyanır' }] },
+        'Uyku +0,5 sn daha uzun sürer',
+        '0,8 sn daha kısa bekleme süresi',
+        { fork: [{ name: 'Çifte Spor', desc: 'Hemen ardından tekrar yayılır; 0,4 sn daha kısa bekleme süresi' }, { name: 'Rüya Tozu', desc: 'Uyuyanlar işaretlenir ve daha fazla hasar alır' }] },
+        '+%20 alan ve uyku +0,5 sn daha uzun sürer',
+      ],
+    },
+    waterfall: {
+      description: 'En yakındaki düşmana doğru bir hat boyunca peş peşe su sütunları yükselir ve çarptıklarını irkiltir. Magikarp iken zayıftır; evrimleşince sele dönüşür.',
+      upgrades: [
+        '+4 hasar',
+        '+1 sütun',
+        { fork: [{ name: 'Uzun Şelale', desc: '+2 sütun; elitlere ve bosslara ×1,5' }, { name: 'Dip Akıntısı', desc: 'Devrilen düşmanlar patlar; +5 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi',
+        '+5 hasar ve +%15 alan',
+        { fork: [{ name: 'Çifte Düşüş', desc: 'Hemen ardından tekrar yükselir (%50); -3 hasar' }, { name: 'Sıçramalar', desc: 'Su damlacıkları yakındaki düşmanlara sıçrar; +%20 alan' }] },
+        '+7 hasar ve +1 sütun',
+      ],
+    },
+    lastResort: {
+      description: 'En yakındaki düşmanın üzerine devasa bir yıldız darbesi indirir. Tam gücüne ancak 4 saldırı daha öğrenildiğinde ulaşır (öncesinde yalnızca hafif bir dokunuştur).',
+      upgrades: [
+        '+8 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Ya Hep Ya Hiç', desc: '+10 hasar; elitlere ve bosslara ×1,5' }, { name: 'Süpernova', desc: 'Devrilen düşmanlar patlar; +%30 alan' }] },
+        '0,4 sn daha kısa bekleme süresi',
+        '+10 hasar',
+        { fork: [{ name: 'Dinlenmek Yok', desc: '0,3 sn daha kısa bekleme süresi; canı az kalan düşmanları bitirir' }, { name: 'Bis', desc: 'Hemen ardından tekrar çarpar (%50); -8 hasar' }] },
+        '+12 hasar ve +%20 alan',
+      ],
+    },
+    firePledge: {
+      description: 'Etrafında bir halka halinde ateş sütunları patlar ve içindeki zemin, üzerinde duran herkesi yakan bir ateş denizine dönüşür.',
+      upgrades: [
+        '+2 sütun ve +10 hasar',
+        'Ateş denizi +1 sn daha uzun sürer ve +%15 alan',
+        '+16 hasar ve %25 daha güçlü yakar',
+        '+2 sütun ve 0,4 sn daha kısa bekleme süresi',
+      ],
+    },
+    waterPledge: {
+      description: 'Kalabalıkların altında gayzerler fışkırır ve bir gökkuşağı belirir: Parladığı sürece saldırıların +%25 durum etkisi şansı kazanır.',
+      upgrades: [
+        '+1 gayzer ve +10 hasar',
+        'Gökkuşağı +1,2 sn daha uzun kalır',
+        '+%25 alan ve +12 hasar',
+        '+2 gayzer ve 0,35 sn daha kısa bekleme süresi',
+      ],
+    },
+    grassPledge: {
+      description: 'Etrafına yayılan ve seninle birlikte hareket eden bir bataklık içindeki her düşmanı yavaşlatırken, yakaladıklarının altından sarmaşık sütunları fışkırır.',
+      upgrades: [
+        '+1 sütun ve +7 hasar',
+        '+%20 bataklık alanı',
+        '+10 hasar',
+        '+2 sütun ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    fusionFlare: {
+      description: 'En büyük kalabalığın tepesine akkor bir kuyruklu yıldız iner, patlar ve zemini tüter halde bırakır. Yakar.',
+      upgrades: [
+        '+1 kuyruklu yıldız',
+        '+18 hasar ve +%15 alan',
+        'Közler +1 sn daha uzun kalır ve +%15 yanma şansı',
+        '+1 kuyruklu yıldız ve 0,4 sn daha kısa bekleme süresi',
+      ],
+    },
+    fusionBolt: {
+      description: 'En büyük kalabalığın tepesine yıldırımdan bir kuyruklu yıldız iner, patlar ve zemini çıtırdar halde bırakır. Felç eder.',
+      upgrades: [
+        '+1 kuyruklu yıldız',
+        '+36 hasar ve +%15 alan',
+        'Kıvılcımlar +1 sn daha uzun kalır ve +%15 felç şansı',
+        '+1 kuyruklu yıldız ve 0,4 sn daha kısa bekleme süresi',
+      ],
+    },
+    ionDeluge: {
+      description: 'Düşmanların altında iletken su birikintileri belirir: Aralarında uzanan arklarla birlikte üzerindeki herkesi aynı anda çarpar. Yağmurda +1 birikinti.',
+      upgrades: [
+        '+1 birikinti',
+        '+9 hasar ve birikintiler +1 sn daha uzun kalır',
+        '+%25 alan ve +%10 felç şansı',
+        '+1 birikinti ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    freezeDry: {
+      description: 'Etrafına dondurucu bir sis yayılır ve düşmanları dondurur (sonraki darbe iki kat vurarak buzu kırar). Donmuş düşmanlara ×1,4.',
+      upgrades: [
+        '+1 sis dalgası',
+        '+6 hasar ve +%15 donma şansı',
+        '+%25 alan',
+        '+%15 alan ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    nightmare: {
+      description: 'Zehirleyen zincirleme bir Hex ve hemen ardından her hedefi tekrar ısıran bir kurukafa: Durum etkisindekilere ×2, zehirlenmişlerse bir de ×1,5 vurur.',
+      upgrades: [
+        '+2 hedef',
+        '+14 hasar ve +%15 zehirleme şansı',
+        '+%25 menzil ve %25 daha güçlü zehir',
+        '+2 hedef ve 0,3 sn daha kısa bekleme süresi',
+      ],
+    },
+    whirlwind: {
+      description: "Lugia'nın gümüş siklonu en büyük kalabalığın üzerinde yükselip alanda dolaşır, düşmanları fırtınanın gözüne çeker. Hepsini savuran güçlü bir rüzgârla son bulur.",
+      upgrades: [
+        '+5 hasar',
+        '+%20 alan ve +0,5 sn daha uzun sürer',
+        { fork: [{ name: 'İkiz Fırtına', desc: '+1 siklon; -3 hasar' }, { name: 'Gök Gürültüsü', desc: 'Vuruşlar yakındaki düşmanlara kıvılcım sıçratır; +6 hasar' }] },
+        '0,7 sn daha kısa bekleme süresi ve +5 hasar',
+      ],
+    },
+    sacredFire: {
+      description: "Ho-Oh'nun kutsal ateşten anka kuşu kalabalığın içinden hızla geçer ve yerde gökkuşağı renginde bir alev hattı bırakır. Sık sık yakar.",
+      upgrades: [
+        '+9 hasar',
+        'Alevler +0,6 sn daha uzun kalır ve +%15 yanma şansı',
+        { fork: [{ name: 'Arındırıcı Alev', desc: 'Devrilen düşmanlar alev alarak patlar; +6 hasar' }, { name: 'Anka Çifti', desc: '+1 anka kuşu; -5 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +1 anka kuşu',
+      ],
+    },
+    originPulse: {
+      description: "Kyogre'nin gücü: Senden ekranın ucuna kadar yayılan parıldayan bir su halkası her şeyi geriye iter ve dört bir yana mavi ışık huzmeleri saçar.",
+      upgrades: [
+        '+8 hasar',
+        '+2 ışın ve +%10 alan',
+        { fork: [{ name: 'Çifte Gelgit', desc: 'Ardından ikinci bir dalga gelir; +%20 alan' }, { name: 'Canlı Akım', desc: 'Vuruşlar yakındaki düşmanlara kıvılcım sıçratır; +10 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi ve +2 ışın',
+      ],
+    },
+    scorchingSands: {
+      description: "Groudon'un sıcaklığı: Düşmanların üzerine doğru kabaran kavurucu bir kum duvarı, gerisinde üzerinde duran herkesi yakan akkor zemin bırakır.",
+      upgrades: [
+        '+7 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'İki Dalga', desc: '+1 kum duvarı' }, { name: 'Erimiş Kum', desc: 'Sıcak zemin +1 sn daha uzun kalır, %30 daha güçlü yakar, devrilenler patlar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +8 hasar',
+      ],
+    },
+    dragonAscent: {
+      description: 'Rayquaza gibi yeşil bir hat çizerek göğe yükselir ve peş peşe en büyük kalabalıkların tepesine bir kuyruklu yıldız gibi dalarsın.',
+      upgrades: [
+        '+15 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Üçlü Dalış', desc: '+1 dalış' }, { name: 'Meteor Darbesi', desc: 'Devrilen düşmanlar patlar; +20 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +1 dalış',
+      ],
+    },
+    roarOfTime: {
+      description: "Dialga'nın kükremesi zamanı durdurur: Senden tüm ekrana yayılan bir saat kadranı düşmanları dondurur ve onlara yapılan bir sonraki vuruş iki kat hasar verir. Zaman yeniden akmaya başladığında üzerlerine çöker.",
+      upgrades: [
+        '+25 hasar',
+        '+%15 alan ve zaman +0,3 sn daha uzun durur',
+        { fork: [{ name: 'Zaman Bükülmesi', desc: '0,7 sn daha kısa bekleme süresi' }, { name: 'Zamanın Sonu', desc: 'Devrilen düşmanlar patlar; +30 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi ve +25 hasar',
+      ],
+    },
+    mistBall: {
+      description: "Latias'ın sis küreleri farklı düşmanlara süzülür ve geride kalan, içindekileri yaralayıp zayıflatan bir sise dönüşerek patlar (daha az temas hasarı verirler).",
+      upgrades: [
+        '+7 hasar',
+        '+1 küre',
+        { fork: [{ name: 'Yoğun Sis', desc: 'Her kullanım yarı güçte yankılanır; +%25 alan' }, { name: 'Yüklü Sis', desc: 'Vuruşlar kıvılcım saçar; sis +1 sn daha uzun kalır ve +5 hasar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +1 küre',
+      ],
+    },
+    lusterPurge: {
+      description: "Latios'un ışık huzmesi önündeki düşmanları bir o yana bir bu yana süpürür. Savunmalarını düşürebilir (işaretlenirler: daha fazla hasar alırlar).",
+      upgrades: [
+        '+9 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Çapraz Işın', desc: 'Ters yöne doğru +1 ışın' }, { name: 'Kör Edici Işık', desc: 'Vuruşlar kıvılcım saçar; +8 hasar, +%30 işaretleme şansı' }] },
+        '0,5 sn daha kısa bekleme süresi ve +9 hasar',
+      ],
+    },
+    psychoBoost: {
+      description: "Deoxys'in gücü tepedeki bir çekirdekte toplanır ve farklı düşmanları kovalayıp üzerlerinde patlayan psişik kuyruklu yıldızlar ateşler.",
+      upgrades: [
+        '+10 hasar',
+        '+2 kuyruklu yıldız',
+        { fork: [{ name: 'Aşırı Yükleme', desc: 'Devrilen düşmanlar patlar; +12 hasar' }, { name: 'Kuyruklu Yıldız Yağmuru', desc: 'Kıvılcım saçan +2 kuyruklu yıldız; -6 hasar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +10 hasar',
+      ],
+    },
+    wish: {
+      description: "Jirachi'nin dileği: Tüm ekrandaki düşmanların üzerine bir yıldız yağmuru iner ve vurulan hasarın bir kısmı seni iyileştirir.",
+      upgrades: [
+        '+2 yıldız',
+        '+10 hasar',
+        { fork: [{ name: 'Gerçekleşen Dilek', desc: 'Devrilen düşmanlar patlar; +%25 alan' }, { name: 'Bin Dilek', desc: '+3 yıldız ve yağmur yarı güçte tekrarlanır; -6 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +2 yıldız',
+      ],
+    },
+    ancientPower: {
+      description: "Mew'nun gücüyle etrafında kadim taşlar yükselir ve düşmanlara fırlar. Bazen (%30) birkaç saniyeliğine tüm özelliklerin yükselir.",
+      upgrades: [
+        '+8 hasar',
+        '+2 taş',
+        { fork: [{ name: 'İlkel Güç', desc: 'Özellikler %60 şansla ve +2 sn daha uzun süreliğine artar' }, { name: 'Temel Taşı', desc: 'Devrilen düşmanlar patlar; +10 hasar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +8 hasar',
+      ],
+    },
+    magicalLeaf: {
+      description: "Celebi'nin büyülü yaprakları etrafında bir halka halinde açılır ve her biri kendi hedefini kovalar: Asla ıskalamazlar.",
+      upgrades: [
+        '+2 yaprak',
+        '+6 hasar',
+        { fork: [{ name: 'Zaman Yankısı', desc: 'Her kullanım yarı güçte yankılanır; +2 hasar' }, { name: 'Yaprak Fırtınası', desc: '+4 yaprak; -4 hasar' }] },
+        '0,3 sn daha kısa bekleme süresi ve +6 hasar',
+      ],
+    },
+    /* The Noite das Bruxas' event legend (`legendaryMoves.ts`) */
+    darkVoid: {
+      description: 'Darkrai’nin karanlık küreleri en kalabalık sürülere süzülür ve düşmanları oldukları yerde uyutan boşluklara açılır: bir vuruş uyandırana kadar ne hareket eder ne hasar verirler. Bad Dreams onları uyandırmadan yaralar.',
+      upgrades: [
+        '+14 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Uçurum', desc: '+1 boşluk' }, { name: 'Bitmeyen kâbus', desc: 'Bayılan düşmanlar patlar; +16 hasar' }] },
+        'Bekleme süresi 0,5 sn daha hızlı ve +14 hasar',
+      ],
+    },
+    /* The Lantern Festival's prize (`legendaryMoves.ts`) */
+    lunarBlessing: {
+      description: 'Ay, Cresselia’nın üzerinde büyür: hilal bıçaklar etrafında halka halinde uçar ve geri döner, gidişte de dönüşte de keser. Her 3. kullanımda dolunay gelir: etrafında bir ay ışığı dalgası patlar ve onu Canının %6’sı kadar kutsar.',
+      upgrades: [
+        '+2 bıçak',
+        '+10 hasar',
+        { fork: [{ name: 'Dolunay', desc: 'Dolunay her 2 kullanımda gelir; +%15 alan' }, { name: 'Ay dansı', desc: 'Can emen +2 bıçak; +4 hasar' }] },
+        'Bekleme süresi 0,4 sn daha hızlı ve +10 hasar',
+      ],
+    },
+    snowscape: {
+      description: "Articuno'nun kanatları etrafına buz kristallerinden bir kar tanesi saçar. Havada asılı kalarak dokunanları üşütür (yavaşlatır), ardından hepsi birden kırılarak dondurabilir (sonraki darbe iki kat daha sert iner).",
+      upgrades: [
+        '+10 hasar',
+        '+2 kristal kolu',
+        { fork: [{ name: 'Tipi', desc: 'Her kullanım yarı güçte yankılanır; +%20 alan ve +%20 donma şansı' }, { name: 'Ebedi Buz', desc: 'Devrilen düşmanlar patlar; +14 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +10 hasar',
+      ],
+    },
+    electricTerrain: {
+      description: 'Zapdos etrafındaki zemini elektriklendirir: Seninle birlikte hareket eden, her vuruşta içindeki bir düşmanın tepesine yıldırım indiren çıtırtılı bir alan. Felç edebilir.',
+      upgrades: [
+        '+7 hasar',
+        '+%20 alan ve alan +0,4 sn daha uzun kalır',
+        { fork: [{ name: 'Gök Gürültülü Fırtına', desc: 'Vuruş başına +1 yıldırım; -4 hasar' }, { name: 'Zincirleme Yıldırım', desc: 'Vuruşlar yakındaki düşmanlara kıvılcım saçar; +8 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi ve +7 hasar',
+      ],
+    },
+    overheat: {
+      description: "Moltres'in sıcaklığı gittikçe artar: İlk iki kullanım alevli tüy yelpazeleri fırlatır, üçüncü kullanım ise aşırı ısınıp etrafında ulaştığı her şeyi yakan bir ateş patlamasına dönüşür.",
+      upgrades: [
+        '+8 hasar',
+        '+2 tüy',
+        { fork: [{ name: 'Süpernova', desc: 'Devrilen düşmanlar patlar; +%25 alan' }, { name: 'Köz İzi', desc: 'Tüyler yerde ateş bırakır; 0,2 sn daha kısa bekleme süresi' }] },
+        '0,3 sn daha kısa bekleme süresi ve +6 hasar',
+      ],
+    },
+    thunderclap: {
+      description: "Raikou'nun yıldırımı gözün seçemeyeceği bir hızla düşmandan düşmana sıçrar ve son düşman, etrafındaki kalabalığı sarsan bir gök gürültüsüyle vurulur. Felç edebilir.",
+      upgrades: [
+        '+13 hasar',
+        '+2 sıçrama ve +%10 alan',
+        { fork: [{ name: 'Yıldırım Hızı', desc: '+4 sıçrama ve +4 hasar' }, { name: 'Son Yıldırım', desc: 'Devrilen düşmanlar patlar; +16 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +13 hasar',
+      ],
+    },
+    burningBulwark: {
+      description: "Entei'nin volkanik kabuğu seni sarar: Sıradaki darbeyi engeller ve dokunan her şeyi yakar. Kırıldığında veya süresi bittiğinde iki magma halkası halinde püskürür.",
+      upgrades: [
+        '+18 hasar',
+        'Kabuk +0,5 sn daha uzun sürer ve +%15 alan',
+        { fork: [{ name: 'Yanardağ', desc: 'Halka başına +4 gayzer' }, { name: 'Canlı Magma', desc: 'Devrilen düşmanlar patlar; +20 hasar' }] },
+        '0,7 sn daha kısa bekleme süresi ve +18 hasar',
+      ],
+    },
+    aquaRing: {
+      description: 'Suicune kuzey rüzgârıyla senden dışarı doğru spiral çizerek düşmanları süpürür. Üzerinde koştuğu berrak su, onları geri iten ve seni biraz iyileştiren bir halkaya dönüşür.',
+      upgrades: [
+        '+8 hasar',
+        '+%15 alan ve halka +0,6 sn daha uzun kalır',
+        { fork: [{ name: 'Kuzey Rüzgârı', desc: 'Her kullanım yarı güçte yankılanır; +4 halka parçası ve +1 sn daha uzun sürer' }, { name: 'Arınmış Su', desc: 'Vuruşlar daha çok iyileştirir; +10 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi ve +8 hasar',
+      ],
+    },
+    rockWrecker: {
+      description: 'Regirock en yoğun kalabalığın tepesine devasa bir kaya fırlatır: Yeri sarsarak iner ve doğrudan düşmanların içinden yuvarlanmaya devam eder.',
+      upgrades: [
+        '+22 hasar',
+        '+%20 alan',
+        { fork: [{ name: 'Kaya Düşüşü', desc: '+1 kaya; -10 hasar' }, { name: 'Yıkım Kayası', desc: 'Devrilen düşmanlar patlar; +26 hasar ve +0,4 sn daha yuvarlanır' }] },
+        '0,5 sn daha kısa bekleme süresi ve +22 hasar',
+      ],
+    },
+    glaciate: {
+      description: "Regice'ın soğuğu etrafında donmuş havadan bir kubbe gibi yayılarak içindeki her şeyi yavaşlatır. Ardından mutlak sıfıra düşer: İçindeki her şey parçalanır, son demlerindeki sıradan düşmanlar anında kırılır ve dondurabilir.",
+      upgrades: [
+        '+22 hasar',
+        '+%15 alan',
+        { fork: [{ name: 'Mutlak Sıfır', desc: '0,6 sn daha kısa bekleme süresi ve +%20 donma şansı' }, { name: 'Kırık Buz', desc: 'Devrilen düşmanlar patlar; +26 hasar' }] },
+        '0,6 sn daha kısa bekleme süresi ve +22 hasar',
+      ],
+    },
+    metalBurst: {
+      description: "Registeel'ın Iron Defense savunması seni sertleştirir (aldığın her darbe 2 hasar kaybeder), ardından senden çelik bir patlama ve parçacık halkası fırlar. Bir önceki kullanımdan bu yana aldığın her darbe patlamayı daha da güçlendirir.",
+      upgrades: [
+        '+15 hasar',
+        '+4 parça',
+        { fork: [{ name: 'Demir Duvar', desc: 'İki kat savunma, +1,2 sn daha uzun sürer ve +2 parça' }, { name: 'Yüklü Çelik', desc: 'Vuruşlar yakındaki düşmanlara kıvılcım saçar; +16 hasar' }] },
+        '0,5 sn daha kısa bekleme süresi ve +15 hasar',
+      ],
+    },
+    telekinesis: {
+      description: "Mewtwo'nun zihni en yakındaki düşmanları kavrar ve oldukları yerde dondurarak yerden kaldırır. Ardından onları kalabalığın içine savurur: Yollarına çıkanlara çarparlar ve yere çarpış iki kat daha sert vurur. Bosslar uçmaz ama ezilirler.",
+      upgrades: [
+        '+12 hasar',
+        '+2 düşman daha kaldırır',
+        { fork: [{ name: 'Sınırsız Zihin', desc: '+3 düşman daha kaldırır; -8 hasar' }, { name: 'Ölümcül Fırlatma', desc: 'Devrilen düşmanlar patlar; +14 hasar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +12 hasar',
+      ],
+    },
+    judgment: {
+      description: "Arceus'un altın çarkı tepede döner ve her levha düşmanları delip geçen bir ışık mızrağı fırlatır. Çoklu tip: Türü bulunduğu bölgeye uyum sağlar (Route 1'de Çimen, Viridian Forest'ta Böcek, Mt. Moon'da Kaya, Mt. Silver'da Buz, Lavender Tower'da Hayalet).",
+      upgrades: [
+        '+15 hasar',
+        '+2 mızrak',
+        { fork: [{ name: 'Çifte Hüküm', desc: 'Her kullanım yarı güçte yankılanır; +%25 alan' }, { name: 'Son Hüküm', desc: 'Elitlere ve bosslara fazladan hasar; +18 hasar' }] },
+        '0,4 sn daha kısa bekleme süresi ve +15 hasar',
+      ],
+    },
   },
 
   items: {
@@ -8124,6 +5447,8 @@ export const tr: Messages = {
     latios: 'Keskin Eon. Uzaktan hızlı ve ölümcül.',
     deoxys: 'Uzay virüsü. Özel saldırısıyla form değiştirir.',
     arceus: 'Yaratıcı. Her biyomda türü değişir.',
+    darkrai: 'Kâbus. Sürüleri uyutur ve rüyalarında yaralar.',
+    cresselia: 'Hilal ay. Geri dönen bıçaklar ve iyileştiren dolunay.',
   },
 
   specials: {
@@ -8277,13 +5602,74 @@ export const tr: Messages = {
       thanks: ['Miyavhaha! Anlaştık!', 'Ödendi ve bitti! İade yok!', 'Kafamdaki madeni paradan daha parlak parıldıyor!'],
     },
     duskull: {
-      hello: ['Gecede bir Perili Yumurta. İçinden ne mi çıkar? Başka hiçbir yumurtada bulunmayan hayaletler.', 'Bööh... Bu yumurtalar sıcaklıkla çatlamaz. Korkuyla çatlar. İster misin?', 'Dört hayalet, tek yumurta. Hangisi çıkacak? Ben bile bilmiyorum... hihihi.'],
+      hello: ['Haunted Egg’ler, ₽ veya şeker karşılığında. İçinden ne mi çıkar? Başka hiçbir yumurtada görünmeyen hayaletler.', 'Böö… Bu yumurtalar sıcaklıkla çatlamaz. Korkuyla çatlar. Bir tane ister misin?', 'Dört hayalet, bir yumurta. Hangisi çıkacak? Ben bile bilmiyorum… hehehe.'],
       thanks: ['Bööh... Güzel seçim. Gece yarısı gözünü üzerinden ayırma.', 'Hihihi... Şimdiden sana bakıyor.', 'Yarın yine gel. Cesaretin varsa tabii.'],
     },
     stalls: {
       halloween: ['Bööh... Cadılar Bayramı Gecesi meydana indi.', 'Koşularından topladığın şekerler lobideki kavanoza gidiyor. Burada başka şeyler satıyorum...'],
       christmas: ['Deli! Delibird Hediyeleri meydana geldi!', 'Hâlâ paketliyorum. Noel\'de yine gel, çuval ağzına kadar dolmuş olacak!'],
     },
+    lanturn: ['Lan-turn! Çeşmedeki her bozukluk meydanda bir fener yakar. Gel kumbaraya bak!'],
+  },
+  training: {
+    title: 'Dojo',
+    pickGo: 'Antrenman',
+    tabs: { moves: 'Saldırılar', items: 'Eşyalar', form: 'Form', targets: 'Hedefler' },
+    dps: 'DPS',
+    dpsHint: (s) => `son ${s} sn’deki saniye başına hasar`,
+    average: 'Ortalama',
+    total: 'Toplam',
+    noDamage: 'Hedeflere yaklaş: isabet eden her saldırı burada görünür.',
+    ability: 'Yetenek',
+    slots: (n, max) => `${n}/${max} yuva`,
+    level: (n) => `Sv ${n}`,
+    learn: 'Öğren',
+    forget: 'Unut',
+    hold: 'Tut',
+    remove: 'Çıkar',
+    forkAt: (n) => `Sv ${n}`,
+    evolvedFrom: (base, item) => `${base} saldırısından evrimleşir: koşuda, ${item} ile maksimum seviyede ${base}.`,
+    movesFull: 'Boş yuva yok',
+    itemsFull: 'Boş yuva yok',
+    manualFull: 'Zaten manuel bir tane var',
+    legendaryFull: 'Zaten efsanevi bir tane var',
+    shelves: { family: 'Aile', tms: 'TM’ler', legendary: 'Efsanevi' },
+    shelfNote: {
+      tms: 'Koşularda TM’ler bosslardan düşer, Saldırı Öğretmenlerinden ve mağazanın rafından gelir.',
+      legendary: 'Koşularda yenilen bir efsanevi, saldırısının altın diskini bırakır: koşu başına yalnızca bir tane.',
+    },
+    form: 'Form',
+    abilityAwaken: 'Yetenek ilk uyanışla gelir.',
+    legendNote: 'Yakalanan efsaneviler de burada antrenman yapar; Form sekmesinde Sv 12 ve 28 *uyanışlarıyla*.',
+    abilityLater: 'Yetenek ilk evrimle gelir.',
+    noAbility: 'Yok',
+    count: 'Kaç hedef',
+    countOf: (n) => `${n}`,
+    target: 'Hedef',
+    boss: 'boss',
+    reset: 'Sıfırla',
+    save: 'Build’i kaydet',
+    clear: 'Build’i sil',
+    leave: 'Çık',
+    hide: 'Gizle',
+    show: 'Göster',
+    saved: (name) => `*${name}* build’i kaydedildi! Koşularında kartlarında ★ BUILD etiketi olur.`,
+    loaded: (name) => `*${name}* için kayıtlı build takıldı.`,
+    cleared: (name) => `*${name}* build’i silindi.`,
+    buildTag: 'BUILD',
+    buildHint: 'Dojo’da kurduğun build’in parçası',
+    first: ['Dojo’ya hoş geldin! Burada kimse bayılmaz: bir Pokémon seç ve saldırıları, eşyaları ve formları istediğin kadar dene.', 'Bir komboyu beğendin mi? Build’i kaydet. Koşularında kartlarında bir ★ olacak.'],
+    hello: ['Antrenmana hazır mısın? Hedefler karşılık vermez!', 'İyi bir eğitmen kendi DPS’ini bilir.', 'Wobbuffet her şeye dayanır. Tüm gücünle vur!', 'Ateş, Su’ya karşı mı? Hedefi değiştir ve farkı gör.'],
+  },
+  stadium: {
+    boards: { play: 'Oyna', ranking: 'Sıralama', season: 'Sezon', history: 'Geçmiş', rules: 'Kurallar' },
+    first: [
+      'Bzzz! Stadyuma hoş geldin! Ben Arena’nın hakemiyim: tek bir hamleyi kaçırmayacak kadar hızlıyım.',
+      'İki takım karşı karşıya: Vadi veya Koy’da dörde dört ya da hızlı bir maç için Açıklık veya Resif’te üçe üç. Vahşi Pokémon’ları alt et, Enerji topla ve rakip kaleye taşı.',
+      'Hızlı maç: botlara karşı, hemen başlar. Normal: eğitmenlere karşı, puan yok. Dereceli: her galibiyet kademeni yükseltir.',
+      'Her sezon iki hafta sürer. Sahanın etrafındaki panolar sıralamayı, sezonu, geçmişini ve kuralları gösterir.',
+    ],
+    hello: ['Bzzz! Arena’ya geri mi döndün? En iyi takım kazansın!', 'Elinde tuttuğun Enerji sayı getirmez. Kaleye götür!', 'Dört kafa bir kafadan iyidir. Takımınla oyna.', 'Sezonun skor tablosu beklemez. Başlayalım mı?'],
   },
   traits: {
     healer: (name: string) => `*${name}* yakındaki müttefikleri iyileştirir. Önce onu indir!`,
@@ -8316,13 +5702,17 @@ export const tr: Messages = {
     clone: (name: string) => `${name} Klonu`,
     escaped: (name: string, wins: number, need: number) => `*${name}* kurtuldu… _${wins}/${need}_`,
     escapedHint: (left: number) => (left === 1 ? 'Yakalamak için 1 kez daha yen.' : `Yakalamak için ${left} kez daha yen.`),
-    arceusHint: (left: number) => (left > 0 ? `Yalnızca sonsuz modda, diğer efsanevilerden sonra yakalanabilir (${left} kaldı).` : 'Yalnızca sonsuz modda yakalanabilir.'),
+    arceusHint: (missing: readonly string[]) =>
+      missing.length === 0 ? 'Yalnızca sonsuz modda yakalanabilir.'
+        : missing.length <= 3 ? `Yalnızca sonsuz modda, diğer tüm efsaneviler yakalandıktan sonra yakalanabilir. Yakalanacak: ${missing.join(', ')}.`
+        : `Yalnızca sonsuz modda, diğer tüm efsaneviler yakalandıktan sonra yakalanabilir (${missing.length} kaldı: Efsaneviler sekmesine bak).`,
     caught: (name: string) => `*${name}* yakalandı! _Efsanevi Modunda_ oynanabilir.`,
     caughtShiny: (name: string) => `_Shiny_ *${name}* yakalandı! _Efsanevi Modunda_ oynanabilir.`,
     shinyUnlocked: (name: string) => `_Shiny_ *${name}*, _Efsanevi Modunda_ açıldı!`,
     caughtHint: 'Partner seçimindeki Efsaneviler sekmesinden seç.',
     tab: 'EFSANEVİLER',
     wins: (n: string) => `Zaferler: ${n}`,
+    stillMissing: (missing: readonly string[]) => `Yakalanacak (${missing.length}): ${missing.join(', ')}.`,
     lockedButton: 'Yakalanmadı',
     where: {
       rift: '_Efsanevi yarığın_ içinde bekler: Portaldan geç ve onu orada yen.',
@@ -8330,10 +5720,22 @@ export const tr: Messages = {
       mythical: 'Bazen (10 koşuda 1) sonda *Mewtwo*\'nun yanında belirir.',
       finale: 'Nihai bosstur: Bir koşuyu kazan.',
       endless: 'Son zafer kupası: Diğer 22 efsanevi yakalandığında _sonsuz modda_ onu yen.',
+      event: 'Yalnızca _Cadılar Bayramı Gecesi_: _Kâbus yarığında_ onu yen.',
+      festival: 'Bir _Meydan Festivali_ ödülü: Gizemli Hediye olarak gelir, hiç dövüşülmez.',
     },
-    rule: (need: number) => (need === 1 ? 'Yakalamak için herhangi bir modda boss olarak 1 kez yen.' : `Yakalamak için herhangi bir modda boss olarak ${need} kez yen.`),
+    rule: (need: number) => (need === 1 ? 'Yakalamak için tek kişilik bir koşuda, herhangi bir modda onu bir kez boss olarak yen. Co-op galibiyetleri sayılmaz.' : `Yakalamak için tek kişilik bir koşuda, herhangi bir modda onu ${need} kez boss olarak yen. Co-op galibiyetleri sayılmaz.`),
     shinyRule: 'Shiny bir efsaneviyi yakalanacağı zaferde veya sonrasında yenmek shiny formunu açar.',
     selectNote: 'Efsaneviler *Efsanevi Modunda* oynanır: Kendi sıralamaları, daha zorlu bir sürü, Sv 12 ve 28\'de uyanışlar.',
+    event: {
+      badge: 'Cadılar Bayramı Gecesi 2026',
+      soon: (from: string, to: string) => `_Cadılar Bayramı Gecesi_ ile geliyor: ${from} – ${to}.`,
+      live: (to: string) => `Yalnızca ${to} tarihine kadar: sonra gölgelere döner.`,
+      gone: 'Cadılar Bayramı Gecesi bitince gölgelere döndü. Yakalayanlar onunla oynamaya devam eder.',
+    },
+    festival: {
+      prize: (festival, pot, from, to) => `_${festival}_ son ödülü (${from} – ${to}): meydan çeşmesinin kumbarası *${pot}* olunca herkese Gizemli Hediye olarak gelir.`,
+      gone: (festival) => `_${festival}_ bitti. Onu alanlar onunla oynamaya devam eder.`,
+    },
   },
   legends: {
     epithets: {
@@ -8391,6 +5793,7 @@ export const tr: Messages = {
       confirm: 'Koşudan ayrılsın mı? Pokémon\'un sahadan ayrılır ve şu ana kadarki ₽ payını alırsın.',
       yes: 'Ayrıl',
       no: 'Kal',
+      builds: 'Takım build’leri',
     },
     toast: {
       fainted: (name: string) => `*${name}* bayıldı! Canlandırmak için _Poké Ball_ yanında dur.`,

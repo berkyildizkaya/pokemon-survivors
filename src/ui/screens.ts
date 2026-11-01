@@ -37,10 +37,15 @@ import { formatNumber, formatPokeDollars, locale, t } from '../i18n'
 import { ROUTES } from '../site/routes'
 import { treatIcon } from '../render/halloweenArt'
 import { h, later } from './dom'
+import { buildTag, followsBuild } from './buildMark'
 import { boundPadHint, glyphText } from './inputLabels'
 import { pressGuard } from './pressGuard'
 import { holdMoveCard, hoverMoveCard, moveCard, withMoveCard } from './moveCard'
 import { localPlayer } from '../game/players'
+import { surrenderGate, voters } from '../game/versusSocial'
+import { rulesOf } from '../game/versusRules'
+import { deathCause } from './deathCause'
+import { teamBuilds } from './teamHud'
 
 export type Screen = {
   el: HTMLElement
@@ -57,6 +62,8 @@ export const difficultyTag = (d: Difficulty) => h('span', { class: `difficulty-t
 
 /** Taps this soon after a menu opens are ignored: a thumb still steering the joystick shouldn't pick an upgrade. */
 const TAP_GUARD_MS = 350
+/** How long after Enter or Space a keyboard-made click (Space clicks on keyup) still counts as that same press. */
+const KEY_CLICK_MS = 1000
 
 /**
  * Hint that swaps between keyboard, gamepad and touch wording (see `.keys-only`,
@@ -77,10 +84,12 @@ export const hint = (keys: string, touch: string) =>
  * Arrows move the cursor, Enter/Space activate, digits pick directly.
  * `guard` (ms) makes a menu that opens mid-fight ignore picks at first:
  * taps and clicks for that long, keys and pad buttons until they pause
- * (`pressGuard`). `off` stops it whole, keys and pointer: a screen that binds
+ * (`pressGuard`). `space: false` leaves Space out (Enter, a tap or pad A
+ * still pick): the run's special key never lands on a screen the run opened
+ * on its own. `off` stops it whole, keys and pointer: a screen that binds
  * its buttons again (back from a screen on top) doesn't stack a second click.
  */
-export const menu = (input: Input, buttons: HTMLElement[], activate: (i: number) => void, opts: { horizontal?: boolean; initial?: number; guard?: number } = {}) => {
+export const menu = (input: Input, buttons: HTMLElement[], activate: (i: number) => void, opts: { horizontal?: boolean; initial?: number; guard?: number; space?: boolean } = {}) => {
   let index = opts.initial ?? 0
   const openedAt = performance.now()
   const takes = pressGuard(opts.guard ?? 0)
@@ -91,17 +100,26 @@ export const menu = (input: Input, buttons: HTMLElement[], activate: (i: number)
     if (sound) playSfx('move')
   }
   const pointer = new AbortController()
+  // A button that holds the page's focus (clicked during the tap guard, say) also takes the browser's own click
+  // for Enter or Space: one press would pick twice (two runs started at once, a pick screen left behind).
+  // The keys are this menu's to handle, so the click they make (`detail` 0) is dropped.
+  let keyedAt = -Infinity
   buttons.forEach((b, i) => {
     b.addEventListener('pointerenter', () => i !== index && focus(i), { signal: pointer.signal })
-    b.addEventListener('click', () => performance.now() - openedAt > tapGuard && activate(i), { signal: pointer.signal })
+    b.addEventListener(
+      'click',
+      (e) => (e.detail > 0 || performance.now() - keyedAt > KEY_CLICK_MS) && performance.now() - openedAt > tapGuard && activate(i),
+      { signal: pointer.signal },
+    )
   })
   focus(index, false)
   const prev = opts.horizontal ? ['ArrowLeft', 'KeyA'] : ['ArrowUp', 'KeyW']
   const next = opts.horizontal ? ['ArrowRight', 'KeyD'] : ['ArrowDown', 'KeyS']
   const offKeys = input.onKey((key) => {
+    if (key === 'Enter' || key === 'Space') keyedAt = performance.now()
     if (prev.includes(key)) focus(index - 1)
     else if (next.includes(key)) focus(index + 1)
-    else if (key === 'Enter' || key === 'Space') {
+    else if (key === 'Enter' || (key === 'Space' && opts.space !== false)) {
       if (takes(performance.now() - openedAt)) activate(index)
     } else if (/^Digit[1-9]$/.test(key)) {
       const i = Number(key.slice(5)) - 1
@@ -169,7 +187,7 @@ const offerRecipes = (g: Game, offer: Offer) => {
       // Reaching max level makes it a duo ingredient: the fusions it would open show up.
       if (offer.level < maxMoveLevel(offer.id) || isDuo(offer.id)) return evos
       const moves = [...p.moves.filter((o) => o.id !== offer.id), { id: offer.id, level: offer.level, cooldown: 0 }]
-      const duos = readyDuos(moves, legendSignature(localPlayer(g).starter)).filter((d) => d.from.includes(offer.id) && !readyDuos(p.moves, legendSignature(localPlayer(g).starter)).some((r) => r.to === d.to))
+      const duos = readyDuos(moves, legendSignature(p.starter), p.banished).filter((d) => d.from.includes(offer.id) && !readyDuos(p.moves, legendSignature(p.starter), p.banished).some((r) => r.to === d.to))
       return [...evos, ...duos.map((d) => duoChip(d.from, d.to))]
     }
     case 'duo':
@@ -195,7 +213,8 @@ const stepLine = (id: MoveId, level: number) => {
   return typeof text === 'string' ? text : t().levelUp.forkHint(text.fork[0].name, text.fork[1].name)
 }
 
-const offerView = (g: Game, offer: Offer) => {
+/** What a card shows for an offer: its icon, name, tag (NEW, Lv, MAX…), line, type and the fork's mods. Versus's pick tray reads it too (`ui/versusTray.ts`). */
+export const offerView = (g: Game, offer: Offer) => {
   const m = t()
   const rare = rarityOf(offer) === 'rare'
   switch (offer.kind) {
@@ -298,6 +317,7 @@ const fillCard = (g: Game, button: HTMLElement, offer: Offer, i: number) => {
   const v = offerView(g, offer)
   const recipes = offerRecipes(g, offer)
   const rarity = rarityOf(offer)
+  const build = followsBuild(g, offer)
   // A move the evolution just unlocked, while it still comes up more often: tagged with the form that learns it.
   const fresh =
     offer.kind === 'move' && localPlayer(g).freshMoves > 0 && !localPlayer(g).moves.some((m) => m.id === offer.id) && unlockedAt(localPlayer(g).starter, localPlayer(g).branch, localPlayer(g).stage).includes(offer.id)
@@ -312,6 +332,7 @@ const fillCard = (g: Game, button: HTMLElement, offer: Offer, i: number) => {
     rarity && `offer-${rarity}`,
     !canBanish(offer) && 'offer-keep',
     fresh && 'offer-fresh',
+    build && 'offer-build',
   ]
   button.className = classes.filter(Boolean).join(' ')
   button.style.setProperty('--i', String(i))
@@ -346,6 +367,7 @@ const fillCard = (g: Game, button: HTMLElement, offer: Offer, i: number) => {
         v.fork && h('span', { class: 'tag tag-fork' }, m.forkTag),
         fresh && h('span', { class: 'tag tag-fresh' }, m.freshTag(playerForm(g).name)),
         rarity && h('span', { class: `tag tag-${rarity}` }, rarity === 'rare' ? m.rare : m.shiny),
+        build && buildTag(),
       ),
       h('div', { class: 'offer-desc' }, v.desc),
       rarity === 'shiny' && h('div', { class: 'offer-note' }, m.shinyNote),
@@ -583,7 +605,7 @@ const duoPanel = (g: Game) => {
   const p = localPlayer(g)
   const owned = p.moves.find((o) => isDuo(o.id))
   const types = new Set<PokeType>([...runLearnset(localPlayer(g).starter, localPlayer(g).branch), ...p.moves.map((o) => o.id)].map((id) => MOVES[id].type))
-  const ready = readyDuos(p.moves, legendSignature(localPlayer(g).starter))
+  const ready = readyDuos(p.moves, legendSignature(p.starter), p.banished)
   const recipes = reachableDuos(types)
   if (recipes.length === 0 && !owned) return null
   const chips = owned
@@ -642,6 +664,27 @@ export const confirmDialog = (
   return { el, dispose: () => (nav.off(), offEsc(), el.remove()) }
 }
 
+/** The Arena menu's "Render-se": live with the match (too early, the team's cooldown, a vote running), usable only when ready. */
+const surrenderButton = (g: Game) => {
+  const button = h('button', { class: 'btn' })
+  const sync = () => {
+    const m = t().versus.surrender
+    const gate = surrenderGate(g, localPlayer(g))
+    const text =
+      gate.state === 'early' ? m.locked(formatTime(rulesOf(g.versus!).length - gate.until))
+      : gate.state === 'cooldown' ? m.cooldown(Math.ceil(gate.until - g.time))
+      : gate.state === 'running' ? m.running
+      : m.button
+    if (button.textContent !== text) button.textContent = text
+    button.classList.toggle('off', gate.state !== 'ready')
+    button.setAttribute('aria-disabled', String(gate.state !== 'ready'))
+  }
+  sync()
+  // The match runs behind the menu: the label follows it until the menu goes.
+  const timer = setInterval(() => (button.isConnected ? sync() : clearInterval(timer)), 500)
+  return button
+}
+
 /**
  * What the pause menu does. `coop`: it's co-op's menu instead, over a run
  * that goes on: no pause in its title, a sound switch (`sound` toggles it and
@@ -653,6 +696,8 @@ type PauseActions = {
   settings: (back: () => void) => Screen
   report: ((back: () => void) => Screen) | null
   coop?: { sound: () => boolean; soundOn: boolean }
+  /** An Arena match: proposes the team's surrender (or gives up, alone with bots), once confirmed. */
+  surrender?: () => void
 }
 
 export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: PauseActions): Screen => {
@@ -686,7 +731,22 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
   const confirmLeave = (focus: number) => {
     const m = t().team.menu
     openSub((back) => {
-      const dialog = confirmDialog(root, input, m.confirm, (yes) => (dialog.dispose(), yes ? actions.quit() : back()), { yes: m.yes, no: m.no })
+      const dialog = confirmDialog(root, input, g.versus ? t().versus.menu.confirm : m.confirm, (yes) => (dialog.dispose(), yes ? actions.quit() : back()), { yes: m.yes, no: m.no })
+      return dialog
+    }, focus)
+  }
+
+  /** Arena: "Render-se?" first (alone with bots, giving up; with teammates, a vote); yes sends it and closes the menu, so the vote shows. */
+  const confirmSurrender = (focus: number) => {
+    const m = t().versus.surrender
+    const alone = voters(g, localPlayer(g).versus?.team ?? 0).length <= 1
+    openSub((back) => {
+      const dialog = confirmDialog(root, input, alone ? m.confirmSolo : m.confirmTeam, (yes) => {
+        dialog.dispose()
+        if (!yes) return back()
+        actions.surrender?.()
+        actions.resume()
+      }, { yes: m.yes, no: m.no })
       return dialog
     }, focus)
   }
@@ -700,8 +760,11 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
     const settingsButton = h('button', { class: 'btn' }, m.settings)
     const report = actions.report
     const reportButton = report && h('button', { class: 'btn' }, m.reportBug)
-    const quit = h('button', { class: 'btn' }, coop ? cm.leave : m.quit)
-    const buttons = [resume, ...(sound ? [sound] : []), settingsButton, ...(reportButton ? [reportButton] : []), quit]
+    const quit = h('button', { class: 'btn' }, g.versus ? t().versus.menu.leave : coop ? cm.leave : m.quit)
+    const giveUp = g.versus && actions.surrender ? surrenderButton(g) : null
+    const buttons = [resume, ...(sound ? [sound] : []), settingsButton, ...(reportButton ? [reportButton] : []), ...(giveUp ? [giveUp] : []), quit]
+    // Co-op: the teammates' builds, to read and coordinate while the run goes on.
+    const builds = coop && teamBuilds(g, localPlayer(g))
     nav?.off()
     nav = menu(input, buttons, (i) => {
       const pressed = buttons[i]
@@ -715,26 +778,33 @@ export const pauseMenu = (root: HTMLElement, input: Input, g: Game, actions: Pau
       if (pressed === reportButton && report) later(() => openSub(report, i))
       // Quitting opens the partner select, which would take that same press as its pick and start the run again.
       if (pressed === quit) later(coop ? () => confirmLeave(i) : actions.quit)
+      if (pressed === giveUp && surrenderGate(g, localPlayer(g)).state === 'ready') later(() => confirmSurrender(i))
     }, { initial: focus })
     el.replaceChildren(
       h(
         'div',
         { class: opening ? 'dialog box pop wide pause' : 'dialog box wide pause' },
         h('div', { class: 'dialog-title' }, coop ? cm.title : m.title),
-        coop && h('p', { class: 'pause-note' }, cm.note),
-        difficultyTag(g.difficulty),
+        coop && h('p', { class: 'pause-note' }, g.versus ? t().versus.menu.note : cm.note),
+        // A match has no difficulty: everyone plays the same.
+        !g.versus && difficultyTag(g.difficulty),
         abilityPanel(g),
         h(
           'div',
           { class: 'pause-body' },
-          h(
-            'div',
-            { class: 'pause-grid' },
-            pauseSection(m.statsTitle, statTable(g)),
-            h('div', { class: 'pause-column' }, pauseSection(m.movesTitle, moveList(g)), pauseSection(m.itemsTitle, itemList(g))),
-          ),
-          duoPanel(g),
-          h('p', { class: 'evo-legend' }, m.evoLegend),
+          // A match keeps running behind the menu: your moves and your team's builds, not the run's whole sheet.
+          g.versus
+            ? pauseSection(m.movesTitle, moveList(g))
+            : h(
+                'div',
+                { class: 'pause-grid' },
+                pauseSection(m.statsTitle, statTable(g)),
+                h('div', { class: 'pause-column' }, pauseSection(m.movesTitle, moveList(g)), pauseSection(m.itemsTitle, itemList(g))),
+              ),
+          !g.versus && pauseSection(m.damageTitle, damagePanel(g)),
+          builds && pauseSection(cm.builds, builds),
+          !g.versus && duoPanel(g),
+          !g.versus && h('p', { class: 'evo-legend' }, m.evoLegend),
           hint(m.cardHintKeys, m.cardHintTouch),
         ),
         h('div', { class: 'buttons' }, ...buttons),
@@ -764,6 +834,53 @@ export const damageSource = (g: Game, id: DamageSource) => {
   if (id !== 'special') return { icon: moveIcon(id), name: MOVES[id].name, type: MOVES[id].type }
   const r = resolveSpecial(localPlayer(g).starter, localPlayer(g).stage, null, localPlayer(g).branch)
   return { icon: specialIcon(r.id), name: r.tier.name, type: r.def.type }
+}
+
+/** The player's damage by move, most first. */
+const damageEntries = (g: Game) => (Object.entries(localPlayer(g).damageByMove) as Array<[DamageSource, number]>).sort((a, b) => b[1] - a[1])
+
+/**
+ * The run's damage by move, most first, each with a bar against the top one
+ * (results, pause). `seconds` adds each move's average DPS over that long.
+ */
+const damageList = (g: Game, seconds: number | null = null) => {
+  const entries = damageEntries(g)
+  const top = entries[0]?.[1] ?? 1
+  return h(
+    'div',
+    { class: seconds === null ? 'damage-list' : 'damage-list with-dps' },
+    ...entries.map(([id, dmg]) => {
+      const src = damageSource(g, id)
+      return h(
+        'div',
+        { class: 'damage-row' },
+        h('img', { src: src.icon, alt: '' }),
+        h('span', { class: 'damage-name' }, src.name),
+        h('div', { class: 'damage-bar' }, h('div', { style: `width:${(dmg / top) * 100}%;--type:${TYPE_COLORS[src.type]}` })),
+        h('b', {}, formatNumber(dmg)),
+        seconds !== null && h('span', { class: 'damage-dps' }, `${formatNumber(Math.round(dmg / seconds))}/s`),
+      )
+    }),
+  )
+}
+
+/**
+ * The run so far on the pause sheet: the total, the damage by move and each
+ * one's DPS. The state has no time a move was learned, so the DPS is over the
+ * time played (`g.now`, rifts included), and the note says so.
+ */
+const damagePanel = (g: Game) => {
+  const m = t().pause
+  const total = damageEntries(g).reduce((sum, [, dmg]) => sum + dmg, 0)
+  if (total === 0) return h('p', { class: 'loadout-empty' }, m.damageEmpty)
+  const seconds = Math.max(1, g.now)
+  return h(
+    'div',
+    { class: 'pause-damage' },
+    h('p', { class: 'damage-total' }, m.damageTotal(formatNumber(total), formatNumber(Math.round(total / seconds)))),
+    damageList(g, seconds),
+    h('p', { class: 'damage-note' }, m.damageNote(formatTime(seconds))),
+  )
 }
 
 /** What the incubator made of the run: eggs paid in ₽ because they didn't fit (found or rewards), and eggs now ready to hatch. */
@@ -831,7 +948,9 @@ const runNews = ({ eggs, news, medals }: ResultsExtras) => {
  * a run that ends in endless mode shows its overtime, rift legendaries and Arceus.
  * The steps walked and eggs found feed the incubator (`extras.eggs`), and
  * `extras.news` adds a one-line Pokédex summary when the run found something new.
- * A victory also links the support page, under the buttons (only then, so it never nags).
+ * A victory also links the support page, under the buttons (only then, so it never nags); a faint
+ * says what landed the last hit (`deathCause`).
+ * `onLobby` goes straight home (Trocar Pokémon opens the partner select instead).
  */
 export const results = (
   root: HTMLElement,
@@ -839,6 +958,7 @@ export const results = (
   g: Game,
   onRetry: () => void,
   onMenu: () => void,
+  onLobby: () => void,
   onContinue?: () => void,
   extras: ResultsExtras = NO_EXTRAS,
 ): Screen => {
@@ -847,14 +967,13 @@ export const results = (
   const r = t().rifts
   const victory = g.phase === 'victory'
   const name = playerForm(g).name
-  const entries = (Object.entries(localPlayer(g).damageByMove) as Array<[DamageSource, number]>).sort((a, b) => b[1] - a[1])
-  const top = entries[0]?.[1] ?? 1
   const earned = runEarnings(g)
   const extra = overtime(g.time)
   const reaperDefeats = g.endless?.reaperDefeats ?? 0
   const legends = g.rift.cleared
   const retry = h('button', { class: 'btn' }, m.retry)
   const back = h('button', { class: 'btn' }, m.change)
+  const lobby = h('button', { class: 'btn' }, m.lobby)
   const goOn = victory && onContinue ? h('button', { class: 'btn' }, r.continue) : null
   const ranking = extras.ranking
   const boards = ranking ? h('button', { class: 'btn' }, t().ranking.open) : null
@@ -878,17 +997,20 @@ export const results = (
       nav = bindNav(buttons.indexOf(button))
     })
   }
-  const buttons = [goOn, retry, back, share, boards].filter((b) => b !== null)
+  const buttons = [goOn, retry, back, lobby, share, boards].filter((b) => b !== null)
   const actions = [
     goOn && onContinue,
     onRetry,
     onMenu,
+    onLobby,
     share && (() => openSub(extras.share?.open, share)),
     boards && (() => openSub(ranking?.open, boards)),
   ].filter((a) => typeof a === 'function')
   // Every button acts after the key dispatch: the screen it opens (Menu's partner select) would take the same press as its own.
-  const bindNav = (initial = 0, guard = 0) => menu(input, buttons, (i) => later(() => actions[i]?.()), { horizontal: true, initial, guard })
-  // The run ends mid-fight: A and Space, still being pressed for the special, would pick the focused button (Retry).
+  // Space is the special: pressed every second or so while it recharges, it picked Retry (or Continue) the moment the run ended,
+  // so the results never showed and the run "restarted". Enter, a tap or pad A pick here.
+  const bindNav = (initial = 0, guard = 0) => menu(input, buttons, (i) => later(() => actions[i]?.()), { horizontal: true, initial, guard, space: false })
+  // The run ends mid-fight: pad A, still being pressed for the special, would pick the focused button (Retry).
   let nav = bindNav(0, RESULTS_GUARD_MS)
 
   const el = h(
@@ -907,6 +1029,7 @@ export const results = (
       extras.badge,
       localPlayer(g).shiny && h('div', { class: 'tag tag-shiny' }, m.shiny(name)),
       reaperDefeats > 0 && h('div', { class: 'tag tag-shiny' }, r.reaperDefeated(reaperDefeats)),
+      g.phase === 'gameover' && deathCause(localPlayer(g)),
       h(
         'div',
         { class: 'result-stats' },
@@ -935,21 +1058,7 @@ export const results = (
         h('span', {}, m.earnings(formatPokeDollars(earned.coins), formatPokeDollars(earned.bonus))),
       ),
       extras.report,
-      h(
-        'div',
-        { class: 'damage-list' },
-        ...entries.map(([id, dmg]) => {
-          const src = damageSource(g, id)
-          return h(
-            'div',
-            { class: 'damage-row' },
-            h('img', { src: src.icon, alt: '' }),
-            h('span', { class: 'damage-name' }, src.name),
-            h('div', { class: 'damage-bar' }, h('div', { style: `width:${(dmg / top) * 100}%;--type:${TYPE_COLORS[src.type]}` })),
-            h('b', {}, formatNumber(dmg)),
-          )
-        }),
-      ),
+      damageList(g),
       h('div', { class: 'buttons result-buttons' }, ...buttons),
       victory && extras.credits,
       victory && h('a', { class: 'support-link result-support', href: ROUTES.support[locale()], target: '_blank', rel: 'noopener' }, `♥ ${m.support}`),

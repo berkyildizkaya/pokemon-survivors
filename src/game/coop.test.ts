@@ -3,9 +3,10 @@ import { COOP } from '../data/coop'
 import { RIFT } from '../data/rifts'
 import { PLAYABLE } from '../data/hatchlings'
 import { hurtPlayer } from './combat'
+import { alphaDown } from './alphas'
 import { awayHold, coopPayout, coopStats, playerDexLog } from './coop'
 import { spawnEnemy } from './enemies'
-import { createCoopGame, createGame, step, type CoopLoadout } from './game'
+import { createCoopGame, createGame, HITSTOP_REST, step, type CoopLoadout } from './game'
 import { parseTickEntry, stepTick, type TickEntry } from './lockstep'
 import { spawnMapEvent } from './mapEvents'
 import { NO_RANKS } from './meta'
@@ -181,7 +182,7 @@ describe('co-op picks', () => {
   })
 
   it('an evolution and a personal screen play without holding the team; the timer leaves a cursed item', () => {
-    const g = team()
+    const g = team(3)
     calm(g)
     const [a, b] = players(g)
     a.evolution = { from: 4, to: 5, t: 0 }
@@ -194,6 +195,40 @@ describe('co-op picks', () => {
     expect(g.time).toBeGreaterThan(time + 0.9)
     run(g, COOP.pick.time)
     expect([b.phase, b.curses.held]).toEqual(['playing', []])
+  })
+
+  it('a personal screen holds the world when nobody else is free to play, and closing one gives i-frames', () => {
+    const g = team()
+    calm(g)
+    const [a, b] = players(g)
+    knockOut(g, a)
+    b.offers = [{ kind: 'curse', id: 'lifeOrb', take: true }, { kind: 'curse', id: 'lifeOrb', take: false }]
+    setPhase(g, 'curse', b)
+    const time = g.time
+    run(g, 1)
+    expect([g.phase, phaseOf(g, b)]).toEqual(['playing', 'curse'])
+    expect(g.time).toBeLessThan(time + TICK)
+    run(g, TICK, () => [{ slot: 1, kind: 'pick', screen: 'curse', round: b.round, index: 1 }])
+    expect(b.phase).toBe('playing')
+    expect(b.iframes).toBeGreaterThan(COOP.revive.iframes - 2 * TICK)
+    run(g, 1)
+    expect(g.time).toBeGreaterThan(time + 0.9)
+  })
+
+  it('an Alpha drops one prize for the team: whoever takes it opens the rare level-up for everyone', () => {
+    const g = team(3)
+    calm(g)
+    const [a, b, c] = players(g) as [Player, Player, Player]
+    b.x = a.x + 600
+    c.x = a.x - 600
+    alphaDown(g, spawnEnemy(g, 'rattata', a.x + 10, a.y))
+    const prizes = g.pickups.filter((k) => k.kind === 'alphaPrize')
+    expect(prizes.map((k) => k.owner)).toEqual([undefined])
+    // Its EXP burst would open a level-up of its own first.
+    g.pickups.splice(0, g.pickups.length, ...prizes)
+    run(g, 1)
+    expect(g.pickups.some((k) => k.kind === 'alphaPrize')).toBe(false)
+    expect(g.players.map((p) => [p.phase, p.prize])).toEqual([['levelup', 'alpha'], ['levelup', 'alpha'], ['levelup', 'alpha']])
   })
 })
 
@@ -297,9 +332,9 @@ describe('co-op payout and stats', () => {
 
 describe('co-op entries', () => {
   it('reads only well-formed entries', () => {
-    expect(parseTickEntry({ slot: 1, kind: 'move', code: 17 })).toEqual({ slot: 1, kind: 'move', code: 17 })
+    expect(parseTickEntry({ slot: 1, kind: 'move', code: 17 }, 4)).toEqual({ slot: 1, kind: 'move', code: 17 })
     for (const bad of [null, 7, 'move', [], { slot: 9, kind: 'away' }, { slot: 0, kind: 'move', code: 999 }, { slot: 0, kind: 'pick', screen: 'playing', round: 0, index: 0 }, { slot: 0, kind: 'stone', mega: 'nope' }, { slot: -1, kind: 'leave' }, { slot: 0, kind: 'endless', vote: 'yes' }, { slot: 0, kind: 'teleport' }]) {
-      expect(parseTickEntry(bad)).toBeNull()
+      expect(parseTickEntry(bad, 4)).toBeNull()
     }
   })
 
@@ -328,6 +363,48 @@ const script = (g: Game) => (t: number): TickEntry[] => {
 }
 
 describe('co-op lockstep', () => {
+  it('a hitstop counts down without holding the team in co-op; solo still freezes for it', () => {
+    const g = team(2)
+    calm(g)
+    const [a] = players(g)
+    const { x, time } = { x: a.x, time: g.time }
+    g.hitstop = 0.07
+    run(g, 0.05, () => [{ slot: 0, kind: 'move', code: moveCode({ x: 1, y: 0 }) }])
+    expect(g.time).toBeCloseTo(time + 0.05)
+    expect(a.x).toBeGreaterThan(x)
+    expect(g.hitstop).toBeCloseTo(0.02)
+
+    const solo = createGame('charmander', { w: 480, h: 270 }, 42)
+    solo.phase = 'playing'
+    const before = { x: solo.player.x, time: solo.time }
+    solo.hitstop = 0.07
+    for (let t = 0; t < 3; t++) step(solo, { move: { x: 1, y: 0 }, special: false }, TICK)
+    expect(solo.time).toBe(before.time)
+    expect(solo.player.x).toBe(before.x)
+    expect(solo.hitstop).toBeCloseTo(0.07 - 3 * TICK)
+  })
+
+  it('a hitstop right after another one plays through: back-to-back impacts freeze once', () => {
+    const solo = createGame('charmander', { w: 480, h: 270 }, 42)
+    solo.phase = 'playing'
+    const held = (seconds: number) => {
+      let n = 0
+      for (let t = 0; t < Math.round(seconds / TICK); t++) {
+        const before = solo.time
+        step(solo, { move: { x: 0, y: 0 }, special: false }, TICK)
+        if (solo.time === before) n++
+      }
+      return n
+    }
+    solo.hitstop = 0.06
+    expect(held(0.2)).toBe(4)
+    solo.hitstop = 0.06
+    expect(held(0.2)).toBe(0)
+    held(HITSTOP_REST)
+    solo.hitstop = 0.06
+    expect(held(0.2)).toBe(4)
+  })
+
   it('keeps two clients fed the same entries identical, bit for bit', () => {
     const a = team(3, 77)
     const b = team(3, 77)

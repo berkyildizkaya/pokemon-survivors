@@ -4,8 +4,9 @@ import { query } from '../engine/spatial'
 import { isSummoner, SUMMONS, TRAITS } from '../data/traits'
 import { spawnHazard } from './bosses'
 import { hurtPlayer, killEnemy } from './combat'
+import { harmBy } from './harm'
 import { spawnEnemy } from './enemies'
-import { burst, damageText } from './effects'
+import { burst, damageText, shakeScreen } from './effects'
 import { inView } from './queries'
 import { finaleAlive } from './spawner'
 import { fanOffset, flavorOf, isSpit, SPITTERS, volleySize, type SpitFlavor } from './spitters'
@@ -44,7 +45,7 @@ const onScreen = (g: Game, e: Enemy) => inView(g, e.x, e.y, -8)
 
 /** Damage from a trait (blast), after wards. Fainting through here still drops EXP and items. */
 const hurtEnemy = (g: Game, e: Enemy, amount: number, from: Enemy) => {
-  const dmg = Math.round(absorb(e.trait, amount))
+  const dmg = dm.round(absorb(e.trait, amount))
   const away = dirTo(from.x, from.y, e.x, e.y)
   e.kx += (away.x * 140) / e.mass
   e.ky += (away.y * 140) / e.mass
@@ -112,7 +113,7 @@ const explode = (g: Game, e: Enemy) => {
   const before = g.player
   for (const p of g.players) {
     g.player = p
-    if (standing(g, p) && inBlast(e.x, e.y, r, p.x, p.y, p.radius * 0.7)) hurtPlayer(g, dmg, undefined, [], 'blast')
+    if (standing(g, p) && inBlast(e.x, e.y, r, p.x, p.y, p.radius * 0.7)) hurtPlayer(g, dmg, undefined, [], 'blast', harmBy(e))
   }
   g.player = before
   // Self-destruct: it faints without EXP, but whatever the blast takes down drops as usual.
@@ -123,7 +124,7 @@ const explode = (g: Game, e: Enemy) => {
     if (o && o !== e && o.dying < 0 && inBlast(e.x, e.y, r, o.x, o.y, o.radius)) hurtEnemy(g, o, blastDamage(o, dmg), e)
   }
   burst(g, e.x, e.y - e.radius, { colors: ['#ffffff', '#f8e858', '#f87830', '#e83030'], count: 28, speed: r * 5, ttl: 0.45 })
-  g.shake = Math.max(g.shake, 4)
+  shakeScreen(g, 4, e)
   g.events.push({ kind: 'trait', trait: 'kamikaze', phase: 'fire' })
 }
 
@@ -170,7 +171,7 @@ const beam = (g: Game, e: Enemy, act: Act<'beam'>, dt: number) => {
   const before = g.player
   for (const p of g.players) {
     g.player = p
-    if (standing(g, p) && onBeam(act.ox, act.oy, act.dx, act.dy, b.length, b.width / 2, p.x, p.y - p.radius, p.radius * 0.7)) hurtPlayer(g, e.damage * b.damage, undefined, [], 'beam')
+    if (standing(g, p) && onBeam(act.ox, act.oy, act.dx, act.dy, b.length, b.width / 2, p.x, p.y - p.radius, p.radius * 0.7)) hurtPlayer(g, e.damage * b.damage, undefined, [], 'beam', harmBy(e))
   }
   g.player = before
   if (act.t >= b.fire) {
@@ -188,7 +189,7 @@ const land = (g: Game, e: Enemy, act: Act<'leaper'>) => {
   }
   g.player = before
   burst(g, act.toX, act.toY, { colors: ['#c8b080', '#a08858', '#f0e0b8'], count: 16, speed: l.radius * 5, ttl: 0.4, drag: 6 })
-  g.shake = Math.max(g.shake, 2)
+  shakeScreen(g, 2, { x: act.toX, y: act.toY })
   act.phase = 'idle'
   act.cooldown = l.every
   g.events.push({ kind: 'trait', trait: 'leaper', phase: 'fire' })
@@ -248,6 +249,7 @@ const volley = (g: Game, e: Enemy, flavor: SpitFlavor) => {
   const dist = Math.min(dm.hypot(p.x - e.x, p.y - e.y), s.range)
   const damage = e.damage * s.damage * tune.damage * flavor.damage
   const n = volleySize(flavor, tune.volley, g.rng())
+  const by = harmBy(e)
   for (let i = 0; i < n; i++) {
     const a = aim + fanOffset(i, n, flavor.spread)
     const cos = dm.cos(a)
@@ -264,6 +266,7 @@ const volley = (g: Game, e: Enemy, flavor: SpitFlavor) => {
       damage,
       ttl: flight,
       vanishOnHit: true,
+      by,
     })
     if (!flavor.puddle) continue
     const ttl = flight + flavor.puddle.ttl
@@ -277,6 +280,7 @@ const volley = (g: Game, e: Enemy, flavor: SpitFlavor) => {
       armAt: flight,
       disarmAt: ttl - 0.3,
       ttl,
+      by,
     })
   }
   g.events.push({ kind: 'trait', trait: 'spitter', phase: 'fire' })
